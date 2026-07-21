@@ -8,6 +8,7 @@ import {
   FaBookOpen,
   FaChartBar,
   FaClipboardCheck,
+  FaUserCircle, // تم إضافة أيقونة المستخدم هنا
 } from "react-icons/fa";
 
 import SettingsMenu from "./settings/SettingsMenu";
@@ -67,13 +68,13 @@ function Navbar() {
 
   const isActive = (path: string) => location.pathname.includes(path);
 
-  const userImage = "https://i.pravatar.cc/150?img=3";
-
   return (
     <div
       className={`fixed top-0 left-0 w-full h-16 z-50 flex items-center justify-between
         px-4 md:px-8 bg-white/90 dark:bg-dark backdrop-blur-md
-        border-b border-gray-200 dark:border-gray-700 shadow-sm ${isArabic ? "rtl" : "ltr"}`}
+        border-b border-gray-200 dark:border-gray-700 shadow-sm ${
+          isArabic ? "rtl" : "ltr"
+        }`}
     >
       {/* ===== Logo ===== */}
       <img
@@ -113,11 +114,8 @@ function Navbar() {
           onClick={() => setProfileOpen(!profileOpen)}
           className="flex items-center gap-2 px-1 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer"
         >
-          <img
-            src={userImage}
-            alt="User"
-            className="w-8 h-8 rounded-full object-cover border border-gray-300 dark:border-gray-600"
-          />
+          {/* تم استبدال الصورة بالأيقونة هنا */}
+          <FaUserCircle className="w-8 h-8 text-gray-500 dark:text-gray-400" />
         </button>
 
         {profileOpen && <SettingsMenu isArabic={isArabic} />}
