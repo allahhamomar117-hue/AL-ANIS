@@ -1,0 +1,29 @@
+@import url("https://fonts.googleapis.com/css2?family=Cairo:wght@200..1000&family=Rubik:ital,wght@0,300..900;1,300..900&family=Tajawal:wght@200;300;400;500;700;800;900&display=swap");
+
+@plugin "tailwindcss-animate";
+@import "tailwindcss";
+@import "tw-animate-css";
+@custom-variant dark (&:is(.dark *));
+@config "../tailwind.config.js";
+
+body {
+  font-family: "Rubik", "Tajawal", sans-serif;
+}
+/* إخفاء السكرول بار */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE و Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+/* Hide scrollbar for all browsers */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}

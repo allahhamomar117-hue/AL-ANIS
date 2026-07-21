@@ -1,0 +1,311 @@
+{
+  "dashboard": {
+    "title": "Dashboard",
+    "attendance": {
+      "title": "Attendance",
+      "subtitle": "Record daily attendance"
+    },
+    "recitation": {
+      "title": "Recitation",
+      "subtitle": "Quran recitation sessions"
+    },
+    "students": {
+      "title": "All Students",
+      "subtitle": "Add rewards & activities"
+    },
+    "reports": {
+      "title": "Reports",
+      "subtitle": "View rankings & statistics"
+    },
+    "stats": {
+      "halaqas": {
+        "title": "Halaqas",
+        "value": "12 Halaqas",
+        "note": "Currently active"
+      },
+      "attendance": {
+        "title": "Attendance",
+        "value": "50 Students",
+        "note": "Present today"
+      }
+    },
+    "recentActivities": {
+      "title": "Recent Activities",
+      "newStudent": {
+        "title": "New Student Registration",
+        "desc": "Student \"Ahmed Mohamed\" was added",
+        "time": "1 minute ago"
+      },
+      "achievement": {
+        "title": "New Achievement",
+        "desc": "Student \"Omar Khalid\" completed memorizing Juz Am",
+        "time": "1 hour ago"
+      },
+      "initiative": {
+        "title": "New Initiative",
+        "desc": "Started \"Khair Al-Qulub\" initiative",
+        "time": "3 hours ago"
+      }
+    }
+  },
+
+  "attendanceGroups": {
+    "title": "Student Attendance",
+    "subtitle": "Select a halaqa to record today’s attendance",
+    "recordButton": "Attendance Record"
+  },
+
+  "attendancePage": {
+    "title": "Attendance",
+    "back": "Back to Groups",
+    "halaqaNumber": "Halaqa No:",
+    "date": "Date",
+    "teacherStatus": "Teacher Status",
+    "teacherName": "Teacher: Mohammad Ibrahim",
+    "studentsList": "Students List",
+    "save": "Save Attendance",
+    "notice": "When saving, the attendance report will be sent to the administration automatically",
+    "saveAlert": "Attendance saved! Check the console for details."
+  },
+"common": {
+  "present": "Present",
+  "absent": "Absent",
+  "delete": "Delete",
+  "cancel": "Cancel",
+  "add": "Add"
+},
+  "attendanceRecord": {
+    "title": "Mosque Attendance Records",
+    "date": "Date:",
+    "addStudent": "+ Add Student",
+    "empty": "No students for this day"
+  },
+  "popupAttendance": {
+    "title": "Add Student to Attendance",
+    "halaqaLabel": "Halaqa Name",
+    "selectHalaqa": "Select Halaqa",
+    "studentLabel": "Student Name",
+    "selectStudent": "Select Student"
+  },
+  "recitationGroups": {
+    "title": "Quran Recitation",
+    "subtitle": "Select a halaqa to record students recitation today",
+    "recordButton": "Recitation Records"
+  },
+  "recitationPage": {
+    "title": "Select Student",
+    "back": "Back to Halaqas",
+    "halaqaName": "✨ {{halaqa}}"
+  },
+  "recitationRecords": {
+    "title": "Quran Recitation Records",
+    "addButton": "+ Add Recitation",
+    "delete": "Delete",
+    "empty": "No recitations for this day",
+    "completed": "Page completed ✅",
+    "notCompleted": "Page not completed ❌",
+    "types": {
+      "full": "Full page: No. {{page}}",
+      "half": "Half page: No. {{page}} | {{completed}} | Verse No. {{verse}}",
+      "more": "More than a page: from {{from}} to {{to}}"
+    }
+  },
+  "recitationRegistration": {
+    "halaqa": "Al-Noor Halaqa",
+    "recitationType": "Recitation Type",
+    "types": {
+      "full": "Full Page",
+      "half": "Half Page",
+      "more": "More than a Page"
+    },
+    "pageNumber": "Page Number",
+    "fromPage": "From Page",
+    "toPage": "To Page",
+    "verse": "Verse Number",
+    "pageCompleted": "Page Completed",
+    "studentRating": "Student Rating",
+    "ratings": {
+      "excellent": "Excellent",
+      "good": "Good",
+      "needsImprovement": "Needs Improvement"
+    },
+    "teacherNotes": "Teacher Notes",
+    "notesPlaceholder": "Write your notes...",
+    "save": "Save Recitation",
+    "cancel": "Cancel",
+    "saved": "Recitation Saved ✅"
+  },
+  "popupRecitation": {
+    "title": "Add New Recitation",
+    "halaqaLabel": "Halaqa Name",
+    "studentLabel": "Student Name",
+    "recitationType": "Recitation Type",
+    "types": {
+      "full": "Full Page",
+      "half": "Half Page",
+      "more": "More than a Page"
+    },
+    "pageNumber": "Page Number",
+    "fromPage": "From Page",
+    "toPage": "To Page",
+    "pagePlaceholder": "Enter page number...",
+    "verse": "Verse Number",
+    "versePlaceholder": "Enter verse number...",
+    "pageCompleted": "Page Completed?",
+    "toPagePlaceholder": "Enter last page number...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "fillData": "Complete the required data"
+  },
+
+  "allStudents": {
+    "title": "Students Management",
+    "subtitle": "Manage student data and halaqa assignments",
+    "addStudentButton": "Add New Student",
+    "allStudents": "All Students",
+    "studentName": "Student Name",
+    "halaqa": "Halaqa",
+    "actions": "Actions",
+    "studentNumber": "Student No •",
+    "addPoints": "Add",
+    "deductPoints": "Deduct"
+  },
+  "popupAddPoints": {
+    "title": "Add Points",
+    "student": "Student",
+    "amount": "Amount",
+    "reason": "Reason",
+    "reasonPlaceholder": "Enter reason for adding points",
+    "cancel": "Cancel",
+    "save": "Save"
+  },
+  "popupAddStudent": {
+    "title": "Add New Student",
+    "name": "Name",
+    "birthDate": "Birth Date",
+    "halaqa": "Halaqa",
+    "parentPhone": "Parent Phone",
+    "studentPhone": "Student Phone",
+    "cancel": "Cancel",
+    "add": "Add"
+  },
+
+  "popupDeductPoints": {
+    "title": "Deduct Points",
+    "student": "Student",
+    "amount": "Amount",
+    "reason": "Reason",
+    "reasonPlaceholder": "Enter reason for deducting points",
+    "cancel": "Cancel",
+    "save": "Save"
+  },
+
+  "popupDeleteStudent": {
+    "title": "Delete Student",
+    "confirm": "Are you sure you want to delete student",
+    "cancel": "Cancel",
+    "delete": "Delete"
+  },
+  "popupEditStudent": {
+    "title": "Edit Student",
+    "name": "Name",
+    "birthDate": "Birth Date",
+    "halaqa": "Halaqa",
+    "parentPhone": "Parent Phone",
+    "studentPhone": "Student Phone",
+    "cancel": "Cancel",
+    "save": "Save"
+  },
+
+  "studentProfile": {
+    "studentId": "Student ID",
+    "points": "Points",
+    "attendance": "Attendance",
+    "halaqa": "Halaqa",
+    "birthDate": "Birth Date",
+    "tabs": {
+      "info": "Info",
+      "recitation": "Recitation",
+      "attendance": "Attendance",
+      "points": "Points"
+    },
+    "fields": {
+      "name": "Student Name",
+      "studentId": "Student ID",
+      "birthDate": "Birth Date",
+      "studentPhone": "Student Phone",
+      "guardianPhone": "Guardian Phone"
+    },
+    "recitation": {
+      "date": "Date",
+      "type": "Type",
+      "full": "Full",
+      "from": "From",
+      "to": "To",
+      "grade": "Grade",
+      "gradeExcellent": "Excellent"
+    },
+    "pointsReason": {
+      "recitationExcellent": "Excellent Recitation",
+      "goodParticipation": "Good Participation"
+    },
+    "pointsTable": {
+      "date": "Date",
+      "points": "Points",
+      "reason": "Reason"
+    }
+  },
+
+  "leaderboard": {
+    "title": "Leaderboard",
+    "subtitle": "Celebrating our top students",
+    "tabs": {
+      "points": "Points",
+      "attendance": "Attendance",
+      "recitation": "Recitation"
+    },
+    "labels": {
+      "totalPoints": "Total Points",
+      "attendance": "Attendance %",
+      "recitation": "Recitation Score"
+    },
+    "table": {
+      "rank": "Rank",
+      "name": "Student Name",
+      "halaqa": "Halaqa"
+    }
+  },
+  "halaqaCard": {
+    "students": "students"
+  },
+
+  "studentCard": {
+    "lastRecitation": "Last Recitation",
+    "recordRecitation": "Record Recitation"
+  },
+
+  "settings": {
+    "darkMode": "Dark Mode",
+    "language": "Language",
+    "logout": "Logout"
+  },
+
+  "logout": {
+    "confirm": "Are you sure you want to log out?",
+    "cancel": "Cancel",
+    "logout": "Log Out"
+  },
+
+  "login": {
+    "backToHome": "Back to Home Page",
+    "loginTitle": "Login",
+    "phonePlaceholder": "09XXXXXXXX",
+    "invalidPhone": "Invalid phone number",
+    "continue": "Continue",
+    "otpSent": "Verification code has been sent to the number",
+    "resend": "Resend",
+    "confirm": "Confirm"
+  },
+
+  "copyright": "All rights reserved"
+}

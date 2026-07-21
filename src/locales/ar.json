@@ -1,0 +1,311 @@
+{
+  "dashboard": {
+    "attendance": {
+      "title": "الحضور",
+      "subtitle": "إدارة حضور الطلاب"
+    },
+    "recitation": {
+      "title": "التلاوة",
+      "subtitle": "جلسات تلاوة القرآن"
+    },
+    "students": {
+      "title": "كل الطلاب",
+      "subtitle": "إضافة المكافآت والأنشطة"
+    },
+    "reports": {
+      "title": "التقارير",
+      "subtitle": "عرض التصنيفات والإحصائيات"
+    },
+    "stats": {
+      "halaqas": {
+        "title": "الحلقات",
+        "value": "12 حلقة",
+        "note": "مستمرة حالياً"
+      },
+      "attendance": {
+        "title": "الحضور",
+        "value": "50 طالب",
+        "note": "موجودين اليوم"
+      }
+    },
+    "recentActivities": {
+      "title": "آخر النشاطات",
+      "newStudent": {
+        "title": "تسجيل طالب جديد",
+        "desc": "تم إضافة الطالب \"أحمد محمد\"",
+        "time": "منذ دقيقة"
+      },
+      "achievement": {
+        "title": "إنجاز جديد",
+        "desc": "أتم الطالب \"عمر خالد\" حفظ جزء عم",
+        "time": "منذ ساعة"
+      },
+      "initiative": {
+        "title": "مبادرة جديدة",
+        "desc": "بدء مبادرة \"خير القلوب\"",
+        "time": "منذ 3 ساعات"
+      }
+    }
+  },
+  
+
+  "attendanceGroups": {
+    "title": "حضور الطلاب",
+    "subtitle": "اختر الحلقة لتسجيل حضور الطلاب اليوم",
+    "recordButton": "سجل الحضور"
+  },
+
+  "attendancePage": {
+    "title": "تسجيل الحضور",
+    "back": "العودة إلى الحلقات",
+    "halaqaNumber": "حلقة رقم:",
+    "date": "التاريخ",
+    "teacherStatus": "حالة الأستاذ",
+    "teacherName": "الأستاذ: محمد إبراهيم",
+    "studentsList": "قائمة الطلاب",
+    "save": "حفظ الحضور",
+    "notice": "عند الضغط على حفظ، سيتم إرسال تقرير الحضور إلى إدارة الجامع تلقائيًا",
+    "saveAlert": "تم حفظ الحضور! تحقق من الـ console لعرض البيانات."
+  },
+
+"common": {
+  "present": "حاضر",
+  "absent": "غائب",
+  "delete": "حذف",
+  "cancel": "إلغاء",
+  "add": "إضافة"
+},
+
+  "attendanceRecord": {
+    "title": "سجلات الحضور بالجامع",
+    "date": "التاريخ:",
+    "addStudent": "+ إضافة طالب",
+    "empty": "لا يوجد طلاب في هذا اليوم"
+  },
+
+  "popupAttendance": {
+    "title": "إضافة طالب للحضور",
+    "halaqaLabel": "اسم الحلقة",
+    "selectHalaqa": "اختر الحلقة",
+    "studentLabel": "اسم الطالب",
+    "selectStudent": "اختر الطالب"
+  },
+
+  "recitationGroups": {
+    "title": "تسميع القرآن",
+    "subtitle": "اختر الحلقة لتسجيل تسميع الطلاب اليوم",
+    "recordButton": "سجل التسميع"
+  },
+  "recitationPage": {
+    "title": "اختيار الطالب",
+    "back": "العودة إلى الحلقات",
+    "halaqaName": "✨ {{halaqa}}"
+  },
+  "recitationRecords": {
+    "title": "سجل تسميع القرآن",
+    "addButton": "+ إضافة تسميع",
+    "delete": "حذف",
+    "empty": "لا يوجد تسميع في هذا اليوم",
+    "completed": "اكتملت الصفحة ✅",
+    "notCompleted": "لم تكتمل ❌",
+    "types": {
+      "full": "صفحة كاملة: رقم {{page}}",
+      "half": "نصف صفحة: رقم {{page}} | {{completed}} | آية رقم {{verse}}",
+      "more": "أكثر من صفحة: من {{from}} إلى {{to}}"
+    }
+  },
+  "recitationRegistration": {
+    "halaqa": "حلقة النور",
+    "recitationType": "نوع التسميع",
+    "types": {
+      "full": "صفحة كاملة",
+      "half": "نصف صفحة",
+      "more": "أكثر من صفحة"
+    },
+    "pageNumber": "رقم الصفحة",
+    "fromPage": "من الصفحة",
+    "toPage": "إلى الصفحة",
+    "verse": "رقم الآية",
+    "pageCompleted": "اكتملت الصفحة",
+    "studentRating": "تقييم الطالب",
+    "ratings": {
+      "excellent": "ممتاز",
+      "good": "جيد",
+      "needsImprovement": "يحتاج تحسين"
+    },
+    "teacherNotes": "ملاحظات المعلم",
+    "notesPlaceholder": "اكتب ملاحظاتك...",
+    "save": "حفظ التسميع",
+    "cancel": "إلغاء",
+    "saved": "تم حفظ التسميع ✅"
+  },
+  "popupRecitation": {
+    "title": "إضافة تسميع جديد",
+    "halaqaLabel": "اسم الحلقة",
+    "studentLabel": "اسم الطالب",
+    "recitationType": "نوع التسميع",
+    "types": {
+      "full": "صفحة كاملة",
+      "half": "نصف صفحة",
+      "more": "أكثر من صفحة"
+    },
+    "pageNumber": "رقم الصفحة",
+    "fromPage": "من الصفحة",
+    "toPage": "إلى الصفحة",
+    "pagePlaceholder": "أدخل رقم الصفحة...",
+    "verse": "رقم الآية",
+    "versePlaceholder": "أدخل رقم الآية...",
+    "pageCompleted": "هل اكتملت الصفحة؟",
+    "toPagePlaceholder": "أدخل رقم الصفحة الأخيرة...",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "fillData": "أكمل البيانات المطلوبة"
+  },
+  "allStudents": {
+    "title": "إدارة الطلاب",
+    "subtitle": "إدارة بيانات الطلاب وتوزيع الحلقات",
+    "addStudentButton": "إضافة طالب جديد",
+    "allStudents": "كل الطلاب",
+    "studentName": "اسم الطالب",
+    "halaqa": "الحلقة",
+    "actions": "إجراءات",
+    "studentNumber": "رقم الطالب •",
+    "addPoints": "إضافة",
+    "deductPoints": "حسم"
+  },
+
+  "popupAddPoints": {
+    "title": "إضافة نقاط",
+    "student": "الطالب",
+    "amount": "الكمية",
+    "reason": "السبب",
+    "reasonPlaceholder": "اكتب سبب إضافة النقاط",
+    "cancel": "إلغاء",
+    "save": "حفظ"
+  },
+  "popupAddStudent": {
+    "title": "إضافة طالب جديد",
+    "name": "الاسم",
+    "birthDate": "المواليد",
+    "halaqa": "الحلقة",
+    "parentPhone": "رقم ولي الأمر",
+    "studentPhone": "رقم الطالب",
+    "cancel": "إلغاء",
+    "add": "إضافة"
+  },
+
+  "popupDeductPoints": {
+    "title": "خصم نقاط",
+    "student": "الطالب",
+    "amount": "الكمية",
+    "reason": "السبب",
+    "reasonPlaceholder": "اكتب سبب خصم النقاط",
+    "cancel": "إلغاء",
+    "save": "حفظ"
+  },
+  "popupDeleteStudent": {
+    "title": "حذف الطالب",
+    "confirm": "هل أنت متأكد أنك تريد حذف الطالب",
+    "cancel": "إلغاء",
+    "delete": "حذف"
+  },
+
+  "popupEditStudent": {
+    "title": "تعديل بيانات الطالب",
+    "name": "الاسم",
+    "birthDate": "المواليد",
+    "halaqa": "الحلقة",
+    "parentPhone": "رقم ولي الأمر",
+    "studentPhone": "رقم الطالب",
+    "cancel": "إلغاء",
+    "save": "حفظ"
+  },
+
+  "studentProfile": {
+    "studentId": "رقم الطالب",
+    "points": "النقاط",
+    "attendance": "نسبة الحضور",
+    "halaqa": "الحلقة",
+    "birthDate": "المواليد",
+    "tabs": {
+      "info": "البيانات",
+      "recitation": "التسميع",
+      "attendance": "الحضور",
+      "points": "النقاط"
+    },
+    "fields": {
+      "name": "اسم الطالب",
+      "studentId": "رقم الطالب",
+      "birthDate": "تاريخ الميلاد",
+      "studentPhone": "رقم الطالب",
+      "guardianPhone": "رقم ولي الأمر"
+    },
+    "recitation": {
+      "date": "التاريخ",
+      "type": "النوع",
+      "full": "كامل",
+      "from": "من",
+      "to": "إلى",
+      "grade": "التقييم",
+      "gradeExcellent": "ممتاز"
+    },
+    "pointsReason": {
+      "recitationExcellent": "تسميع ممتاز",
+      "goodParticipation": "مشاركة جيدة"
+    },
+    "pointsTable": {
+      "date": "التاريخ",
+      "points": "النقاط",
+      "reason": "السبب"
+    }
+  },
+  "leaderboard": {
+    "title": "لوحة الصدارة",
+    "subtitle": "احتفاء بطلابنا المتميزين",
+    "tabs": {
+      "points": "النقاط",
+      "attendance": "الحضور",
+      "recitation": "التسميع"
+    },
+    "labels": {
+      "totalPoints": "نقطة إجمالية",
+      "attendance": "نسبة الحضور %",
+      "recitation": "درجة التسميع"
+    },
+    "table": {
+      "rank": "المركز",
+      "name": "اسم الطالب",
+      "halaqa": "الحلقة"
+    }
+  },
+  "halaqaCard": {
+    "students": "طالب"
+  },
+  "studentCard": {
+    "lastRecitation": "آخر تسميع",
+    "recordRecitation": "تسجيل التسميع"
+  },
+
+  "settings": {
+    "darkMode": "الوضع المظلم",
+    "language": "اللغة",
+    "logout": "تسجيل الخروج"
+  },
+
+  "logout": {
+    "confirm": "هل أنت متأكد من تسجيل الخروج؟",
+    "cancel": "إلغاء",
+    "logout": "تسجيل خروج"
+  },
+
+  "login": {
+    "backToHome": "العودة إلى الصفحة الرئيسية",
+    "loginTitle": "تسجيل الدخول",
+    "phonePlaceholder": "09XXXXXXXX",
+    "invalidPhone": "رقم الموبايل غير صحيح",
+    "continue": "متابعة",
+    "otpSent": "لقد تم ارسال رمز التحقق الى الرقم",
+    "resend": "اعادة ارسال",
+    "confirm": "تأكيد"
+  }
+}
