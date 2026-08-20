@@ -1,267 +1,389 @@
 import { useState } from "react";
-import { BookOpen, ThumbsUp, CheckCircle, Save } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { BookOpen, ThumbsUp, CheckCircle, Save, AlertCircle } from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { recitationsApi } from "../../lib/api";
+import { qk } from "../../lib/api/queryKeys";
+import { useStudent } from "../../lib/api/hooks";
+import Avatar from "../../shared/Avatar";
+import { ErrorState, LoadingState } from "../../shared/QueryState";
+import { JUZ_AMMA } from "../../lib/quran/juzAmma";
+import { formatDate, todayLocal } from "../../lib/format/date";
+import { useToast } from "../../shared/toast/toastContext";
 
 /* ================= TYPES ================= */
-type RecitationType = "full" | "half" | "more";
+type RecitationType = "full" | "half" | "more" | "surah";
 type Rating = "excellent" | "good" | "needs";
+/** طريقة تحديد المُسمَّع: بالصفحة (كل المصحف) أو بالسورة (جزء عمّ). */
+type InputMode = "page" | "surah";
 
 /* ================= MAIN ================= */
+/**
+ * إدخال التسميع — مضغوط ليكتمل في شاشة جوال واحدة بلا تمرير:
+ * بطاقة واحدة بأقسام صغيرة، والخيارات أشرطة أفقية بنقرة واحدة.
+ */
 export default function RecitationRegistration() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { notify } = useToast();
+  const { studentId: studentIdParam, groupId, lang = "ar" } = useParams();
+
+  const studentId = Number(studentIdParam);
+  const halaqaId = Number(groupId);
+
+  /** رجوع صريح إلى قائمة طلاب الحلقة — أوثق من navigate(-1). */
+  const backToList = () =>
+    groupId ? navigate(`/${lang}/recitation-groups/${groupId}`) : navigate(-1);
+
+  const [inputMode, setInputMode] = useState<InputMode>("page");
+  const [surahNumber, setSurahNumber] = useState<number | "">("");
   const [recitationType, setRecitationType] = useState<RecitationType>("full");
   const [rating, setRating] = useState<Rating>("good");
   const [notes, setNotes] = useState("");
 
   const [pageNumber, setPageNumber] = useState<number | "">("");
-  const [verse, setVerse] = useState("");
+  const [verse, setVerse] = useState<number | "">("");
   const [pageCompleted, setPageCompleted] = useState(false);
   const [toPage, setToPage] = useState<number | "">("");
 
-  const navigate = useNavigate();
-  const userImage = "https://i.pravatar.cc/150?img=3";
+  const student = useStudent(studentId);
+  const isSurahMode = inputMode === "surah";
 
-  const handleSave = () => {
-    const data = {
-      recitationType,
-      rating,
-      notes,
-      pageNumber,
-      verse: recitationType === "half" ? verse : undefined,
-      pageCompleted: recitationType === "half" ? pageCompleted : undefined,
-      toPage: recitationType === "more" ? toPage : undefined,
-    };
+  const create = useMutation({
+    mutationFn: () =>
+      recitationsApi.create({
+        studentId,
+        halaqaId: Number.isFinite(halaqaId) ? halaqaId : undefined,
+        // بالسورة: الخادم يشتقّ الصفحات ووزن النقاط، فنرسل رقم السورة فقط
+        ...(isSurahMode
+          ? { type: "surah" as const, surahNumber: Number(surahNumber) }
+          : {
+              type: recitationType,
+              pageNumber: Number(pageNumber),
+              toPage: recitationType === "more" ? Number(toPage) : null,
+              verse: recitationType === "half" ? Number(verse) : null,
+              pageCompleted: recitationType === "half" ? pageCompleted : true,
+            }),
+        rating,
+        notes: notes.trim() || null,
+        // نرسل تاريخ جهاز المستخدم صراحةً: القيمة الافتراضية في الخادم
+        // تتبع منطقة الخادم وقد تختلف عن منطقة المدرّس
+        recitedAt: todayLocal(),
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.recitations.all });
+      // التسميع يمنح نقاطاً، فتتأثر أرصدة الطلاب والحلقات والتقارير
+      void queryClient.invalidateQueries({ queryKey: qk.students.all });
+      void queryClient.invalidateQueries({ queryKey: qk.halaqat.all });
+      void queryClient.invalidateQueries({ queryKey: qk.reports.all });
+      notify(t("recitationRegistration.saved"));
+      backToList();
+    },
+  });
 
-    console.log(data);
-    alert(t("recitationRegistration.saved"));
-  };
+  // نفس شروط الخادم: بالسورة يكفي اختيارها؛ بالصفحة نصف صفحة يتطلب الآية،
+  // وأكثر من صفحة يتطلب نهاية صحيحة
+  const valid = isSurahMode
+    ? typeof surahNumber === "number"
+    : typeof pageNumber === "number" &&
+      pageNumber > 0 &&
+      (recitationType !== "half" || (typeof verse === "number" && verse > 0)) &&
+      (recitationType !== "more" || (typeof toPage === "number" && toPage >= pageNumber));
+
+  if (student.isPending) {
+    return (
+      <div className="min-h-screen bg-white pt-20 dark:bg-dark-light md:pt-24">
+        <LoadingState />
+      </div>
+    );
+  }
+
+  if (student.isError) {
+    return (
+      <div className="min-h-screen bg-white pt-20 dark:bg-dark-light md:pt-24">
+        <ErrorState error={student.error} onRetry={() => void student.refetch()} />
+      </div>
+    );
+  }
+
+  const data = student.data.data;
+  const today = formatDate(new Date(), i18n.language);
+
+  const numeric = (value: string) => (value === "" ? "" : Number(value));
+  const inputClass =
+    "w-full min-h-[44px] rounded-xl border border-gray-300 bg-white px-3 text-base text-gray-800 " +
+    "focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-400 " +
+    "dark:border-gray-600 dark:bg-dark-light dark:text-white";
+  const labelClass = "mb-1 block text-xs font-bold text-gray-500 dark:text-gray-400";
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 mt-16 space-y-6 bg-white dark:bg-dark-light transition-colors duration-300">
-      {/* ---------- Student Card ---------- */}
-      <div className="bg-white dark:bg-dark rounded-3xl p-6 flex items-center justify-between shadow transition-colors duration-300">
-        <div>
-          <h2 className="text-xl font-bold text-gray-800 dark:text-white">أحمد محمد علي</h2>
-          <span className="inline-block mt-2 px-3 py-1 text-sm bg-primary-light text-primary rounded-full">
-            {t("recitationRegistration.halaqa")}
-          </span>
+    <div className="min-h-screen bg-gray-50 px-3 pb-6 pt-[4.5rem] dark:bg-dark-light md:px-4 md:pt-24">
+      <div className="mx-auto max-w-2xl space-y-2">
+        {/* ---------- رأس الطالب: صورة مصغّرة + الاسم + الحلقة والتاريخ ---------- */}
+        <div className="flex items-center gap-3 rounded-xl bg-white px-3 py-2 shadow-sm dark:bg-dark">
+          <Avatar name={data.name} url={data.avatarUrl} className="size-11" />
+
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate font-bold leading-tight text-gray-800 dark:text-white">
+              {data.name}
+            </h2>
+            <p className="truncate text-[11px] leading-tight text-gray-500 dark:text-gray-400">
+              {data.halaqa || t("common.none")} · {today}
+            </p>
+          </div>
         </div>
-        <img src={userImage} className="w-16 h-16 rounded-full" />
-      </div>
 
-      {/* ---------- Card 1 : Recitation ---------- */}
-      <RecitationTypeCard
-        recitationType={recitationType}
-        setRecitationType={setRecitationType}
-        pageNumber={pageNumber}
-        setPageNumber={setPageNumber}
-        verse={verse}
-        setVerse={setVerse}
-        pageCompleted={pageCompleted}
-        setPageCompleted={setPageCompleted}
-        toPage={toPage}
-        setToPage={setToPage}
-      />
-
-      {/* ---------- Card 2 : Rating ---------- */}
-      <RatingCard rating={rating} setRating={setRating} />
-
-      {/* ---------- Card 3 : Notes ---------- */}
-      <NotesCard notes={notes} setNotes={setNotes} />
-
-      {/* ---------- Actions ---------- */}
-      <div className="flex flex-col sm:flex-row gap-4 justify-center">
-        <button
-          onClick={handleSave}
-          className="flex items-center justify-center gap-2 bg-primary hover:bg-primary-dark text-white px-8 py-3 rounded-full shadow transition-colors duration-300"
-        >
-          <Save size={18} />
-          {t("recitationRegistration.save")}
-        </button>
-        <button
-          onClick={() => navigate(-1)}
-          className="px-8 py-3 rounded-full border bg-white dark:bg-dark hover:bg-gray-100 dark:hover:bg-dark-light transition-colors duration-300"
-        >
-          {t("recitationRegistration.cancel")}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/* ================= CARD 1 ================= */
-function RecitationTypeCard({
-  recitationType,
-  setRecitationType,
-  pageNumber,
-  setPageNumber,
-  verse,
-  setVerse,
-  pageCompleted,
-  setPageCompleted,
-  toPage,
-  setToPage,
-}: any) {
-  const { t } = useTranslation();
-  return (
-    <div className="bg-white dark:bg-dark rounded-3xl p-6 space-y-6 shadow transition-colors duration-300">
-      <h3 className="text-xl font-bold flex items-center gap-2 text-gray-800 dark:text-white">
-        <BookOpen size={18} />
-        {t("recitationRegistration.recitationType")}
-      </h3>
-
-      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 bg-white-light dark:bg-dark-light p-2 rounded-2xl w-full sm:w-fit">
-        <ToggleButton
-          active={recitationType === "full"}
-          onClick={() => setRecitationType("full")}
-        >
-          {t("recitationRegistration.types.full")}
-        </ToggleButton>
-        <ToggleButton
-          active={recitationType === "half"}
-          onClick={() => setRecitationType("half")}
-        >
-          {t("recitationRegistration.types.half")}
-        </ToggleButton>
-        <ToggleButton
-          active={recitationType === "more"}
-          onClick={() => setRecitationType("more")}
-        >
-          {t("recitationRegistration.types.more")}
-        </ToggleButton>
-      </div>
-
-      <div>
-        <p className="font-medium mb-2 text-gray-800 dark:text-white">
-          {recitationType === "more"
-            ? t("recitationRegistration.fromPage")
-            : t("recitationRegistration.pageNumber")}
-        </p>
-        <input
-          type="number"
-          value={pageNumber}
-          onChange={(e) => setPageNumber(Number(e.target.value))}
-          className="w-full max-w-md rounded-full border border-gray-300 dark:border-gray-600 px-5 py-3 bg-white dark:bg-dark-light text-gray-800 dark:text-white"
-        />
-      </div>
-
-      {recitationType === "half" && (
-        <div className="space-y-4">
-          <input
-            type="number"
-            placeholder={t("recitationRegistration.verse")}
-            value={verse}
-            onChange={(e) => setVerse(e.target.value)}
-            className="w-full max-w-md rounded-full border border-gray-300 dark:border-gray-600 px-5 py-3 bg-white dark:bg-dark-light text-gray-800 dark:text-white"
-          />
-
-          <label className="flex items-center gap-2 text-gray-800 dark:text-white">
-            <input
-              type="checkbox"
-              checked={pageCompleted}
-              onChange={(e) => setPageCompleted(e.target.checked)}
-              className="w-5 h-5 accent-primary"
+        {/* ---------- بطاقة الإدخال ---------- */}
+        <div className="space-y-3 rounded-xl bg-white p-3 shadow-sm dark:bg-dark">
+          {/* طريقة التحديد: بالصفحة أو بالسورة (جزء عمّ) */}
+          <section>
+            <p className={`${labelClass} flex items-center gap-1.5`}>
+              <BookOpen size={13} />
+              {t("recitationRegistration.inputMode.label")}
+            </p>
+            <Segmented
+              options={[
+                { value: "page", label: t("recitationRegistration.inputMode.byPage") },
+                { value: "surah", label: t("recitationRegistration.inputMode.bySurah") },
+              ]}
+              value={inputMode}
+              onChange={setInputMode}
             />
-            {t("recitationRegistration.pageCompleted")}
-          </label>
+          </section>
+
+          {/* نوع التسميع — بالصفحة فقط؛ مع السورة يُحسب المقدار من السورة نفسها */}
+          {!isSurahMode && (
+            <section>
+              <p className={labelClass}>{t("recitationRegistration.recitationType")}</p>
+              <Segmented
+                options={[
+                  { value: "full", label: t("recitationRegistration.types.full") },
+                  { value: "half", label: t("recitationRegistration.types.half") },
+                  { value: "more", label: t("recitationRegistration.types.more") },
+                ]}
+                value={recitationType}
+                onChange={setRecitationType}
+              />
+            </section>
+          )}
+
+          {/* اختيار السورة — قائمة منسدلة للبحث السريع وشرائح للأكثر استعمالاً */}
+          {isSurahMode && (
+            <section>
+              <label className={labelClass}>{t("recitationRegistration.surah")}</label>
+              <select
+                value={surahNumber}
+                onChange={(e) => setSurahNumber(e.target.value === "" ? "" : Number(e.target.value))}
+                className={inputClass}
+              >
+                <option value="">{t("recitationRegistration.chooseSurah")}</option>
+                {JUZ_AMMA.map((surah) => (
+                  <option key={surah.number} value={surah.number}>
+                    {surah.number} · {surah.name}
+                  </option>
+                ))}
+              </select>
+
+              {/* شرائح: اختيار بنقرة واحدة دون فتح القائمة */}
+              <div className="mt-2 flex flex-wrap gap-1">
+                {JUZ_AMMA.map((surah) => {
+                  const active = surahNumber === surah.number;
+                  return (
+                    <button
+                      key={surah.number}
+                      onClick={() => setSurahNumber(surah.number)}
+                      className={`min-h-[30px] rounded-lg px-2 text-[11px] font-bold transition active:scale-95 ${
+                        active
+                          ? "bg-emerald-500 text-white shadow-sm"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-dark-light dark:text-gray-300"
+                      }`}
+                    >
+                      {surah.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {/* الصفحات — حقلان جنباً إلى جنب حسب نوع التسميع */}
+          <section className={`grid grid-cols-2 gap-2 ${isSurahMode ? "hidden" : ""}`}>
+            <div className={recitationType === "full" ? "col-span-2" : "col-span-1"}>
+              <label className={labelClass}>
+                {recitationType === "more"
+                  ? t("recitationRegistration.fromPage")
+                  : t("recitationRegistration.pageNumber")}
+              </label>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={604}
+                value={pageNumber}
+                onChange={(e) => setPageNumber(numeric(e.target.value))}
+                className={inputClass}
+              />
+            </div>
+
+            {recitationType === "more" && (
+              <div>
+                <label className={labelClass}>{t("recitationRegistration.toPage")}</label>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={604}
+                  value={toPage}
+                  onChange={(e) => setToPage(numeric(e.target.value))}
+                  className={inputClass}
+                />
+              </div>
+            )}
+
+            {recitationType === "half" && (
+              <>
+                <div>
+                  <label className={labelClass}>{t("recitationRegistration.verse")}</label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    value={verse}
+                    onChange={(e) => setVerse(numeric(e.target.value))}
+                    className={inputClass}
+                  />
+                </div>
+
+                <label
+                  className="col-span-2 flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl
+                    border border-gray-300 px-3 text-sm text-gray-800 dark:border-gray-600 dark:text-white"
+                >
+                  <input
+                    type="checkbox"
+                    checked={pageCompleted}
+                    onChange={(e) => setPageCompleted(e.target.checked)}
+                    className="size-4 accent-emerald-500"
+                  />
+                  <span className="truncate">{t("recitationRegistration.pageCompleted")}</span>
+                </label>
+              </>
+            )}
+          </section>
+
+          {/* التقييم — شريط أفقي بثلاثة خيارات */}
+          <section>
+            <p className={labelClass}>{t("recitationRegistration.studentRating")}</p>
+            <Segmented
+              options={[
+                {
+                  value: "excellent",
+                  label: t("recitationRegistration.ratings.excellent"),
+                  icon: <CheckCircle size={13} />,
+                },
+                {
+                  value: "good",
+                  label: t("recitationRegistration.ratings.good"),
+                  icon: <ThumbsUp size={13} />,
+                },
+                {
+                  value: "needs",
+                  label: t("recitationRegistration.ratings.needsImprovement"),
+                  icon: <AlertCircle size={13} />,
+                },
+              ]}
+              value={rating}
+              onChange={setRating}
+            />
+          </section>
+
+          {/* الملاحظات — سطران يكفيان لملاحظة سريعة */}
+          <section>
+            <label className={labelClass}>{t("recitationRegistration.teacherNotes")}</label>
+            <textarea
+              rows={2}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className={`${inputClass} resize-none py-2 leading-snug`}
+              placeholder={t("recitationRegistration.notesPlaceholder")}
+            />
+          </section>
         </div>
-      )}
 
-      {recitationType === "more" && (
-        <input
-          type="number"
-          placeholder={t("recitationRegistration.toPage")}
-          value={toPage}
-          onChange={(e) => setToPage(Number(e.target.value))}
-          className="w-full max-w-md rounded-full border border-gray-300 dark:border-gray-600 px-5 py-3 bg-white dark:bg-dark-light text-gray-800 dark:text-white"
-        />
-      )}
-    </div>
-  );
-}
+        {create.isError && (
+          <p className="rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-700 dark:bg-red-900/20 dark:text-red-400">
+            {create.error instanceof Error ? create.error.message : t("state.error")}
+          </p>
+        )}
 
-/* ================= CARD 2 ================= */
-function RatingCard({
-  rating,
-  setRating,
-}: {
-  rating: Rating;
-  setRating: (v: Rating) => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <div className="bg-white dark:bg-dark rounded-3xl p-6 space-y-4 shadow transition-colors duration-300">
-      <h3 className="text-xl font-bold text-gray-800 dark:text-white">
-        {t("recitationRegistration.studentRating")}
-      </h3>
+        {/* ---------- الأزرار ---------- */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => create.mutate()}
+            disabled={!valid || create.isPending}
+            className="flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-500
+              font-bold text-white shadow-md transition hover:bg-emerald-600 active:scale-[0.98]
+              disabled:opacity-50 disabled:active:scale-100"
+          >
+            <Save size={17} />
+            {create.isPending
+              ? t("recitationRegistration.saving")
+              : t("recitationRegistration.save")}
+          </button>
 
-      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 bg-white-light dark:bg-dark-light p-2 rounded-2xl w-full sm:w-fit">
-        <ToggleButton
-          active={rating === "excellent"}
-          onClick={() => setRating("excellent")}
-        >
-          <CheckCircle size={16} />
-          {t("recitationRegistration.ratings.excellent")}
-        </ToggleButton>
-
-        <ToggleButton
-          active={rating === "good"}
-          onClick={() => setRating("good")}
-        >
-          <ThumbsUp size={16} />
-          {t("recitationRegistration.ratings.good")}
-        </ToggleButton>
-
-        <ToggleButton
-          active={rating === "needs"}
-          onClick={() => setRating("needs")}
-        >
-          {t("recitationRegistration.ratings.needsImprovement")}
-        </ToggleButton>
+          <button
+            onClick={backToList}
+            disabled={create.isPending}
+            className="min-h-[48px] rounded-xl border border-gray-300 bg-white px-5 font-semibold text-gray-700
+              transition hover:bg-gray-100 active:scale-95 disabled:opacity-50
+              dark:border-gray-600 dark:bg-dark dark:text-white dark:hover:bg-dark-light"
+          >
+            {t("recitationRegistration.cancel")}
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-/* ================= CARD 3 ================= */
-function NotesCard({
-  notes,
-  setNotes,
+/* ================= SEGMENTED CONTROL ================= */
+/** خيارات متراصة في سطر واحد — بديل القوائم المتباعدة. */
+function Segmented<T extends string>({
+  options,
+  value,
+  onChange,
 }: {
-  notes: string;
-  setNotes: (v: string) => void;
+  options: { value: T; label: string; icon?: React.ReactNode }[];
+  value: T;
+  onChange: (v: T) => void;
 }) {
-  const { t } = useTranslation();
   return (
-    <div className="bg-white dark:bg-dark rounded-3xl p-6 space-y-3 shadow transition-colors duration-300">
-      <h3 className="text-xl font-bold text-gray-800 dark:text-white">
-        {t("recitationRegistration.teacherNotes")}
-      </h3>
-      <textarea
-        value={notes}
-        onChange={(e) => setNotes(e.target.value)}
-        className="w-full min-h-[140px] rounded-2xl border border-gray-300 dark:border-gray-600 p-4 bg-white dark:bg-dark-light text-gray-800 dark:text-white resize-none"
-        placeholder={t("recitationRegistration.notesPlaceholder")}
-      />
+    <div
+      role="radiogroup"
+      className="grid gap-1 rounded-xl bg-gray-100 p-1 dark:bg-dark-light"
+      style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
+    >
+      {options.map((option) => {
+        const active = option.value === value;
+        return (
+          <button
+            key={option.value}
+            role="radio"
+            aria-checked={active}
+            onClick={() => onChange(option.value)}
+            className={`flex min-h-[40px] items-center justify-center gap-1 rounded-lg px-1 text-xs font-bold
+              leading-tight transition active:scale-95 ${
+                active
+                  ? "bg-emerald-500 text-white shadow-sm"
+                  : "text-gray-600 hover:bg-white/70 dark:text-gray-300 dark:hover:bg-dark"
+              }`}
+          >
+            {option.icon}
+            <span className="truncate">{option.label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
-/* ================= BUTTON ================= */
-function ToggleButton({ active, children, onClick }: any) {
-  return (
-    <button
-      onClick={onClick}
-      className={`px-5 py-2 rounded-full border flex items-center gap-2 text-sm transition
-        ${
-          active
-            ? "bg-green-100 border-green-500 text-green-700 dark:border-green-400"
-            : "bg-gray-50 hover:bg-gray-100 dark:bg-dark dark:hover:bg-dark-light dark:text-white border-gray-300 dark:border-gray-600"
-        }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-

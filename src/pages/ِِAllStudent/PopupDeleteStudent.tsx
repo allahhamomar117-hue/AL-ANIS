@@ -2,11 +2,17 @@ import { useTranslation } from "react-i18next";
 
 type DeleteStudentPopupProps = {
   studentName: string;
+  deleting?: boolean;
   onDelete: () => void;
   onClose: () => void;
 };
 
-export function PopupDeleteStudent({ studentName, onDelete, onClose }: DeleteStudentPopupProps) {
+export function PopupDeleteStudent({
+  studentName,
+  deleting,
+  onDelete,
+  onClose,
+}: DeleteStudentPopupProps) {
   const { t } = useTranslation();
 
   return (
@@ -33,21 +39,23 @@ export function PopupDeleteStudent({ studentName, onDelete, onClose }: DeleteStu
         <div className="flex justify-end gap-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 
-            bg-gray-200 dark:bg-gray-700 
-            text-gray-800 dark:text-white 
-            rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+            disabled={deleting}
+            className="px-4 py-2
+            bg-gray-200 dark:bg-gray-700
+            text-gray-800 dark:text-white
+            rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition disabled:opacity-50"
           >
             {t("popupDeleteStudent.cancel")}
           </button>
 
           <button
             onClick={onDelete}
-            className="px-4 py-2 
-            bg-red-600 text-white 
-            rounded-xl hover:bg-red-700 transition"
+            disabled={deleting}
+            className="px-4 py-2
+            bg-red-600 text-white
+            rounded-xl hover:bg-red-700 transition disabled:opacity-50"
           >
-            {t("popupDeleteStudent.delete")}
+            {deleting ? t("popupDeleteStudent.deleting") : t("popupDeleteStudent.delete")}
           </button>
         </div>
       </div>

@@ -1,63 +1,75 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { recitationsApi } from "../../lib/api";
+import { qk } from "../../lib/api/queryKeys";
+import { useHalaqaStudents, useHalaqat } from "../../lib/api/hooks";
+import { todayLocal } from "../../lib/format/date";
 
 type RecitationType = "full" | "half" | "more";
+type Rating = "excellent" | "good" | "needs";
 
 interface Props {
   onClose: () => void;
-  onAdd: (student: {
-    id: number;
-    name: string;
-    halaqa: string;
-    recitationType: RecitationType;
-    pageNumber: number;
-    verse?: string;
-    pageCompleted?: boolean;
-    toPage?: number;
-  }) => void;
 }
 
-const studentsList = ["أحمد محمد", "يوسف علي", "عبد الرحمن خالد", "عمر حسن"];
-const halaqatList = ["حلقة النور", "حلقة الهداية", "حلقة التقوى", "حلقة الفجر"];
-
-export default function PopupRecitationRegistration({ onClose, onAdd }: Props) {
+export default function PopupRecitationRegistration({ onClose }: Props) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
 
-  const [name, setName] = useState(studentsList[0]);
-  const [halaqa, setHalaqa] = useState(halaqatList[0]);
+  const { data: halaqat = [] } = useHalaqat();
+  const [halaqaId, setHalaqaId] = useState<number | "">("");
+  const { data: students = [] } = useHalaqaStudents(halaqaId === "" ? undefined : halaqaId);
+
+  const [studentId, setStudentId] = useState<number | "">("");
   const [recitationType, setRecitationType] = useState<RecitationType>("full");
+  const [rating, setRating] = useState<Rating>("good");
   const [pageNumber, setPageNumber] = useState<number | "">("");
-  const [verse, setVerse] = useState("");
+  const [verse, setVerse] = useState<number | "">("");
   const [pageCompleted, setPageCompleted] = useState(false);
   const [toPage, setToPage] = useState<number | "">("");
+  const [recitedAt, setRecitedAt] = useState(todayLocal());
 
-  const handleSave = () => {
-    if (!name || !pageNumber) return alert(t("popupRecitation.fillData"));
+  const create = useMutation({
+    mutationFn: () =>
+      recitationsApi.create({
+        studentId: Number(studentId),
+        halaqaId: halaqaId === "" ? undefined : halaqaId,
+        type: recitationType,
+        pageNumber: Number(pageNumber),
+        toPage: recitationType === "more" ? Number(toPage) : null,
+        verse: recitationType === "half" ? Number(verse) : null,
+        pageCompleted: recitationType === "half" ? pageCompleted : true,
+        rating,
+        recitedAt,
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.recitations.all });
+      void queryClient.invalidateQueries({ queryKey: qk.students.all });
+      void queryClient.invalidateQueries({ queryKey: qk.reports.all });
+      onClose();
+    },
+  });
 
-    const studentData: any = {
-      id: Date.now(),
-      name,
-      halaqa,
-      recitationType,
-      pageNumber: Number(pageNumber),
-    };
+  // نفس شروط الخادم
+  const valid =
+    studentId !== "" &&
+    typeof pageNumber === "number" &&
+    pageNumber > 0 &&
+    (recitationType !== "half" || (typeof verse === "number" && verse > 0)) &&
+    (recitationType !== "more" || (typeof toPage === "number" && toPage >= pageNumber));
 
-    if (recitationType === "half") {
-      studentData.verse = verse;
-      studentData.pageCompleted = pageCompleted;
-    }
+  const fieldClass =
+    "w-full rounded-full border dark:border-gray-600 bg-white dark:bg-dark-light text-gray-800 dark:text-white px-4 py-2 focus:ring-2 focus:ring-primary outline-none";
 
-    if (recitationType === "more") {
-      studentData.toPage = Number(toPage);
-    }
-
-    onAdd(studentData);
-    onClose();
-  };
+  const numeric = (value: string) => (value === "" ? "" : Number(value));
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-dark rounded-2xl w-full max-w-md sm:p-6 p-4 overflow-hidden transition-colors duration-300">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div
+        className="bg-white dark:bg-dark rounded-2xl w-full max-w-md sm:p-6 p-4 max-h-[90vh] overflow-y-auto transition-colors duration-300"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2 className="text-xl font-bold mb-4 text-center text-primary">
           {t("popupRecitation.title")}
         </h2>
@@ -68,15 +80,18 @@ export default function PopupRecitationRegistration({ onClose, onAdd }: Props) {
             {t("popupRecitation.halaqaLabel")}
           </label>
           <select
-            value={halaqa}
-            onChange={(e) => setHalaqa(e.target.value)}
-            className="w-full rounded-full border dark:border-gray-600 
-            bg-white dark:bg-dark-light 
-            text-gray-800 dark:text-white
-            px-4 py-2 focus:ring-2 focus:ring-primary outline-none"
+            value={halaqaId}
+            onChange={(e) => {
+              setHalaqaId(e.target.value === "" ? "" : Number(e.target.value));
+              setStudentId("");
+            }}
+            className={fieldClass}
           >
-            {halaqatList.map((h, idx) => (
-              <option key={idx} value={h}>{h}</option>
+            <option value="">{t("popupAttendance.selectHalaqa")}</option>
+            {halaqat.map((h) => (
+              <option key={h.id} value={h.id}>
+                {h.name}
+              </option>
             ))}
           </select>
         </div>
@@ -87,17 +102,35 @@ export default function PopupRecitationRegistration({ onClose, onAdd }: Props) {
             {t("popupRecitation.studentLabel")}
           </label>
           <select
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-full border dark:border-gray-600 
-            bg-white dark:bg-dark-light 
-            text-gray-800 dark:text-white
-            px-4 py-2 focus:ring-2 focus:ring-primary outline-none"
+            value={studentId}
+            disabled={halaqaId === ""}
+            onChange={(e) => setStudentId(e.target.value === "" ? "" : Number(e.target.value))}
+            className={`${fieldClass} disabled:opacity-60`}
           >
-            {studentsList.map((s, idx) => (
-              <option key={idx} value={s}>{s}</option>
+            <option value="">
+              {halaqaId === ""
+                ? t("popupRecitation.selectHalaqaFirst")
+                : t("popupRecitation.selectStudent")}
+            </option>
+            {students.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
             ))}
           </select>
+        </div>
+
+        {/* التاريخ */}
+        <div className="mb-4">
+          <label className="block mb-1 font-medium text-gray-700 dark:text-gray-300">
+            {t("popupRecitation.date")}
+          </label>
+          <input
+            type="date"
+            value={recitedAt}
+            onChange={(e) => setRecitedAt(e.target.value)}
+            className={fieldClass}
+          />
         </div>
 
         {/* نوع التسميع */}
@@ -127,13 +160,12 @@ export default function PopupRecitationRegistration({ onClose, onAdd }: Props) {
           </label>
           <input
             type="number"
+            min={1}
+            max={604}
             value={pageNumber}
-            onChange={(e) => setPageNumber(Number(e.target.value))}
+            onChange={(e) => setPageNumber(numeric(e.target.value))}
             placeholder={t("popupRecitation.pagePlaceholder")}
-            className="w-full rounded-full border dark:border-gray-600 
-            bg-white dark:bg-dark-light 
-            text-gray-800 dark:text-white
-            px-4 py-2 focus:ring-2 focus:ring-primary outline-none"
+            className={fieldClass}
           />
         </div>
 
@@ -145,14 +177,12 @@ export default function PopupRecitationRegistration({ onClose, onAdd }: Props) {
                 {t("popupRecitation.verse")}
               </label>
               <input
-                type="text"
+                type="number"
+                min={1}
                 value={verse}
-                onChange={(e) => setVerse(e.target.value)}
+                onChange={(e) => setVerse(numeric(e.target.value))}
                 placeholder={t("popupRecitation.versePlaceholder")}
-                className="w-full rounded-full border dark:border-gray-600 
-                bg-white dark:bg-dark-light 
-                text-gray-800 dark:text-white
-                px-4 py-2 focus:ring-2 focus:ring-primary outline-none"
+                className={fieldClass}
               />
             </div>
             <div className="flex items-center gap-2">
@@ -177,34 +207,59 @@ export default function PopupRecitationRegistration({ onClose, onAdd }: Props) {
             </label>
             <input
               type="number"
+              min={1}
+              max={604}
               value={toPage}
-              onChange={(e) => setToPage(Number(e.target.value))}
+              onChange={(e) => setToPage(numeric(e.target.value))}
               placeholder={t("popupRecitation.toPagePlaceholder")}
-              className="w-full rounded-full border dark:border-gray-600 
-              bg-white dark:bg-dark-light 
-              text-gray-800 dark:text-white
-              px-4 py-2 focus:ring-2 focus:ring-primary outline-none"
+              className={fieldClass}
             />
           </div>
+        )}
+
+        {/* التقييم */}
+        <div className="mb-4">
+          <p className="font-medium mb-2 text-gray-700 dark:text-gray-300">
+            {t("popupRecitation.rating")}
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+            <Button active={rating === "excellent"} onClick={() => setRating("excellent")}>
+              {t("recitationRegistration.ratings.excellent")}
+            </Button>
+            <Button active={rating === "good"} onClick={() => setRating("good")}>
+              {t("recitationRegistration.ratings.good")}
+            </Button>
+            <Button active={rating === "needs"} onClick={() => setRating("needs")}>
+              {t("recitationRegistration.ratings.needsImprovement")}
+            </Button>
+          </div>
+        </div>
+
+        {create.isError && (
+          <p className="mb-3 text-sm font-bold text-red-600 dark:text-red-400">
+            {create.error instanceof Error ? create.error.message : t("state.error")}
+          </p>
         )}
 
         {/* الأزرار */}
         <div className="flex justify-end gap-3 mt-4">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-full border dark:border-gray-600 
-            text-gray-700 dark:text-gray-300 
-            hover:bg-gray-50 dark:hover:bg-dark-light transition"
+            disabled={create.isPending}
+            className="px-4 py-2 rounded-full border dark:border-gray-600
+            text-gray-700 dark:text-gray-300
+            hover:bg-gray-50 dark:hover:bg-dark-light transition disabled:opacity-50"
           >
             {t("popupRecitation.cancel")}
           </button>
 
           <button
-            onClick={handleSave}
-            className="px-4 py-2 rounded-full bg-primary text-white 
-            hover:bg-primary-dark transition"
+            onClick={() => create.mutate()}
+            disabled={!valid || create.isPending}
+            className="px-4 py-2 rounded-full bg-primary text-white
+            hover:bg-primary-dark transition disabled:opacity-50"
           >
-            {t("popupRecitation.save")}
+            {create.isPending ? t("popupRecitation.saving") : t("popupRecitation.save")}
           </button>
         </div>
       </div>

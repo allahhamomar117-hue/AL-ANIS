@@ -22,3 +22,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# ملفات المستخدمين المرفوعة (صور الطلاب)
+server/data/uploads/
+
+# متغيّرات البيئة — تحتوي أسراراً (JWT_SECRET، روابط قواعد بيانات).
+# ملفات .env.example وحدها هي التي تُرفع.
+.env
+.env.*
+!.env.example

@@ -19,14 +19,26 @@
     },
     "stats": {
       "halaqas": {
-        "title": "Halaqas",
+        "title": "Halaqat",
         "value": "12 Halaqas",
-        "note": "Currently active"
+        "note": "currently active",
+        "unit": "halaqa"
       },
       "attendance": {
-        "title": "Attendance",
+        "title": "Attendance today",
         "value": "50 Students",
-        "note": "Present today"
+        "note": "of those recorded",
+        "unit": "students"
+      },
+      "students": {
+        "title": "Students",
+        "note": "registered",
+        "unit": "students"
+      },
+      "recitations": {
+        "title": "Recitations today",
+        "note": "recorded today",
+        "unit": "recitations"
       }
     },
     "recentActivities": {
@@ -45,16 +57,23 @@
         "title": "New Initiative",
         "desc": "Started \"Khair Al-Qulub\" initiative",
         "time": "3 hours ago"
-      }
+      },
+      "empty": "No activity yet",
+      "recitation": "Recitation recorded",
+      "attendance": "Attendance recorded",
+      "showMore": "Show More",
+      "showLess": "Show Less"
+    },
+    "quickPoints": {
+      "title": "Quick points",
+      "subtitle": "Add or deduct points instantly"
     }
   },
-
   "attendanceGroups": {
     "title": "Student Attendance",
     "subtitle": "Select a halaqa to record today’s attendance",
     "recordButton": "Attendance Record"
   },
-
   "attendancePage": {
     "title": "Attendance",
     "back": "Back to Groups",
@@ -65,27 +84,49 @@
     "studentsList": "Students List",
     "save": "Save Attendance",
     "notice": "When saving, the attendance report will be sent to the administration automatically",
-    "saveAlert": "Attendance saved! Check the console for details."
+    "saveAlert": "Attendance saved! Check the console for details.",
+    "teacherLabel": "Teacher",
+    "saved": "Attendance saved successfully",
+    "saving": "Saving…",
+    "recordedNotice": "Attendance for this day already exists — saving will update it",
+    "markAll": "Mark all present",
+    "clearAll": "Mark all absent",
+    "halaqaLabel": "Halaqa",
+    "quickPoints": "Quick points"
   },
-"common": {
-  "present": "Present",
-  "absent": "Absent",
-  "delete": "Delete",
-  "cancel": "Cancel",
-  "add": "Add"
-},
+  "common": {
+    "present": "Present",
+    "absent": "Absent",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "add": "Add",
+    "points": "pts",
+    "none": "—",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days",
+    "backHome": "Back to home"
+  },
   "attendanceRecord": {
     "title": "Mosque Attendance Records",
     "date": "Date:",
     "addStudent": "+ Add Student",
-    "empty": "No students for this day"
+    "empty": "No students on this day",
+    "selectHalaqa": "Select halaqa",
+    "noSessions": "No attendance sessions recorded",
+    "teacherAbsent": "Teacher absent",
+    "deleting": "Deleting…"
   },
   "popupAttendance": {
     "title": "Add Student to Attendance",
     "halaqaLabel": "Halaqa Name",
     "selectHalaqa": "Select Halaqa",
     "studentLabel": "Student Name",
-    "selectStudent": "Select Student"
+    "selectStudent": "Select Student",
+    "addingTo": "Adding to date",
+    "noStudents": "No students available",
+    "saving": "Adding…"
   },
   "recitationGroups": {
     "title": "Quran Recitation",
@@ -107,8 +148,13 @@
     "types": {
       "full": "Full page: No. {{page}}",
       "half": "Half page: No. {{page}} | {{completed}} | Verse No. {{verse}}",
-      "more": "More than a page: from {{from}} to {{to}}"
-    }
+      "more": "More than a page: from {{from}} to {{to}}",
+      "surah": "Surat {{surah}}"
+    },
+    "noRecords": "No recitations recorded",
+    "rating": "Rating",
+    "selectHalaqa": "All halaqat",
+    "deleting": "Deleting…"
   },
   "recitationRegistration": {
     "halaqa": "Al-Noor Halaqa",
@@ -116,7 +162,8 @@
     "types": {
       "full": "Full Page",
       "half": "Half Page",
-      "more": "More than a Page"
+      "more": "More than a Page",
+      "surah": "Surah {{surah}}"
     },
     "pageNumber": "Page Number",
     "fromPage": "From Page",
@@ -133,7 +180,17 @@
     "notesPlaceholder": "Write your notes...",
     "save": "Save Recitation",
     "cancel": "Cancel",
-    "saved": "Recitation Saved ✅"
+    "saved": "Recitation saved successfully",
+    "saving": "Saving…",
+    "notFound": "Student not found",
+    "pointsEarned": "Points earned",
+    "inputMode": {
+      "label": "Recitation method",
+      "byPage": "By page",
+      "bySurah": "By surah"
+    },
+    "surah": "Surah (Juz Amma)",
+    "chooseSurah": "Choose a surah…"
   },
   "popupRecitation": {
     "title": "Add New Recitation",
@@ -155,9 +212,13 @@
     "toPagePlaceholder": "Enter last page number...",
     "save": "Save",
     "cancel": "Cancel",
-    "fillData": "Complete the required data"
+    "fillData": "Complete the required data",
+    "selectStudent": "Select student",
+    "selectHalaqaFirst": "Select a halaqa first",
+    "saving": "Saving…",
+    "date": "Date",
+    "rating": "Rating"
   },
-
   "allStudents": {
     "title": "Students Management",
     "subtitle": "Manage student data and halaqa assignments",
@@ -168,7 +229,13 @@
     "actions": "Actions",
     "studentNumber": "Student No •",
     "addPoints": "Add",
-    "deductPoints": "Deduct"
+    "deductPoints": "Deduct",
+    "searchPlaceholder": "Search by name or student number",
+    "noStudents": "No students in this halaqa",
+    "total": "Total",
+    "points": "Points",
+    "readOnlyBadge": "View only",
+    "readOnlySubtitle": "Your halaqa's students — view only"
   },
   "popupAddPoints": {
     "title": "Add Points",
@@ -176,8 +243,17 @@
     "amount": "Amount",
     "reason": "Reason",
     "reasonPlaceholder": "Enter reason for adding points",
+    "reasonPresets": [
+      "Lesson reward",
+      "Excellent recitation",
+      "Good manners",
+      "Late to halaqa"
+    ],
     "cancel": "Cancel",
-    "save": "Save"
+    "save": "Save",
+    "currentBalance": "Current balance",
+    "amountHint": "Points to add",
+    "saving": "Saving…"
   },
   "popupAddStudent": {
     "title": "Add New Student",
@@ -187,9 +263,11 @@
     "parentPhone": "Parent Phone",
     "studentPhone": "Student Phone",
     "cancel": "Cancel",
-    "add": "Add"
+    "add": "Add",
+    "selectHalaqa": "Select halaqa",
+    "nameRequired": "Name is required",
+    "saving": "Adding…"
   },
-
   "popupDeductPoints": {
     "title": "Deduct Points",
     "student": "Student",
@@ -197,14 +275,18 @@
     "reason": "Reason",
     "reasonPlaceholder": "Enter reason for deducting points",
     "cancel": "Cancel",
-    "save": "Save"
+    "save": "Save",
+    "currentBalance": "Current balance",
+    "amountHint": "Points to deduct",
+    "saving": "Saving…",
+    "tooMuch": "Deduction exceeds current balance"
   },
-
   "popupDeleteStudent": {
     "title": "Delete Student",
     "confirm": "Are you sure you want to delete student",
     "cancel": "Cancel",
-    "delete": "Delete"
+    "delete": "Delete",
+    "deleting": "Deleting…"
   },
   "popupEditStudent": {
     "title": "Edit Student",
@@ -214,9 +296,19 @@
     "parentPhone": "Parent Phone",
     "studentPhone": "Student Phone",
     "cancel": "Cancel",
-    "save": "Save"
+    "save": "Save",
+    "selectHalaqa": "Select halaqa",
+    "noHalaqa": "No halaqa",
+    "saving": "Saving…",
+    "photo": "Profile photo",
+    "changePhoto": "Change photo",
+    "choosePhoto": "Choose a photo",
+    "removePhoto": "Remove photo",
+    "photoHint": "JPEG, PNG or WebP",
+    "photoUploading": "Uploading photo…",
+    "photoFailed": "Could not upload the photo",
+    "forbidden": "This account is a teacher, not a supervisor. Editing students and uploading photos is admin-only."
   },
-
   "studentProfile": {
     "studentId": "Student ID",
     "points": "Points",
@@ -253,9 +345,14 @@
       "date": "Date",
       "points": "Points",
       "reason": "Reason"
-    }
+    },
+    "noRecitations": "No recitations recorded",
+    "noAttendance": "No attendance records",
+    "noPoints": "No point transactions",
+    "attendedDays": "Attended {{days}} ({{rate}}%)",
+    "outOfDays": "out of {{days}} on record",
+    "workDays": "Working days"
   },
-
   "leaderboard": {
     "title": "Leaderboard",
     "subtitle": "Celebrating our top students",
@@ -267,35 +364,36 @@
     "labels": {
       "totalPoints": "Total Points",
       "attendance": "Attendance %",
-      "recitation": "Recitation Score"
+      "recitation": "Pages recited"
     },
     "table": {
       "rank": "Rank",
       "name": "Student Name",
       "halaqa": "Halaqa"
-    }
+    },
+    "empty": "No data yet",
+    "filterHalaqa": "All halaqat",
+    "attendedOfDays": "{{attended}} of {{days}}",
+    "pagesValue": "{{pages}} pages"
   },
   "halaqaCard": {
     "students": "students"
   },
-
   "studentCard": {
     "lastRecitation": "Last Recitation",
     "recordRecitation": "Record Recitation"
   },
-
   "settings": {
     "darkMode": "Dark Mode",
     "language": "Language",
-    "logout": "Logout"
+    "logout": "Logout",
+    "settings": "Settings"
   },
-
   "logout": {
     "confirm": "Are you sure you want to log out?",
     "cancel": "Cancel",
     "logout": "Log Out"
   },
-
   "login": {
     "backToHome": "Back to Home Page",
     "loginTitle": "Login",
@@ -304,8 +402,166 @@
     "continue": "Continue",
     "otpSent": "Verification code has been sent to the number",
     "resend": "Resend",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "title": "Sign in",
+    "otpTitle": "A verification code was sent to",
+    "home": "Back to home",
+    "username": "Username",
+    "usernamePlaceholder": "Enter your username",
+    "password": "Password",
+    "submit": "Sign in",
+    "failed": "Sign-in failed",
+    "missingFields": "Enter username and password"
   },
-
-  "copyright": "All rights reserved"
+  "copyright": "All rights reserved",
+  "state": {
+    "loading": "Loading…",
+    "error": "Something went wrong",
+    "retry": "Retry",
+    "empty": "No data",
+    "connecting": "Connecting to the server…",
+    "serverHint": "Make sure the server is running: npm run api",
+    "saving": "Saving…",
+    "deleting": "Deleting…"
+  },
+  "halaqaGroups": {
+    "empty": "No halaqat yet"
+  },
+  "roles": {
+    "ADMIN": "Manager",
+    "SUPERVISOR": "Supervisor",
+    "TEACHER": "Teacher"
+  },
+  "quickPoints": {
+    "button": "Quick points",
+    "title": "Quick add / deduct points",
+    "add": "Add",
+    "deduct": "Deduct",
+    "halaqa": "Halaqa",
+    "allHalaqat": "All my halaqat",
+    "student": "Student",
+    "selectStudent": "Select student",
+    "noStudents": "No students in your scope",
+    "amount": "Points",
+    "reason": "Reason",
+    "reasonPlaceholder": "Optional — e.g. excellent recitation",
+    "save": "Save",
+    "close": "Close",
+    "done": "Done: {{name}} ({{delta}}) — balance is now {{balance}}"
+  },
+  "settingsPage": {
+    "title": "Settings",
+    "subtitle": "Manage your account and app preferences.",
+    "account": {
+      "title": "Account settings",
+      "logout": "Sign out"
+    },
+    "preferences": {
+      "title": "Preferences",
+      "darkMode": "Dark mode",
+      "darkModeHint": "Switch between light and dark appearance",
+      "language": "Language"
+    }
+  },
+  "toast": {
+    "studentAdded": "Student added successfully",
+    "studentUpdated": "Student changes saved successfully",
+    "studentDeleted": "Student deleted successfully",
+    "pointsAdded": "Points added successfully",
+    "pointsDeducted": "Points deducted successfully"
+  },
+  "staff": {
+    "title": "Staff management",
+    "subtitle": "Teacher and supervisor accounts: add, edit, deactivate",
+    "open": "Open page",
+    "addTeacher": "Add teacher",
+    "addSupervisor": "Add supervisor",
+    "addTitle": "New account",
+    "editTitle": "Edit account",
+    "role": "Role",
+    "name": "Name",
+    "username": "Username",
+    "password": "Password",
+    "passwordKeep": "Leave empty to keep current",
+    "phone": "Phone (optional)",
+    "halaqat": "Assigned halaqat",
+    "noHalaqat": "No halaqat yet",
+    "noAssignedHalaqat": "No assigned halaqat",
+    "save": "Save",
+    "edit": "Edit",
+    "deactivate": "Deactivate",
+    "inactive": "Inactive",
+    "showInactive": "Show deactivated accounts",
+    "empty": "No accounts",
+    "created": "Account created",
+    "updated": "Account updated",
+    "deactivated": "Account deactivated",
+    "confirmDeactivate": "Deactivate {{name}}? They will no longer be able to sign in.",
+    "passwordTooShort": "Password must be at least 4 characters",
+    "activate": "Activate",
+    "activated": "Account activated",
+    "halaqatSyncHint": "The selected halaqat become the teacher’s exact scope after saving; unchecked ones are unassigned."
+  },
+  "halaqatAdmin": {
+    "title": "Halaqat Management",
+    "subtitle": "Add, rename and deactivate halaqat — reflected instantly in every picker",
+    "add": "Add New Halaqa",
+    "addTitle": "New Halaqa",
+    "editTitle": "Edit Halaqa",
+    "name": "Halaqa name",
+    "namePlaceholder": "e.g. Al-Hidaya",
+    "teacher": "Assigned teacher",
+    "noTeacher": "No teacher",
+    "save": "Save",
+    "saving": "Saving…",
+    "edit": "Edit",
+    "deactivate": "Deactivate",
+    "inactive": "Inactive",
+    "showInactive": "Show deactivated halaqat",
+    "empty": "No halaqat yet",
+    "created": "Halaqa created",
+    "updated": "Halaqa updated",
+    "deactivated": "Halaqa deactivated",
+    "deactivateTitle": "Deactivate {{name}}?",
+    "deactivateHint": "It will disappear from pickers; its past records stay untouched.",
+    "deactivateWithStudents": "It has {{count}} active students — pick a halaqa to move them to first.",
+    "chooseTarget": "Choose target halaqa",
+    "noTargetHalaqa": "No other active halaqa to move students to. Add one first.",
+    "stage": "Educational stage",
+    "noStage": "No stage"
+  },
+  "halaqaStages": {
+    "primary": "Primary",
+    "preparatory": "Preparatory",
+    "secondary": "Secondary"
+  },
+  "attendanceStatus": {
+    "present": "Present",
+    "absent": "Absent",
+    "late": "Late",
+    "excused": "Excused"
+  },
+  "dailyReport": {
+    "button": "Daily report",
+    "title": "Today's stats",
+    "chooseHalaqa": "Choose a halaqa",
+    "notRecorded": "Attendance for this halaqa has not been recorded today — the report shows recitation and points only.",
+    "noStatus": "Not recorded",
+    "noRecitation": "No recitation today",
+    "page": "p. {{page}}",
+    "pageRange": "pp. {{from}}–{{to}}",
+    "surah": "Surah {{surah}}",
+    "share": "Share on WhatsApp",
+    "sheetTitle": "{{halaqa}} — daily follow-up",
+    "columns": {
+      "student": "Student",
+      "attendance": "Attendance",
+      "participation": "Participation",
+      "recitation": "Recitation"
+    },
+    "downloadImage": "Download as image 📸",
+    "preparing": "Preparing image…",
+    "imageFailed": "Could not create the image",
+    "shareNotice": "After the image downloads, open WhatsApp and attach it manually. Text copying has been removed as requested."
+  }
 }

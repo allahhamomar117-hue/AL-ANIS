@@ -1,99 +1,60 @@
-import {
-  FaUsers,
-  FaBookOpen,
-  FaChartBar,
-  FaStar,
-  FaBullhorn,
-  FaUserPlus,
-  FaClipboardCheck,
-} from "react-icons/fa";
+import { useState, type ReactNode } from "react";
+import { FaUsers, FaBookOpen, FaClipboardCheck, FaStar } from "react-icons/fa";
 
-import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
+import { reportsApi } from "../../lib/api";
+import { qk } from "../../lib/api/queryKeys";
+import { ErrorState, LoadingState } from "../../shared/QueryState";
+import { formatDayAndTime } from "../../lib/format/date";
+
+const ACTIVITIES_STEP = 5;
 
 export default function Dashboard() {
-  const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const [visibleCount, setVisibleCount] = useState(ACTIVITIES_STEP);
 
-  const cards = [
-    {
-      key: "attendance",
-      title: t("dashboard.attendance.title"),
-      subtitle: t("dashboard.attendance.subtitle"),
-      icon: FaClipboardCheck,
-      path: "attendance-groups",
-    },
-    {
-      key: "recitation",
-      title: t("dashboard.recitation.title"),
-      subtitle: t("dashboard.recitation.subtitle"),
-      icon: FaBookOpen,
-      path: "recitation-groups",
-    },
-    {
-      key: "students",
-      title: t("dashboard.students.title"),
-      subtitle: t("dashboard.students.subtitle"),
-      icon: FaUsers,
-      path: "all-student",
-    },
-    {
-      key: "reports",
-      title: t("dashboard.reports.title"),
-      subtitle: t("dashboard.reports.subtitle"),
-      icon: FaChartBar,
-      path: "reports",
-    },
-  ];
+  const { data, isPending, isError, error, refetch } = useQuery({
+    queryKey: qk.reports.dashboard(),
+    queryFn: () => reportsApi.dashboard(),
+    select: (res) => res.data,
+  });
 
   return (
-    <div className="min-h-screen bg-white dark:bg-dark-light p-6 rtl transition-colors duration-300 mt-14">
+    <div className="min-h-screen bg-white dark:bg-dark-light px-4 pb-6 md:p-6 rtl transition-colors duration-300 pt-20 md:pt-24">
       {/* ===== Top Stats ===== */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-6 mb-6">
-        <StatCard
-          title={t("dashboard.stats.halaqas.title")}
-          value={t("dashboard.stats.halaqas.value")}
-          note={t("dashboard.stats.halaqas.note")}
-          icon={<FaBookOpen size={24} />}
-        />
-        <StatCard
-          title={t("dashboard.stats.attendance.title")}
-          value={t("dashboard.stats.attendance.value")}
-          note={t("dashboard.stats.attendance.note")}
-          icon={<FaUsers size={24} />}
-        />
-      </div>
-
-      {/* ===== Services ===== */}
-      <h3 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">
-        {t("dashboard.title")}
-      </h3>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {cards.map((card) => {
-          const Icon = card.icon;
-          return (
-            <div
-              key={card.key}
-              onClick={() => navigate(card.path)}
-              className="cursor-pointer bg-white dark:bg-dark 
-                         rounded-xl p-5 shadow-sm
-                         hover:shadow-lg hover:-translate-y-1 
-                         transition-all duration-300"
-            >
-              <div className="text-3xl text-primary mb-2">
-                <Icon />
-              </div>
-              <h2 className="font-bold text-gray-800 dark:text-white">
-                {card.title}
-              </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-300">
-                {card.subtitle}
-              </p>
-            </div>
-          );
-        })}
-      </div>
+      {isPending ? (
+        <LoadingState />
+      ) : isError ? (
+        <ErrorState error={error} onRetry={() => void refetch()} />
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6">
+          <StatCard
+            title={t("dashboard.stats.halaqas.title")}
+            value={`${data.halaqat} ${t("dashboard.stats.halaqas.unit")}`}
+            note={t("dashboard.stats.halaqas.note")}
+            icon={<FaBookOpen size={24} />}
+          />
+          <StatCard
+            title={t("dashboard.stats.attendance.title")}
+            value={`${data.attendanceRate}%`}
+            note={`${data.presentToday} ${t("dashboard.stats.attendance.unit")}`}
+            icon={<FaClipboardCheck size={24} />}
+          />
+          <StatCard
+            title={t("dashboard.stats.students.title")}
+            value={`${data.students} ${t("dashboard.stats.students.unit")}`}
+            note={t("dashboard.stats.students.note")}
+            icon={<FaUsers size={24} />}
+          />
+          <StatCard
+            title={t("dashboard.stats.recitations.title")}
+            value={`${data.recitationsToday} ${t("dashboard.stats.recitations.unit")}`}
+            note={t("dashboard.stats.recitations.note")}
+            icon={<FaStar size={24} />}
+          />
+        </div>
+      )}
 
       {/* ===== Recent Activities ===== */}
       <div className="bg-white dark:bg-dark rounded-xl p-6 shadow-sm transition-colors duration-300">
@@ -103,26 +64,43 @@ export default function Dashboard() {
 
         <hr className="mb-6 border-gray-200 dark:border-gray-600" />
 
-        <Activity
-          icon={<FaUserPlus />}
-          title={t("dashboard.recentActivities.newStudent.title")}
-          desc={t("dashboard.recentActivities.newStudent.desc")}
-          time={t("dashboard.recentActivities.newStudent.time")}
-        />
+        {data?.recentActivity.length ? (
+          data.recentActivity.slice(0, visibleCount).map((activity, index) => (
+            <Activity
+              key={`${activity.at}-${index}`}
+              icon={activity.kind === "recitation" ? <FaBookOpen /> : <FaClipboardCheck />}
+              title={
+                activity.kind === "recitation"
+                  ? t("dashboard.recentActivities.recitation")
+                  : t("dashboard.recentActivities.attendance")
+              }
+              desc={`${activity.student} — ${activity.detail}`}
+              time={formatDayAndTime(activity.at, i18n.language)}
+            />
+          ))
+        ) : (
+          <p className="text-center text-sm text-gray-400 dark:text-gray-500 py-4">
+            {t("dashboard.recentActivities.empty")}
+          </p>
+        )}
 
-        <Activity
-          icon={<FaStar />}
-          title={t("dashboard.recentActivities.achievement.title")}
-          desc={t("dashboard.recentActivities.achievement.desc")}
-          time={t("dashboard.recentActivities.achievement.time")}
-        />
-
-        <Activity
-          icon={<FaBullhorn />}
-          title={t("dashboard.recentActivities.initiative.title")}
-          desc={t("dashboard.recentActivities.initiative.desc")}
-          time={t("dashboard.recentActivities.initiative.time")}
-        />
+        {(data?.recentActivity.length ?? 0) > ACTIVITIES_STEP && (
+          <div className="flex justify-center mt-4">
+            <button
+              type="button"
+              onClick={() =>
+                setVisibleCount((c) =>
+                  c >= (data?.recentActivity.length ?? 0) ? ACTIVITIES_STEP : c + ACTIVITIES_STEP
+                )
+              }
+              className="px-4 py-2 text-sm font-semibold rounded-lg text-primary hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
+            >
+              {visibleCount >= (data?.recentActivity.length ?? 0)
+                ? t("dashboard.recentActivities.showLess")
+                : t("dashboard.recentActivities.showMore")}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -130,54 +108,64 @@ export default function Dashboard() {
 
 /* ===== Stat Card ===== */
 
-function StatCard({ title, value, note, icon }) {
+function StatCard({
+  title,
+  value,
+  note,
+  icon,
+}: {
+  title: string;
+  value: ReactNode;
+  note: string;
+  icon: ReactNode;
+}) {
   return (
     <div
-      className="bg-white dark:bg-dark rounded-xl p-6 shadow-sm 
+      className="bg-white dark:bg-dark rounded-xl p-6 shadow-sm
                  flex justify-between items-center
                  transition-colors duration-300"
     >
       <div>
-        <p className="text-gray-500 dark:text-gray-400 text-sm">
-          {title}
-        </p>
-        <h2 className="text-lg font-bold text-gray-800 dark:text-white">
-          {value}
-        </h2>
+        <p className="text-gray-500 dark:text-gray-400 text-sm">{title}</p>
+        <h2 className="text-lg font-bold text-gray-800 dark:text-white">{value}</h2>
         <span className="text-primary text-sm">{note}</span>
       </div>
-      <div className="text-4xl text-primary">
-        {icon}
-      </div>
+      <div className="text-4xl text-primary">{icon}</div>
     </div>
   );
 }
 
 /* ===== Activity Item ===== */
 
-function Activity({ icon, title, desc, time }) {
+function Activity({
+  icon,
+  title,
+  desc,
+  time,
+}: {
+  icon: ReactNode;
+  title: string;
+  desc: string;
+  time: string;
+}) {
   return (
     <div className="flex items-start gap-4 mb-6 last:mb-0">
       <div
-        className="w-10 h-10 flex items-center justify-center 
-                   rounded-full bg-primary-light 
+        className="w-10 h-10 flex items-center justify-center shrink-0
+                   rounded-full bg-primary-light
                    text-primary-dark"
       >
         {icon}
       </div>
 
       <div className="flex-1">
-        <div className="flex justify-between">
-          <h4 className="font-semibold text-gray-800 dark:text-white">
-            {title}
-          </h4>
-          <span className="text-sm text-gray-400 dark:text-gray-500">
+        <div className="flex justify-between gap-2">
+          <h4 className="font-semibold text-gray-800 dark:text-white">{title}</h4>
+          <span className="text-sm text-gray-400 dark:text-gray-500 whitespace-nowrap">
             {time}
           </span>
         </div>
-        <p className="text-sm text-gray-600 dark:text-gray-300">
-          {desc}
-        </p>
+        <p className="text-sm text-gray-600 dark:text-gray-300">{desc}</p>
       </div>
     </div>
   );

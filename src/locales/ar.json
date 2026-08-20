@@ -20,12 +20,24 @@
       "halaqas": {
         "title": "الحلقات",
         "value": "12 حلقة",
-        "note": "مستمرة حالياً"
+        "note": "مستمرة حالياً",
+        "unit": "حلقة"
       },
       "attendance": {
-        "title": "الحضور",
+        "title": "الحضور اليوم",
         "value": "50 طالب",
-        "note": "موجودين اليوم"
+        "note": "من المسجّلين",
+        "unit": "طالب"
+      },
+      "students": {
+        "title": "الطلاب",
+        "note": "مسجّلون",
+        "unit": "طالب"
+      },
+      "recitations": {
+        "title": "تسميع اليوم",
+        "note": "سجّل اليوم",
+        "unit": "تسميع"
       }
     },
     "recentActivities": {
@@ -44,17 +56,23 @@
         "title": "مبادرة جديدة",
         "desc": "بدء مبادرة \"خير القلوب\"",
         "time": "منذ 3 ساعات"
-      }
+      },
+      "empty": "لا نشاطات بعد",
+      "recitation": "تسجيل تسميع",
+      "attendance": "تسجيل حضور",
+      "showMore": "عرض المزيد",
+      "showLess": "عرض أقل"
+    },
+    "quickPoints": {
+      "title": "نقاط سريعة",
+      "subtitle": "إضافة أو خصم نقاط لطالب فوراً"
     }
   },
-  
-
   "attendanceGroups": {
     "title": "حضور الطلاب",
     "subtitle": "اختر الحلقة لتسجيل حضور الطلاب اليوم",
     "recordButton": "سجل الحضور"
   },
-
   "attendancePage": {
     "title": "تسجيل الحضور",
     "back": "العودة إلى الحلقات",
@@ -65,32 +83,54 @@
     "studentsList": "قائمة الطلاب",
     "save": "حفظ الحضور",
     "notice": "عند الضغط على حفظ، سيتم إرسال تقرير الحضور إلى إدارة الجامع تلقائيًا",
-    "saveAlert": "تم حفظ الحضور! تحقق من الـ console لعرض البيانات."
+    "saveAlert": "تم حفظ الحضور! تحقق من الـ console لعرض البيانات.",
+    "teacherLabel": "الأستاذ",
+    "saved": "تم حفظ الحضور بنجاح",
+    "saving": "جارٍ الحفظ…",
+    "recordedNotice": "حضور هذا اليوم مسجّل مسبقاً — الحفظ سيحدّثه",
+    "markAll": "تحضير الجميع",
+    "clearAll": "تغييب الجميع",
+    "halaqaLabel": "الحلقة",
+    "quickPoints": "نقاط سريعة"
   },
-
-"common": {
-  "present": "حاضر",
-  "absent": "غائب",
-  "delete": "حذف",
-  "cancel": "إلغاء",
-  "add": "إضافة"
-},
-
+  "common": {
+    "present": "حاضر",
+    "absent": "غائب",
+    "delete": "حذف",
+    "cancel": "إلغاء",
+    "add": "إضافة",
+    "points": "نقطة",
+    "none": "—",
+    "today": "اليوم",
+    "yesterday": "أمس",
+    "days_zero": "0 أيام",
+    "days_one": "يوم واحد",
+    "days_two": "يومان",
+    "days_few": "{{count}} أيام",
+    "days_many": "{{count}} يوماً",
+    "days_other": "{{count}} يوم",
+    "backHome": "العودة إلى الرئيسية"
+  },
   "attendanceRecord": {
     "title": "سجلات الحضور بالجامع",
     "date": "التاريخ:",
     "addStudent": "+ إضافة طالب",
-    "empty": "لا يوجد طلاب في هذا اليوم"
+    "empty": "لا يوجد طلاب في هذا اليوم",
+    "selectHalaqa": "اختر الحلقة",
+    "noSessions": "لا توجد جلسات حضور مسجّلة",
+    "teacherAbsent": "الأستاذ غائب",
+    "deleting": "جارٍ الحذف…"
   },
-
   "popupAttendance": {
     "title": "إضافة طالب للحضور",
     "halaqaLabel": "اسم الحلقة",
     "selectHalaqa": "اختر الحلقة",
     "studentLabel": "اسم الطالب",
-    "selectStudent": "اختر الطالب"
+    "selectStudent": "اختر الطالب",
+    "addingTo": "إضافة إلى تاريخ",
+    "noStudents": "لا يوجد طلاب متاحون",
+    "saving": "جارٍ الإضافة…"
   },
-
   "recitationGroups": {
     "title": "تسميع القرآن",
     "subtitle": "اختر الحلقة لتسجيل تسميع الطلاب اليوم",
@@ -111,8 +151,13 @@
     "types": {
       "full": "صفحة كاملة: رقم {{page}}",
       "half": "نصف صفحة: رقم {{page}} | {{completed}} | آية رقم {{verse}}",
-      "more": "أكثر من صفحة: من {{from}} إلى {{to}}"
-    }
+      "more": "أكثر من صفحة: من {{from}} إلى {{to}}",
+      "surah": "سورة {{surah}}"
+    },
+    "noRecords": "لا توجد تلاوات مسجّلة",
+    "rating": "التقييم",
+    "selectHalaqa": "كل الحلقات",
+    "deleting": "جارٍ الحذف…"
   },
   "recitationRegistration": {
     "halaqa": "حلقة النور",
@@ -120,7 +165,8 @@
     "types": {
       "full": "صفحة كاملة",
       "half": "نصف صفحة",
-      "more": "أكثر من صفحة"
+      "more": "أكثر من صفحة",
+      "surah": "سورة {{surah}}"
     },
     "pageNumber": "رقم الصفحة",
     "fromPage": "من الصفحة",
@@ -137,7 +183,17 @@
     "notesPlaceholder": "اكتب ملاحظاتك...",
     "save": "حفظ التسميع",
     "cancel": "إلغاء",
-    "saved": "تم حفظ التسميع ✅"
+    "saved": "تم حفظ التسميع بنجاح",
+    "saving": "جارٍ الحفظ…",
+    "notFound": "الطالب غير موجود",
+    "pointsEarned": "النقاط المكتسبة",
+    "inputMode": {
+      "label": "طريقة التسميع",
+      "byPage": "حسب الصفحة",
+      "bySurah": "حسب السورة"
+    },
+    "surah": "السورة (جزء عمّ)",
+    "chooseSurah": "اختر السورة…"
   },
   "popupRecitation": {
     "title": "إضافة تسميع جديد",
@@ -159,7 +215,12 @@
     "toPagePlaceholder": "أدخل رقم الصفحة الأخيرة...",
     "save": "حفظ",
     "cancel": "إلغاء",
-    "fillData": "أكمل البيانات المطلوبة"
+    "fillData": "أكمل البيانات المطلوبة",
+    "selectStudent": "اختر الطالب",
+    "selectHalaqaFirst": "اختر الحلقة أولاً",
+    "saving": "جارٍ الحفظ…",
+    "date": "التاريخ",
+    "rating": "التقييم"
   },
   "allStudents": {
     "title": "إدارة الطلاب",
@@ -171,17 +232,31 @@
     "actions": "إجراءات",
     "studentNumber": "رقم الطالب •",
     "addPoints": "إضافة",
-    "deductPoints": "حسم"
+    "deductPoints": "حسم",
+    "searchPlaceholder": "ابحث بالاسم أو رقم الطالب",
+    "noStudents": "لا يوجد طلاب في هذه الحلقة",
+    "total": "الإجمالي",
+    "points": "النقاط",
+    "readOnlyBadge": "عرض فقط",
+    "readOnlySubtitle": "طلاب حلقتك — للاطّلاع فقط"
   },
-
   "popupAddPoints": {
     "title": "إضافة نقاط",
     "student": "الطالب",
     "amount": "الكمية",
     "reason": "السبب",
     "reasonPlaceholder": "اكتب سبب إضافة النقاط",
+    "reasonPresets": [
+      "مكافأة بالدرس",
+      "إتقان التسميع",
+      "حسن الخلق",
+      "تأخر عن الحلقة"
+    ],
     "cancel": "إلغاء",
-    "save": "حفظ"
+    "save": "حفظ",
+    "currentBalance": "الرصيد الحالي",
+    "amountHint": "عدد النقاط المضافة",
+    "saving": "جارٍ الحفظ…"
   },
   "popupAddStudent": {
     "title": "إضافة طالب جديد",
@@ -191,9 +266,11 @@
     "parentPhone": "رقم ولي الأمر",
     "studentPhone": "رقم الطالب",
     "cancel": "إلغاء",
-    "add": "إضافة"
+    "add": "إضافة",
+    "selectHalaqa": "اختر الحلقة",
+    "nameRequired": "الاسم مطلوب",
+    "saving": "جارٍ الإضافة…"
   },
-
   "popupDeductPoints": {
     "title": "خصم نقاط",
     "student": "الطالب",
@@ -201,15 +278,19 @@
     "reason": "السبب",
     "reasonPlaceholder": "اكتب سبب خصم النقاط",
     "cancel": "إلغاء",
-    "save": "حفظ"
+    "save": "حفظ",
+    "currentBalance": "الرصيد الحالي",
+    "amountHint": "عدد النقاط المخصومة",
+    "saving": "جارٍ الحفظ…",
+    "tooMuch": "الخصم أكبر من الرصيد الحالي"
   },
   "popupDeleteStudent": {
     "title": "حذف الطالب",
     "confirm": "هل أنت متأكد أنك تريد حذف الطالب",
     "cancel": "إلغاء",
-    "delete": "حذف"
+    "delete": "حذف",
+    "deleting": "جارٍ الحذف…"
   },
-
   "popupEditStudent": {
     "title": "تعديل بيانات الطالب",
     "name": "الاسم",
@@ -218,9 +299,19 @@
     "parentPhone": "رقم ولي الأمر",
     "studentPhone": "رقم الطالب",
     "cancel": "إلغاء",
-    "save": "حفظ"
+    "save": "حفظ",
+    "selectHalaqa": "اختر الحلقة",
+    "noHalaqa": "بدون حلقة",
+    "saving": "جارٍ الحفظ…",
+    "photo": "الصورة الشخصية",
+    "changePhoto": "تغيير الصورة",
+    "choosePhoto": "اختر صورة",
+    "removePhoto": "إزالة الصورة",
+    "photoHint": "JPEG أو PNG أو WebP",
+    "photoUploading": "جارٍ رفع الصورة…",
+    "photoFailed": "تعذّر رفع الصورة",
+    "forbidden": "هذا الحساب مدرّس لا مشرف. تعديل بيانات الطلاب ورفع صورهم للمشرف وحده."
   },
-
   "studentProfile": {
     "studentId": "رقم الطالب",
     "points": "النقاط",
@@ -257,7 +348,13 @@
       "date": "التاريخ",
       "points": "النقاط",
       "reason": "السبب"
-    }
+    },
+    "noRecitations": "لا توجد تلاوات مسجّلة",
+    "noAttendance": "لا يوجد سجل حضور",
+    "noPoints": "لا توجد حركات نقاط",
+    "attendedDays": "حضر {{days}} ({{rate}}%)",
+    "outOfDays": "من أصل {{days}} دوام",
+    "workDays": "أيام الدوام"
   },
   "leaderboard": {
     "title": "لوحة الصدارة",
@@ -270,13 +367,17 @@
     "labels": {
       "totalPoints": "نقطة إجمالية",
       "attendance": "نسبة الحضور %",
-      "recitation": "درجة التسميع"
+      "recitation": "الصفحات المسمّعة"
     },
     "table": {
       "rank": "المركز",
       "name": "اسم الطالب",
       "halaqa": "الحلقة"
-    }
+    },
+    "empty": "لا توجد بيانات بعد",
+    "filterHalaqa": "كل الحلقات",
+    "attendedOfDays": "حضر {{attended}} من {{days}}",
+    "pagesValue": "{{pages}} صفحة"
   },
   "halaqaCard": {
     "students": "طالب"
@@ -285,19 +386,17 @@
     "lastRecitation": "آخر تسميع",
     "recordRecitation": "تسجيل التسميع"
   },
-
   "settings": {
     "darkMode": "الوضع المظلم",
     "language": "اللغة",
-    "logout": "تسجيل الخروج"
+    "logout": "تسجيل الخروج",
+    "settings": "الإعدادات"
   },
-
   "logout": {
     "confirm": "هل أنت متأكد من تسجيل الخروج؟",
     "cancel": "إلغاء",
     "logout": "تسجيل خروج"
   },
-
   "login": {
     "backToHome": "العودة إلى الصفحة الرئيسية",
     "loginTitle": "تسجيل الدخول",
@@ -305,7 +404,166 @@
     "invalidPhone": "رقم الموبايل غير صحيح",
     "continue": "متابعة",
     "otpSent": "لقد تم ارسال رمز التحقق الى الرقم",
-    "resend": "اعادة ارسال",
-    "confirm": "تأكيد"
+    "resend": "إعادة إرسال",
+    "confirm": "تأكيد",
+    "title": "تسجيل الدخول",
+    "otpTitle": "لقد تم إرسال رمز التحقق إلى الرقم",
+    "home": "العودة إلى الصفحة الرئيسية",
+    "username": "اسم المستخدم",
+    "usernamePlaceholder": "أدخل اسم المستخدم",
+    "password": "كلمة المرور",
+    "submit": "دخول",
+    "failed": "تعذّر تسجيل الدخول",
+    "missingFields": "أدخل اسم المستخدم وكلمة المرور"
+  },
+  "state": {
+    "loading": "جارٍ التحميل…",
+    "error": "حدث خطأ",
+    "retry": "إعادة المحاولة",
+    "empty": "لا توجد بيانات",
+    "connecting": "جارٍ الاتصال بالخادم…",
+    "serverHint": "تأكد من تشغيل الخادم: npm run api",
+    "saving": "جارٍ الحفظ…",
+    "deleting": "جارٍ الحذف…"
+  },
+  "halaqaGroups": {
+    "empty": "لا توجد حلقات بعد"
+  },
+  "roles": {
+    "ADMIN": "مدير",
+    "SUPERVISOR": "مشرف",
+    "TEACHER": "أستاذ"
+  },
+  "quickPoints": {
+    "button": "نقاط سريعة",
+    "title": "إضافة / خصم نقاط سريعة",
+    "add": "إضافة",
+    "deduct": "خصم",
+    "halaqa": "الحلقة",
+    "allHalaqat": "كل حلقاتي",
+    "student": "الطالب",
+    "selectStudent": "اختر الطالب",
+    "noStudents": "لا يوجد طلاب في نطاقك",
+    "amount": "عدد النقاط",
+    "reason": "السبب",
+    "reasonPlaceholder": "اختياري — مثل: إتقان التسميع",
+    "save": "حفظ",
+    "close": "إغلاق",
+    "done": "تم: {{name}} ({{delta}}) — الرصيد الآن {{balance}}"
+  },
+  "settingsPage": {
+    "title": "الإعدادات",
+    "subtitle": "إدارة حسابك وتفضيلات التطبيق.",
+    "account": {
+      "title": "إعدادات الحساب",
+      "logout": "تسجيل الخروج"
+    },
+    "preferences": {
+      "title": "التفضيلات",
+      "darkMode": "الوضع الليلي",
+      "darkModeHint": "تبديل مظهر التطبيق بين الفاتح والداكن",
+      "language": "اللغة"
+    }
+  },
+  "toast": {
+    "studentAdded": "تمت إضافة الطالب بنجاح",
+    "studentUpdated": "تم حفظ تعديلات الطالب بنجاح",
+    "studentDeleted": "تم حذف الطالب بنجاح",
+    "pointsAdded": "تمت إضافة النقاط بنجاح",
+    "pointsDeducted": "تم حسم النقاط بنجاح"
+  },
+  "staff": {
+    "title": "إدارة الكادر",
+    "subtitle": "حسابات الأساتذة والمشرفين: إضافة وتعديل وتعطيل",
+    "open": "فتح الصفحة",
+    "addTeacher": "إضافة أستاذ جديد",
+    "addSupervisor": "إضافة مشرف جديد",
+    "addTitle": "حساب جديد",
+    "editTitle": "تعديل الحساب",
+    "role": "الدور",
+    "name": "الاسم",
+    "username": "اسم المستخدم",
+    "password": "كلمة المرور",
+    "passwordKeep": "اتركها فارغة للإبقاء على الحالية",
+    "phone": "رقم الهاتف (اختياري)",
+    "halaqat": "الحلقات المخصّصة",
+    "noHalaqat": "لا توجد حلقات بعد",
+    "noAssignedHalaqat": "بلا حلقات مسندة",
+    "save": "حفظ",
+    "edit": "تعديل",
+    "deactivate": "تعطيل",
+    "inactive": "معطّل",
+    "showInactive": "إظهار الحسابات المعطّلة",
+    "empty": "لا توجد حسابات",
+    "created": "تم إنشاء الحساب",
+    "updated": "تم تحديث الحساب",
+    "deactivated": "تم تعطيل الحساب",
+    "confirmDeactivate": "تعطيل حساب {{name}}؟ لن يستطيع الدخول بعدها.",
+    "passwordTooShort": "كلمة المرور أربعة أحرف على الأقل",
+    "activate": "تفعيل",
+    "activated": "تم تفعيل الحساب",
+    "halaqatSyncHint": "الحلقات المحددة هنا تصبح نطاق الأستاذ بالضبط بعد الحفظ؛ ما يُلغى تحديده يُفكّ إسناده."
+  },
+  "halaqatAdmin": {
+    "title": "إدارة الحلقات",
+    "subtitle": "إضافة الحلقات وتعديل أسمائها وتعطيلها — تنعكس فوراً في كل قوائم الاختيار",
+    "add": "إضافة حلقة جديدة",
+    "addTitle": "حلقة جديدة",
+    "editTitle": "تعديل الحلقة",
+    "name": "اسم الحلقة",
+    "namePlaceholder": "مثال: حلقة الهداية",
+    "teacher": "الأستاذ المسؤول",
+    "noTeacher": "بلا أستاذ",
+    "save": "حفظ",
+    "saving": "جارٍ الحفظ…",
+    "edit": "تعديل",
+    "deactivate": "تعطيل",
+    "inactive": "معطّلة",
+    "showInactive": "إظهار الحلقات المعطّلة",
+    "empty": "لا توجد حلقات بعد",
+    "created": "تمت إضافة الحلقة",
+    "updated": "تم تحديث الحلقة",
+    "deactivated": "تم تعطيل الحلقة",
+    "deactivateTitle": "تعطيل {{name}}؟",
+    "deactivateHint": "لن تظهر في قوائم الاختيار، وتبقى سجلاتها السابقة كما هي.",
+    "deactivateWithStudents": "فيها {{count}} طالباً فعّالاً — اختر حلقة يُنقلون إليها قبل التعطيل.",
+    "chooseTarget": "اختر حلقة الوجهة",
+    "noTargetHalaqa": "لا توجد حلقة أخرى فعّالة لنقل الطلاب إليها. أضف حلقة أولاً.",
+    "stage": "المرحلة الدراسية",
+    "noStage": "بلا مرحلة"
+  },
+  "halaqaStages": {
+    "primary": "ابتدائي",
+    "preparatory": "إعدادي",
+    "secondary": "ثانوي"
+  },
+  "attendanceStatus": {
+    "present": "حاضر",
+    "absent": "غائب",
+    "late": "متأخر",
+    "excused": "بعذر"
+  },
+  "dailyReport": {
+    "button": "تقرير اليوم",
+    "title": "إحصائيات اليوم",
+    "chooseHalaqa": "اختر الحلقة",
+    "notRecorded": "لم يُسجَّل حضور هذه الحلقة اليوم بعد — التقرير يعرض التسميع والنقاط فقط.",
+    "noStatus": "بلا تسجيل",
+    "noRecitation": "لا تسميع اليوم",
+    "page": "ص {{page}}",
+    "pageRange": "ص {{from}}–{{to}}",
+    "surah": "سورة {{surah}}",
+    "share": "مشاركة عبر واتساب",
+    "sheetTitle": "متابعة حلقة {{halaqa}} اليومية",
+    "columns": {
+      "student": "الطالب",
+      "attendance": "الحضور",
+      "participation": "المشاركة بالدرس",
+      "recitation": "التسميع"
+    },
+    "downloadImage": "تحميل كصورة 📸",
+    "preparing": "جارٍ تجهيز الصورة…",
+    "imageFailed": "تعذّر إنشاء الصورة",
+    "shareNotice": "بعد تحميل الصورة، افتح الواتساب وقم بإرفاقها يدوياً. تم إلغاء نسخ النص بناءً على طلبك."
   }
 }

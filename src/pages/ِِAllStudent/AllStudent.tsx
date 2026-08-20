@@ -8,119 +8,119 @@ import { PopupDeductPoints } from "./PopupDeductPoints";
 import { PopupEditStudent } from "./PopupEditStudent";
 import { PopupDeleteStudent } from "./PopupDeleteStudent";
 import { PopupAddStudent } from "./PopupAddStudent";
+import {
+  useAddPoints,
+  useDeductPoints,
+  useDeleteStudent,
+  useHalaqat,
+  useStudents,
+} from "../../lib/api/hooks";
+import type { Student } from "../../lib/api/types";
+import { EmptyState, ErrorState, LoadingState, Spinner } from "../../shared/QueryState";
+import { useCurrentHalaqa } from "../../lib/api/useCurrentHalaqa";
+import { useToast } from "../../shared/toast/toastContext";
+import Avatar from "../../shared/Avatar";
 
-type Student = {
-  id: string;
-  name: string;
-  initials: string;
-  halaqa: string;
-  points: number;
-  studentPhone?: string;
-  parentPhone?: string;
-  birthDate?: string;
-};
+type PopupKind = "add" | "deduct" | "edit" | "delete" | "addStudent";
 
 export default function AllStudent() {
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
 
-  const [students, setStudents] = useState<Student[]>([
-    { id: "2024001", name: "أحمد محمد علي", initials: "أ م", halaqa: "حلقة الفجر", points: 1250 },
-    { id: "2024002", name: "محمد عبد الرحمن", initials: "م ع", halaqa: "حلقة العصر", points: 980 },
-    { id: "2024003", name: "يوسف خالد", initials: "ي خ", halaqa: "حلقة المغرب", points: 1430 },
-    { id: "2024004", name: "عبد الله حسن", initials: "ع ح", halaqa: "حلقة العشاء", points: 760 },
-  ]);
+  const { notify } = useToast();
 
   const [activeStudent, setActiveStudent] = useState<Student | null>(null);
-  const [popup, setPopup] = useState<null | "add" | "deduct" | "edit" | "delete" | "addStudent">(null);
+  const [popup, setPopup] = useState<PopupKind | null>(null);
 
-  /* ===== FILTER STATE ===== */
-  const [selectedHalaqa, setSelectedHalaqa] = useState("all");
-  const halaqat = Array.from(new Set(students.map((s) => s.halaqa)));
-  const filteredStudents = selectedHalaqa === "all" ? students : students.filter((s) => s.halaqa === selectedHalaqa);
+  /* ===== FILTER + SEARCH ===== */
+  const [selectedHalaqa, setSelectedHalaqa] = useState<number | "all">("all");
+  const [search, setSearch] = useState("");
+  const trimmedSearch = search.trim();
+
+  const current = useCurrentHalaqa();
+  /**
+   * الصلاحيات: المدير والمشرف يضيفان ويعدّلان ويحذفان ويريان كل الحلقات.
+   * المدرّس يرى طلاب حلقته للاطّلاع فقط — تُخفى أزرار الإضافة والتعديل والحذف.
+   * الخادم يفرض القيد نفسه، فهذا لتوضيح الواجهة لا للحماية.
+   */
+  const canManageStudents = current.isAdmin;
+  const halaqatQuery = useHalaqat();
+  // المدرّس مقيَّد بحلقته؛ المدير والمشرف يختاران من الشريط
+  const effectiveHalaqaId = current.isTeacher
+    ? current.halaqaId
+    : selectedHalaqa === "all"
+      ? undefined
+      : selectedHalaqa;
+
+  const studentsQuery = useStudents({
+    halaqaId: effectiveHalaqaId,
+    search: trimmedSearch || undefined,
+    limit: 200,
+  });
+
+  const deleteStudent = useDeleteStudent();
+  const addPoints = useAddPoints();
+  const deductPoints = useDeductPoints();
+
+  const students = studentsQuery.data?.data ?? [];
+  const total = studentsQuery.data?.meta.total ?? 0;
+  const halaqat = halaqatQuery.data ?? [];
+
+  const mutationError =
+    deleteStudent.error ?? addPoints.error ?? deductPoints.error ?? null;
 
   const handleClose = () => {
     setPopup(null);
     setActiveStudent(null);
+    deleteStudent.reset();
+    addPoints.reset();
+    deductPoints.reset();
   };
 
-  const handleSavePoints = (points: number) => {
-    if (activeStudent) {
-      setStudents((prev) =>
-        prev.map((s) => (s.id === activeStudent.id ? { ...s, points } : s))
-      );
+  const handleAddPoints = async (amount: number, reason: string) => {
+    if (!activeStudent) return;
+    await addPoints.mutateAsync({ id: activeStudent.id, amount, reason });
+    notify(t("toast.pointsAdded"));
+    handleClose();
+  };
+
+  const handleDeductPoints = async (amount: number, reason: string) => {
+    if (!activeStudent) return;
+    await deductPoints.mutateAsync({ id: activeStudent.id, amount, reason });
+    notify(t("toast.pointsDeducted"));
+    handleClose();
+  };
+
+  const handleDeleteStudent = async () => {
+    if (!activeStudent) return;
+    await deleteStudent.mutateAsync({ id: activeStudent.id });
+    notify(t("toast.studentDeleted"));
+    handleClose();
+  };
+
+  const openPopup = (kind: PopupKind, student?: Student) => {
+    if (student) setActiveStudent(student);
+    setPopup(kind);
+  };
+
+  const chipClass = (active: boolean) =>
+    `whitespace-nowrap min-h-[40px] px-4 py-2 rounded-full text-sm font-bold transition active:scale-95 ${
+      active
+        ? "bg-emerald-500 text-white"
+        : "bg-white dark:bg-dark border dark:border-gray-600 text-emerald-700 dark:text-white hover:bg-emerald-50 dark:hover:bg-dark-light"
+    }`;
+
+  const renderBody = () => {
+    if (studentsQuery.isPending) return <LoadingState />;
+    if (studentsQuery.isError) {
+      return <ErrorState error={studentsQuery.error} onRetry={() => void studentsQuery.refetch()} />;
     }
-    handleClose();
-  };
-
-  const handleEditStudent = (updatedStudent: Student) => {
-    setStudents((prev) =>
-      prev.map((s) => (s.id === updatedStudent.id ? updatedStudent : s))
-    );
-    handleClose();
-  };
-
-  const handleDeleteStudent = () => {
-    if (activeStudent) {
-      setStudents((prev) => prev.filter((s) => s.id !== activeStudent.id));
+    if (students.length === 0) {
+      return <EmptyState message={t("allStudents.noStudents")} icon="🧑‍🎓" />;
     }
-    handleClose();
-  };
 
-  return (
-    <div className="bg-emerald-50/40 dark:bg-dark-light min-h-screen mt-8" dir={i18n.language === "ar" ? "rtl" : "ltr"}>
-      <main className="max-w-[1200px] mx-auto px-4 md:px-10 py-10 space-y-8">
-
-        {/* ===== HEADER ===== */}
-        <div className="flex flex-col md:flex-row justify-between gap-4 items-start md:items-center">
-          <div>
-            <h1 className="text-2xl md:text-4xl font-bold mb-2 text-gray-800 dark:text-white">
-              {t("allStudents.title")}
-            </h1>
-            <p className="text-gray-600 dark:text-gray-300 text-sm md:text-base">
-              {t("allStudents.subtitle")}
-            </p>
-          </div>
-
-          <button
-            onClick={() => setPopup("addStudent")}
-            className="flex items-center gap-2 bg-emerald-400 hover:bg-emerald-500 text-white px-5 py-3 rounded-xl font-bold shadow-lg transition-colors"
-          >
-            {t("allStudents.addStudentButton")}
-            <IoPersonAdd />
-          </button>
-        </div>
-
-        {/* ===== FILTER (SCROLLABLE) ===== */}
-        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-2">
-          <button
-            onClick={() => setSelectedHalaqa("all")}
-            className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition
-              ${
-                selectedHalaqa === "all"
-                  ? "bg-emerald-500 text-white"
-                  : "bg-white dark:bg-dark border dark:border-gray-600 text-emerald-700 dark:text-white hover:bg-emerald-50 dark:hover:bg-dark-light"
-              }`}
-          >
-            {t("allStudents.allStudents")}
-          </button>
-
-          {halaqat.map((h) => (
-            <button
-              key={h}
-              onClick={() => setSelectedHalaqa(h)}
-              className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition
-                ${
-                  selectedHalaqa === h
-                    ? "bg-emerald-500 text-white"
-                    : "bg-white dark:bg-dark border dark:border-gray-600 text-emerald-700 dark:text-white hover:bg-emerald-50 dark:hover:bg-dark-light"
-                }`}
-            >
-              {h}
-            </button>
-          ))}
-        </div>
-
+    return (
+      <>
         {/* ===== DESKTOP TABLE ===== */}
         <div className="hidden md:block bg-white dark:bg-dark rounded-2xl border dark:border-gray-600 overflow-hidden">
           <table className="w-full text-right">
@@ -128,35 +128,39 @@ export default function AllStudent() {
               <tr className="bg-emerald-50 dark:bg-dark-light text-emerald-700 dark:text-white text-sm border-b dark:border-gray-600">
                 <th className="px-6 py-4 font-bold">{t("allStudents.studentName")}</th>
                 <th className="px-6 py-4 font-bold">{t("allStudents.halaqa")}</th>
+                <th className="px-6 py-4 font-bold">{t("allStudents.points")}</th>
                 <th className="px-6 py-4 font-bold text-left">{t("allStudents.actions")}</th>
               </tr>
             </thead>
 
             <tbody className="divide-y dark:divide-gray-700">
-              {filteredStudents.map((s) => (
+              {students.map((s) => (
                 <tr key={s.id} className="hover:bg-emerald-50/60 dark:hover:bg-dark-light">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="size-10 rounded-full bg-emerald-100 dark:bg-gray-700 flex items-center justify-center font-bold text-gray-800 dark:text-white">
-                        {s.initials}
-                      </div>
+                      <Avatar name={s.name} url={s.avatarUrl} className="size-10" />
                       <div>
                         <div className="font-bold text-gray-800 dark:text-white">{s.name}</div>
-                        <div className="text-xs text-emerald-700/70 dark:text-gray-400">#{s.id}</div>
+                        <div className="text-xs text-emerald-700/70 dark:text-gray-400">
+                          #{s.code}
+                        </div>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     <span className="px-3 py-1 rounded-md text-xs bg-emerald-100 dark:bg-gray-700 font-bold text-emerald-700 dark:text-white">
-                      {s.halaqa}
+                      {s.halaqa || t("common.none")}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 font-bold text-emerald-700 dark:text-emerald-400">
+                    {s.points}
                   </td>
                   <td className="px-6 py-4">
                     <ActionButtons
                       student={s}
-                      navigate={navigate}
-                      setPopup={setPopup}
-                      setActiveStudent={setActiveStudent}
+                      canManage={canManageStudents}
+                      onView={() => navigate(`StudentProfile/${s.id}`)}
+                      onPopup={openPopup}
                     />
                   </td>
                 </tr>
@@ -167,75 +171,166 @@ export default function AllStudent() {
 
         {/* ===== MOBILE CARDS ===== */}
         <div className="md:hidden space-y-5">
-          {filteredStudents.map((s) => (
-            <div key={s.id} className="bg-white dark:bg-dark rounded-2xl border dark:border-gray-600 shadow-sm p-4">
+          {students.map((s) => (
+            <div
+              key={s.id}
+              className="bg-white dark:bg-dark rounded-2xl border dark:border-gray-600 shadow-sm p-4"
+            >
               <div className="flex items-center gap-3 pb-3 border-b dark:border-gray-700">
-                <div className="size-12 rounded-full bg-emerald-100 dark:bg-gray-700 flex items-center justify-center font-black text-lg text-gray-800 dark:text-white">{s.initials}</div>
+                <Avatar name={s.name} url={s.avatarUrl} className="size-12" textClassName="text-lg" />
                 <div className="flex-1">
                   <div className="font-bold text-gray-800 dark:text-white">{s.name}</div>
                   <div className="text-xs text-emerald-700/70 dark:text-gray-400">
-                    {t("allStudents.studentNumber")} {s.id}
+                    {t("allStudents.studentNumber")} {s.code}
                   </div>
+                </div>
+                <div className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
+                  {s.points}
                 </div>
               </div>
 
               <div className="pt-3">
                 <span className="px-3 py-1 rounded-lg bg-emerald-100 dark:bg-gray-700 text-xs font-bold text-emerald-700 dark:text-white">
-                  {s.halaqa}
+                  {s.halaqa || t("common.none")}
                 </span>
               </div>
 
               <div className="pt-4">
                 <ActionButtons
                   student={s}
-                  navigate={navigate}
-                  setPopup={setPopup}
-                  setActiveStudent={setActiveStudent}
+                  canManage={canManageStudents}
+                  onView={() => navigate(`StudentProfile/${s.id}`)}
+                  onPopup={openPopup}
                   small
                 />
               </div>
             </div>
           ))}
         </div>
+      </>
+    );
+  };
+
+  return (
+    <div
+      className="bg-emerald-50/40 dark:bg-dark-light min-h-screen pt-20 md:pt-24"
+      dir={i18n.language === "ar" ? "rtl" : "ltr"}
+    >
+      <main className="max-w-[1200px] mx-auto px-4 md:px-10 pb-10 space-y-6 md:space-y-8">
+        {/* ===== HEADER ===== */}
+        <div className="flex flex-col md:flex-row justify-between gap-4 items-start md:items-center">
+          <div>
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl md:text-4xl font-bold text-gray-800 dark:text-white">
+                {t("allStudents.title")}
+              </h1>
+              {/* المدرّس يطّلع فقط — نوضّح ذلك بدل ترك الأزرار المفقودة بلا تفسير */}
+              {!canManageStudents && (
+                <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                  {t("allStudents.readOnlyBadge")}
+                </span>
+              )}
+            </div>
+            <p className="text-gray-600 dark:text-gray-300 text-sm md:text-base">
+              {canManageStudents
+                ? t("allStudents.subtitle")
+                : current.halaqaName ?? t("allStudents.readOnlySubtitle")}
+              {!studentsQuery.isPending && (
+                <span className="ms-2 font-bold text-emerald-700 dark:text-emerald-400">
+                  ({t("allStudents.total")}: {total})
+                </span>
+              )}
+            </p>
+          </div>
+
+          {canManageStudents && (
+            <button
+              onClick={() => openPopup("addStudent")}
+              className="flex w-full md:w-auto min-h-[48px] items-center justify-center gap-2 bg-emerald-400
+                hover:bg-emerald-500 active:scale-[0.98] text-white px-5 py-3 rounded-xl font-bold shadow-lg transition"
+            >
+              {t("allStudents.addStudentButton")}
+              <IoPersonAdd />
+            </button>
+          )}
+        </div>
+
+        {/* ===== SEARCH ===== */}
+        <div className="relative">
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t("allStudents.searchPlaceholder")}
+            className="w-full min-h-[48px] rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark px-4 py-3 text-base text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+          />
+          {studentsQuery.isFetching && !studentsQuery.isPending && (
+            <div className="absolute inset-y-0 end-4 flex items-center">
+              <Spinner className="size-5" />
+            </div>
+          )}
+        </div>
+
+        {/* ===== FILTER (SCROLLABLE) — للمشرف فقط ===== */}
+        {current.showHalaqaPicker && (
+        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-2">
+          <button onClick={() => setSelectedHalaqa("all")} className={chipClass(selectedHalaqa === "all")}>
+            {t("allStudents.allStudents")}
+          </button>
+
+          {halaqat.map((h) => (
+            <button
+              key={h.id}
+              onClick={() => setSelectedHalaqa(h.id)}
+              className={chipClass(selectedHalaqa === h.id)}
+            >
+              {h.name}
+            </button>
+          ))}
+        </div>
+        )}
+
+        {/* ===== خطأ في عملية تعديل ===== */}
+        {mutationError && (
+          <p className="rounded-xl bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm font-bold text-red-700 dark:text-red-400">
+            {mutationError instanceof Error ? mutationError.message : t("state.error")}
+          </p>
+        )}
+
+        {renderBody()}
       </main>
 
       {/* ===== POPUPS ===== */}
       {popup === "add" && activeStudent && (
         <PopupAddPoints
           studentName={activeStudent.name}
-          initialPoints={activeStudent.points}
-          onSave={handleSavePoints}
+          currentPoints={activeStudent.points}
+          saving={addPoints.isPending}
+          onSave={handleAddPoints}
           onClose={handleClose}
         />
       )}
       {popup === "deduct" && activeStudent && (
         <PopupDeductPoints
           studentName={activeStudent.name}
-          initialPoints={activeStudent.points}
-          onSave={handleSavePoints}
+          currentPoints={activeStudent.points}
+          saving={deductPoints.isPending}
+          onSave={handleDeductPoints}
           onClose={handleClose}
         />
       )}
-      {popup === "edit" && activeStudent && (
-        <PopupEditStudent
-          student={activeStudent}
-          onSave={handleEditStudent}
-          onClose={handleClose}
-        />
+      {popup === "edit" && activeStudent && canManageStudents && (
+        <PopupEditStudent student={activeStudent} onClose={handleClose} />
       )}
-      {popup === "delete" && activeStudent && (
+      {popup === "delete" && activeStudent && canManageStudents && (
         <PopupDeleteStudent
           studentName={activeStudent.name}
+          deleting={deleteStudent.isPending}
           onDelete={handleDeleteStudent}
           onClose={handleClose}
         />
       )}
-      {popup === "addStudent" && (
-        <PopupAddStudent
-          onAdd={(newStudent) => setStudents((prev) => [...prev, newStudent])}
-          onClose={handleClose}
-        />
-      )}
+      {popup === "addStudent" && canManageStudents && <PopupAddStudent onClose={handleClose} />}
     </div>
   );
 }
@@ -243,69 +338,66 @@ export default function AllStudent() {
 /* ===== ACTION BUTTONS ===== */
 function ActionButtons({
   student,
-  navigate,
-  setPopup,
-  setActiveStudent,
+  canManage,
+  onView,
+  onPopup,
   small,
 }: {
   student: Student;
-  navigate: any;
-  setPopup: (popup: "add" | "deduct" | "edit" | "delete") => void;
-  setActiveStudent: (s: Student) => void;
+  /** المدير والمشرف: تعديل وحذف. المدرّس يرى الاطّلاع ومنح النقاط. */
+  canManage: boolean;
+  onView: () => void;
+  onPopup: (kind: PopupKind, student: Student) => void;
   small?: boolean;
 }) {
   const { t } = useTranslation();
-  const largeSize = small ? "px-3 py-1 text-sm" : "px-4 py-2 text-sm font-bold";
-  const iconSize = small ? "size-8" : "size-9";
+  // 44px حدّ أدنى لكل هدف لمس على الجوال
+  const pointsSize = small
+    ? "min-h-[44px] px-4 text-sm font-bold flex-1"
+    : "min-h-[40px] px-4 text-sm font-bold";
+  const iconSize = small ? "size-11" : "size-10";
 
   return (
-    <div className="flex justify-between gap-2">
-      <div className="flex gap-1">
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex gap-2">
         <button
-          onClick={() => navigate(`StudentProfile/${student.id}`)}
-          className={`${iconSize} rounded-xl bg-slate-100 dark:bg-gray-700 flex items-center justify-center`}
+          onClick={onView}
+          aria-label={t("allStudents.actions")}
+          className={`${iconSize} rounded-xl bg-slate-100 dark:bg-gray-700 flex items-center justify-center active:scale-95 transition`}
         >
-          <MdVisibility className="text-gray-800 dark:text-white" />
+          <MdVisibility className="text-lg text-gray-800 dark:text-white" />
         </button>
 
-        <button
-          onClick={() => {
-            setActiveStudent(student);
-            setPopup("edit");
-          }}
-          className={`${iconSize} rounded-xl bg-blue-100 dark:bg-blue-700 flex items-center justify-center`}
-        >
-          <MdEdit className="text-blue-800 dark:text-white" />
-        </button>
+        {canManage && (
+          <>
+            <button
+              onClick={() => onPopup("edit", student)}
+              className={`${iconSize} rounded-xl bg-blue-100 dark:bg-blue-700 flex items-center justify-center active:scale-95 transition`}
+            >
+              <MdEdit className="text-lg text-blue-800 dark:text-white" />
+            </button>
 
-        <button
-          onClick={() => {
-            setActiveStudent(student);
-            setPopup("delete");
-          }}
-          className={`${iconSize} rounded-xl bg-red-100 dark:bg-red-700 flex items-center justify-center`}
-        >
-          <MdDelete className="text-red-800 dark:text-white" />
-        </button>
+            <button
+              onClick={() => onPopup("delete", student)}
+              className={`${iconSize} rounded-xl bg-red-100 dark:bg-red-700 flex items-center justify-center active:scale-95 transition`}
+            >
+              <MdDelete className="text-lg text-red-800 dark:text-white" />
+            </button>
+          </>
+        )}
       </div>
 
-      <div className="flex gap-1">
+      <div className="flex flex-1 gap-2 sm:flex-none">
         <button
-          onClick={() => {
-            setActiveStudent(student);
-            setPopup("add");
-          }}
-          className={`rounded-xl bg-emerald-100 dark:bg-emerald-700 ${largeSize} text-emerald-800 dark:text-white`}
+          onClick={() => onPopup("add", student)}
+          className={`rounded-xl bg-emerald-100 dark:bg-emerald-700 ${pointsSize} text-emerald-800 dark:text-white active:scale-95 transition`}
         >
           {t("allStudents.addPoints")}
         </button>
 
         <button
-          onClick={() => {
-            setActiveStudent(student);
-            setPopup("deduct");
-          }}
-          className={`rounded-xl bg-fuchsia-100 dark:bg-fuchsia-700 ${largeSize} text-fuchsia-800 dark:text-white`}
+          onClick={() => onPopup("deduct", student)}
+          className={`rounded-xl bg-fuchsia-100 dark:bg-fuchsia-700 ${pointsSize} text-fuchsia-800 dark:text-white active:scale-95 transition`}
         >
           {t("allStudents.deductPoints")}
         </button>

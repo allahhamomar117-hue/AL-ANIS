@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import logo from "/logo.png";
@@ -8,10 +8,14 @@ import {
   FaBookOpen,
   FaChartBar,
   FaClipboardCheck,
-  FaUserCircle, // تم إضافة أيقونة المستخدم هنا
+  FaUserCircle,
+  FaStar,
+  FaFileAlt,
 } from "react-icons/fa";
 
-import SettingsMenu from "./settings/SettingsMenu";
+import QuickPointsModal from "./QuickPointsModal";
+import DailyReportModal from "./DailyReportModal";
+import { useAuth } from "../context/authContext";
 
 function Navbar() {
   const navigate = useNavigate();
@@ -20,25 +24,13 @@ function Navbar() {
   const { t } = useTranslation();
 
   const isArabic = lang === "ar";
+  const { user: me } = useAuth();
 
-  /* ===== Profile Dropdown ===== */
-  const [profileOpen, setProfileOpen] = useState(false);
-  const profileRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        profileRef.current &&
-        !profileRef.current.contains(e.target as Node)
-      ) {
-        setProfileOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  const [quickPoints, setQuickPoints] = useState(false);
+  const [dailyReport, setDailyReport] = useState(false);
 
   /* ===== Navigation Items ===== */
+  // صفحة الطلاب متاحة للجميع: المشرف بكامل الصلاحيات، والمدرّس للاطّلاع على حلقته.
   const navItems = [
     {
       key: "attendance",
@@ -69,58 +61,130 @@ function Navbar() {
   const isActive = (path: string) => location.pathname.includes(path);
 
   return (
-    <div
-      className={`fixed top-0 left-0 w-full h-16 z-50 flex items-center justify-between
-        px-4 md:px-8 bg-white/90 dark:bg-dark backdrop-blur-md
-        border-b border-gray-200 dark:border-gray-700 shadow-sm ${
-          isArabic ? "rtl" : "ltr"
-        }`}
-    >
-      {/* ===== Logo ===== */}
-      <img
-        src={logo}
-        alt="logo"
-        onClick={() => navigate(`/${lang}`)}
-        className="w-12 h-12 cursor-pointer"
-      />
+    <>
+      {/* ===== الشريط العلوي ===== */}
+      <div
+        className={`fixed top-0 left-0 w-full h-16 z-50 flex items-center gap-2
+          px-3 md:px-8 bg-white/95 dark:bg-dark backdrop-blur-md
+          border-b border-gray-200 dark:border-gray-700 shadow-sm ${
+            isArabic ? "rtl" : "ltr"
+          }`}
+      >
+        {/* ===== Logo ===== */}
+        <img
+          src={logo}
+          alt="logo"
+          onClick={() => navigate(`/${lang}`)}
+          className="w-10 h-10 md:w-12 md:h-12 shrink-0 cursor-pointer"
+        />
 
-      {/* ===== Navigation ===== */}
-      <div className="flex-1 mx-4 overflow-x-auto scrollbar-hide">
-        <div className="flex items-center gap-2 w-max">
+        {/* ===== التنقّل — على الشاشات المتوسطة فأكبر فقط ===== */}
+        <div className="hidden md:block flex-1 mx-4 overflow-x-auto scrollbar-hide">
+          <div className="flex items-center gap-2 w-max">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.key}
+                  onClick={() => navigate(`/${lang}/${item.path}`)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition cursor-pointer
+                    ${
+                      isActive(item.path)
+                        ? "bg-green-100 text-green-700 border-b-2 border-green-500 dark:bg-green-900/40 dark:text-green-300"
+                        : "text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    }`}
+                >
+                  <Icon className="text-lg opacity-80" />
+                  <span>{item.title}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* على الجوال: مساحة مرنة تدفع الأزرار إلى الطرف */}
+        <div className="flex-1 md:hidden" />
+
+        {/* ===== نقاط سريعة ===== */}
+        <button
+          onClick={() => setQuickPoints(true)}
+          title={t("quickPoints.title")}
+          aria-label={t("quickPoints.button")}
+          className="flex h-11 shrink-0 items-center gap-2 rounded-xl bg-emerald-500 px-3 font-bold
+            text-white shadow-md transition hover:bg-emerald-600 hover:shadow-lg cursor-pointer active:scale-95"
+        >
+          <FaStar className="text-lg" />
+          <span className="hidden lg:inline">{t("quickPoints.button")}</span>
+        </button>
+
+        {/* ===== تقرير اليوم — جاهز للإرسال إلى مجموعة الأهالي ===== */}
+        <button
+          onClick={() => setDailyReport(true)}
+          title={t("dailyReport.title")}
+          aria-label={t("dailyReport.button")}
+          className="flex h-11 shrink-0 items-center gap-2 rounded-xl bg-sky-500 px-3 font-bold
+            text-white shadow-md transition hover:bg-sky-600 hover:shadow-lg cursor-pointer active:scale-95"
+        >
+          <FaFileAlt className="text-lg" />
+          <span className="hidden lg:inline">{t("dailyReport.button")}</span>
+        </button>
+
+        {/* ===== Profile — نقرة واحدة إلى الإعدادات (اللغة والوضع الليلي والخروج هناك) ===== */}
+        <button
+          onClick={() => navigate(`/${lang}/settings`)}
+          aria-label={t("settings.settings")}
+          title={me?.name ?? t("settings.settings")}
+          className={`flex h-11 shrink-0 items-center gap-2 rounded-lg px-1 transition cursor-pointer
+            active:scale-95 hover:bg-gray-100 dark:hover:bg-gray-800 ${
+              isActive("settings") ? "bg-gray-100 dark:bg-gray-800" : ""
+            }`}
+        >
+          <FaUserCircle className="w-8 h-8 text-gray-500 dark:text-gray-400" />
+          {me && (
+            <span className="hidden text-sm font-semibold text-gray-700 dark:text-gray-200 xl:inline">
+              {me.name}
+              <span className="ms-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                {t(`roles.${me.role}`)}
+              </span>
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* ===== شريط التنقّل السفلي — للجوال ===== */}
+      <nav
+        className={`fixed bottom-0 left-0 z-50 w-full md:hidden
+          border-t border-gray-200 bg-white/95 backdrop-blur-md
+          pb-[env(safe-area-inset-bottom)] dark:border-gray-700 dark:bg-dark ${
+            isArabic ? "rtl" : "ltr"
+          }`}
+      >
+        <div className="flex items-stretch">
           {navItems.map((item) => {
             const Icon = item.icon;
+            const active = isActive(item.path);
             return (
               <button
                 key={item.key}
                 onClick={() => navigate(`/${lang}/${item.path}`)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition cursor-pointer
-                  ${
-                    isActive(item.path)
-                      ? "bg-green-100 text-green-700 border-b-2 border-green-500 dark:bg-green-900/40 dark:text-green-300"
-                      : "text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                className={`flex min-h-[60px] flex-1 flex-col items-center justify-center gap-1 px-1 py-2
+                  text-[11px] font-semibold transition active:scale-95 ${
+                    active
+                      ? "text-green-600 dark:text-green-300"
+                      : "text-gray-500 dark:text-gray-400"
                   }`}
               >
-                <Icon className="text-lg opacity-80" />
-                <span className="hidden md:inline">{item.title}</span>
+                <Icon className={`text-xl ${active ? "" : "opacity-70"}`} />
+                <span className="max-w-full truncate">{item.title}</span>
               </button>
             );
           })}
         </div>
-      </div>
+      </nav>
 
-      {/* ===== Profile ===== */}
-      <div ref={profileRef} className="relative">
-        <button
-          onClick={() => setProfileOpen(!profileOpen)}
-          className="flex items-center gap-2 px-1 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer"
-        >
-          {/* تم استبدال الصورة بالأيقونة هنا */}
-          <FaUserCircle className="w-8 h-8 text-gray-500 dark:text-gray-400" />
-        </button>
-
-        {profileOpen && <SettingsMenu isArabic={isArabic} />}
-      </div>
-    </div>
+      {quickPoints && <QuickPointsModal onClose={() => setQuickPoints(false)} />}
+      {dailyReport && <DailyReportModal onClose={() => setDailyReport(false)} />}
+    </>
   );
 }
 

@@ -1,29 +1,31 @@
 import HalaqaGrid from "../../shared/HalaqaGrid";
 import { useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-
-const halaqat = [
-  { id: 1, name: "حلقة الهداية", teacher: "أ. إبراهيم يوسف", students: 20 },
-  { id: 2, name: "حلقة التقوى", teacher: "أ. عمر خالد", students: 10 },
-  { id: 3, name: "حلقة النور", teacher: "أ. ياسين محمود", students: 15 },
-  { id: 4, name: "حلقة الفجر", teacher: "أ. محمد أحمد", students: 12 },
-  { id: 5, name: "حلقة الصدق", teacher: "أ. عثمان ناصر", students: 11 },
-  { id: 6, name: "حلقة البركة", teacher: "أ. فهد سليمان", students: 25 },
-  { id: 7, name: "حلقة الترتيل", teacher: "أ. حسن سعد", students: 18 },
-  { id: 8, name: "حلقة الإيمان", teacher: "أ. عبدالله علي", students: 14 },
-];
+import { useHalaqat } from "../../lib/api/hooks";
+import { useCurrentHalaqa } from "../../lib/api/useCurrentHalaqa";
+import { Navigate } from "react-router-dom";
+import { EmptyState, ErrorState, LoadingState } from "../../shared/QueryState";
 
 export default function RecitationGroups() {
   const navigate = useNavigate();
   const params = useParams();
   const { t } = useTranslation();
 
+  const { data: halaqat, isPending, isError, error, refetch } = useHalaqat();
+  const current = useCurrentHalaqa();
+
   const handleSelectHalaqa = (id: number) => {
     navigate(`/${params?.lang || "ar"}/recitation-groups/${id}`);
   };
 
+  // المدرّس مرتبط بحلقة واحدة: نفتحها مباشرة بلا خطوة اختيار
+  if (!current.isLoading && current.isTeacher && current.halaqaId) {
+    return <Navigate to={`/${params?.lang || "ar"}/recitation-groups/${current.halaqaId}`} replace />;
+  }
+
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-dark-light px-4 sm:px-8 py-6 mt-14 rtl transition-colors duration-300">
+    <div className="min-h-screen bg-gray-50 dark:bg-dark-light px-4 sm:px-8 py-6 pt-20 md:pt-24 rtl transition-colors duration-300">
       
       {/* العنوان + زر السجل */}
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -56,10 +58,15 @@ export default function RecitationGroups() {
       </div>
 
       {/* شبكة الحلقات */}
-      <HalaqaGrid
-        halaqat={halaqat}
-        onSelect={(id) => handleSelectHalaqa(id)}
-      />
+      {isPending ? (
+        <LoadingState />
+      ) : isError ? (
+        <ErrorState error={error} onRetry={() => void refetch()} />
+      ) : halaqat.length === 0 ? (
+        <EmptyState message={t("halaqaGroups.empty")} icon="🕌" />
+      ) : (
+        <HalaqaGrid halaqat={halaqat} onSelect={(id) => handleSelectHalaqa(id)} />
+      )}
     </div>
   );
 }

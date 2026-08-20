@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import Navbar from "./shared/Navbar";
 
+/** الهيكل العام للصفحات المحمية. الحارس مطبَّق على مستوى المسار في MainRoutes. */
 const MainLayout = () => {
   const { lang } = useParams(); // ar | en
   const { i18n } = useTranslation();
@@ -17,10 +18,11 @@ const MainLayout = () => {
   }, [lang, i18n]);
 
   return (
-    <div className="flex flex-col min-h-screen ">
-           <Navbar />
+    <div className="flex flex-col min-h-screen">
+      <Navbar />
 
-      <main className="flex-1">
+      {/* pb للجوال: مساحة لشريط التنقّل السفلي الثابت */}
+      <main className="flex-1 pb-24 md:pb-0">
         <Outlet />
       </main>
     </div>

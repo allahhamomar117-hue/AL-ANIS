@@ -1,14 +1,17 @@
 import { ArrowLeftIcon, UserGroupIcon } from "@heroicons/react/24/outline";
 import { useTranslation } from "react-i18next";
+import type { HalaqaStage } from "../lib/api/types";
 
 interface HalaqaCardProps {
   name: string;
   teacher: string;
   students: number;
+  /** المرحلة الدراسية — تُخفى الرقاقة إن لم تُحدَّد. */
+  stage?: HalaqaStage | null;
   onClick: () => void;
 }
 
-export default function HalaqaCard({ name, teacher, students, onClick }: HalaqaCardProps) {
+export default function HalaqaCard({ name, teacher, students, stage, onClick }: HalaqaCardProps) {
   const { t } = useTranslation();
 
   return (
@@ -30,7 +33,14 @@ export default function HalaqaCard({ name, teacher, students, onClick }: HalaqaC
       />
 
       <div className="relative z-10">
-        <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-1">{name}</h3>
+        <div className="mb-1 flex flex-wrap items-center gap-2">
+          <h3 className="text-lg font-bold text-gray-800 dark:text-white">{name}</h3>
+          {stage && (
+            <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+              {t(`halaqaStages.${stage}`)}
+            </span>
+          )}
+        </div>
         <p className="text-sm text-gray-500 dark:text-gray-300 mb-5">
           👤 {teacher}
         </p>

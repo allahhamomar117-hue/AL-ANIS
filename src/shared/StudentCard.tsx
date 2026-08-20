@@ -1,13 +1,17 @@
 import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { FaBookOpen, FaPenAlt } from "react-icons/fa";
+import Avatar from "./Avatar";
 
 export interface Student {
   id: string;
   name: string;
   avatarUrl?: string;
+  /** نص آخر تسميع جاهزاً للعرض (تاريخ · رقم الصفحة). */
   lastRecitation: string;
-  initials?: string;
+  /** لا تسميع سابق: يُعرض النص بالرمادي بدل الكهرماني. */
+  hasRecitation?: boolean;
 }
 
 interface Props {
@@ -16,12 +20,21 @@ interface Props {
   onSelect?: (id: string) => void;
 }
 
+/**
+ * سطر طالب مدمج في قائمة اختيار التسميع.
+ *
+ * صُمّم للجوال: ارتفاع السطر ~76px بدل بطاقة بارتفاع ~300px،
+ * فتظهر عشرة طلاب في الشاشة بدل واحد.
+ */
 const StudentCard: React.FC<Props> = ({ student, groupId, onSelect }) => {
   const navigate = useNavigate();
   const params = useParams();
   const { t } = useTranslation();
 
-  const handleSelectStudent = () => {
+  /** الزر داخل السطر، فنمنع تكرار التنقّل عند تصاعد الحدث إلى السطر. */
+  const handleSelectStudent = (event?: React.MouseEvent) => {
+    event?.stopPropagation();
+
     if (onSelect) onSelect(student.id);
 
     const lang = params?.lang || "ar";
@@ -31,44 +44,45 @@ const StudentCard: React.FC<Props> = ({ student, groupId, onSelect }) => {
   return (
     <div
       onClick={handleSelectStudent}
-      className="bg-white dark:bg-dark-light rounded-2xl p-6 shadow-sm flex flex-col items-center text-center border
-        border-gray-50 dark:border-gray-700 transition-transform hover:shadow-md hover:-translate-y-1 cursor-pointer
-        transition-colors duration-300"
+      className="flex min-h-[76px] items-center gap-4 rounded-xl border border-gray-100 bg-white px-4 py-3.5 shadow-sm
+        transition hover:border-emerald-200 hover:shadow active:scale-[0.99] cursor-pointer
+        dark:border-gray-700 dark:bg-dark-light dark:hover:border-emerald-700"
     >
-      {/* صورة الطالب أو الحروف الأولى */}
-      <div className="relative mb-4">
-        {student.avatarUrl ? (
-          <img
-            src={student.avatarUrl}
-            alt={student.name}
-            className="w-24 h-24 rounded-full object-cover bg-orange-100 dark:bg-orange-200"
-          />
-        ) : (
-          <div
-            className="w-24 h-24 rounded-full bg-emerald-50 dark:bg-emerald-700 flex items-center justify-center
-              text-emerald-600 dark:text-emerald-200 text-2xl font-bold"
-          >
-            {student.initials || student.name.split(" ").map(n => n[0]).join("")}
-          </div>
-        )}
+      {/* صورة الطالب أو الحرفان الأولان */}
+      <Avatar
+        name={student.name}
+        url={student.avatarUrl}
+        className="size-12"
+        textClassName="text-base"
+      />
+
+      {/* الاسم وإلى جانبه آخر تسميع — ينزل سطراً عند ضيق الشاشة */}
+      <div className="min-w-0 flex-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <h3 className="truncate text-base md:text-lg font-bold leading-tight text-gray-800 dark:text-white">
+          {student.name}
+        </h3>
+        <p
+          className={`flex items-center gap-1.5 text-xs md:text-sm leading-tight ${
+            student.hasRecitation
+              ? "text-amber-600 dark:text-amber-400"
+              : "text-gray-400 dark:text-gray-500"
+          }`}
+        >
+          <FaBookOpen className="shrink-0 text-sm opacity-70" />
+          <span className="truncate">{student.lastRecitation}</span>
+        </p>
       </div>
 
-      {/* اسم الطالب */}
-      <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-1">{student.name}</h3>
-
-      {/* آخر تسميع */}
-      <p className="text-sm text-gray-500 dark:text-gray-300 mb-6">
-        <span className="ml-1">📖</span> {t("studentCard.lastRecitation")}: {student.lastRecitation}
-      </p>
-
-      {/* زر تسجيل التسميع */}
+      {/* زر التسجيل — مضغوط على الجوال، بنصّه الكامل على الشاشات الأوسع */}
       <button
         onClick={handleSelectStudent}
-        className="w-full bg-emerald-400 dark:bg-emerald-600 hover:bg-emerald-500 dark:hover:bg-emerald-700 
-          text-white py-3 rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
+        aria-label={t("studentCard.recordRecitation")}
+        className="flex h-11 shrink-0 items-center gap-2 rounded-lg bg-emerald-500 px-4 text-sm font-bold
+          text-white shadow-sm transition hover:bg-emerald-600 active:scale-95
+          dark:bg-emerald-600 dark:hover:bg-emerald-700"
       >
-        <span className="text-xl">📄</span>
-        {t("studentCard.recordRecitation")}
+        <FaPenAlt className="text-sm" />
+        <span className="whitespace-nowrap">{t("studentCard.recordRecitation")}</span>
       </button>
     </div>
   );

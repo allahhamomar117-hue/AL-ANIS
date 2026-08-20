@@ -1,19 +1,27 @@
 import React from "react";
 import ReactDOM from "react-dom";
+import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useAuth } from "../../context/authContext";
 
 interface PopupLogOutProps {
   openPopupLogOut: boolean;
   setOpenPopupLogOut: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-function PopupLogOut({
-  openPopupLogOut,
-  setOpenPopupLogOut,
-}: PopupLogOutProps) {
+function PopupLogOut({ openPopupLogOut, setOpenPopupLogOut }: PopupLogOutProps) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
 
   if (!openPopupLogOut) return null;
+
+  /** مسح الجلسة ثم توجيه حتمي إلى صفحة الدخول. */
+  const handleLogout = () => {
+    logout();
+    setOpenPopupLogOut(false);
+    navigate("/login", { replace: true });
+  };
 
   return ReactDOM.createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50">
@@ -32,12 +40,8 @@ function PopupLogOut({
             {t("logout.cancel")}
           </button>
           <button
-            className="bg-green-500 dark:bg-green-600 hover:bg-green-600 dark:hover:bg-green-700 text-white rounded px-4 py-2 transition-colors"
-            onClick={() => {
-              localStorage.clear();
-              setOpenPopupLogOut(false);
-              window.location.href = "/LogInEnter";
-            }}
+            className="bg-red-600 hover:bg-red-700 text-white rounded px-4 py-2 transition-colors"
+            onClick={handleLogout}
           >
             {t("logout.logout")}
           </button>
