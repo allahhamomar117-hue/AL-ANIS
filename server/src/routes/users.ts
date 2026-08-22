@@ -23,8 +23,7 @@ usersRouter.use(requireUserManager);
  * (‏GROUP_CONCAT مقابل string_agg) واللهجة لا تُعرف إلا بعد فتح الاتصال.
  */
 const selectUser = (): string => `
-  SELECT u.id, u.name, u.username, u.phone_number AS phoneNumber,
-         u.country_code AS countryCode, u.role, u.is_active AS isActive,
+  SELECT u.id, u.name, u.username, u.role, u.is_active AS isActive,
          u.created_at AS createdAt,
          (u.password_hash IS NOT NULL) AS hasPassword,
          (SELECT COUNT(*) FROM halaqat h
@@ -131,8 +130,6 @@ usersRouter.post(
         name: z.string().trim().min(2),
         username: z.string().trim().min(3),
         password: z.string().min(4),
-        phone_number: z.string().trim().min(6).max(20).optional(),
-        country_code: z.string().trim().min(1).max(5).default("963"),
         role: userRole.default("TEACHER"),
         halaqaIds: z.array(z.number().int().positive()).default([]),
       }),
@@ -141,23 +138,13 @@ usersRouter.post(
 
     await assertUsernameFree(body.username);
 
-    // العمود يقبل NULL منذ ترقية 006؛ الحساب بلا هاتف يُخزَّن فارغاً
-    // بدل قيمة نائبة، والقاعدتان تعتبران كل NULL مميّزاً فلا يتضارب
-    // مع القيد الفريد على (country_code, phone_number).
-    const phone = body.phone_number || null;
-
     const created = await tx(async () => {
       const info = await db().run(
-        `INSERT INTO users (name, username, password_hash, phone_number, country_code, role)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [
-          body.name,
-          body.username,
-          hashPassword(body.password),
-          phone,
-          body.country_code,
-          body.role,
-        ]
+        // بلا هاتف: العمود يقبل NULL منذ ترقية 006، وكل NULL مميّز في
+        // القاعدتين فلا يتضارب مع القيد الفريد (country_code, phone_number).
+        `INSERT INTO users (name, username, password_hash, role)
+         VALUES (?, ?, ?, ?)`,
+        [body.name, body.username, hashPassword(body.password), body.role]
       );
 
       for (const halaqaId of body.halaqaIds ?? []) {
@@ -237,7 +224,6 @@ usersRouter.patch(
         name: z.string().trim().min(2).optional(),
         username: z.string().trim().min(3).optional(),
         password: z.string().min(4).optional(),
-        phone_number: z.union([z.string().trim().min(6).max(20), z.literal("")]).optional(),
         role: userRole.optional(),
         is_active: z.boolean().optional(),
         halaqaIds: z.array(z.number().int().positive()).optional(),
@@ -277,14 +263,13 @@ usersRouter.patch(
     await tx(async () => {
       await db().run(
         `UPDATE users
-            SET name = ?, username = ?, password_hash = ?, phone_number = ?,
+            SET name = ?, username = ?, password_hash = ?,
                 role = ?, is_active = ?
           WHERE id = ?`,
         [
           body.name ?? current.name,
           body.username ?? current.username,
           body.password ? hashPassword(body.password) : current.password_hash,
-          body.phone_number !== undefined ? body.phone_number || null : current.phone_number,
           nextRole,
           nextActive,
           id,

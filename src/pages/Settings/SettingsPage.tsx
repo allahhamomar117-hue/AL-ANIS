@@ -91,15 +91,9 @@ export default function SettingsPage() {
                 <p className="truncate text-lg font-bold text-gray-800 dark:text-white">
                   {me.name}
                 </p>
-                {me.phone_number ? (
-                  <p className="truncate text-sm text-gray-500 dark:text-gray-400" dir="ltr">
-                    +{me.country_code} {me.phone_number}
-                  </p>
-                ) : (
-                  <p className="truncate text-sm text-gray-500 dark:text-gray-400" dir="ltr">
-                    {me.username}
-                  </p>
-                )}
+                <p className="truncate text-sm text-gray-500 dark:text-gray-400" dir="ltr">
+                  {me.username}
+                </p>
                 <span className="mt-2 inline-block rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
                   {t(`roles.${me.role}`)}
                 </span>

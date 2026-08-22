@@ -29,7 +29,6 @@ export default function PopupStaffForm({
   const [name, setName] = useState(editing?.name ?? "");
   const [username, setUsername] = useState(editing?.username ?? "");
   const [password, setPassword] = useState("");
-  const [phone, setPhone] = useState(editing?.phoneNumber ?? "");
   const [role, setRole] = useState<Role>(editing?.role ?? initialRole);
   /** null = لم يلمس المستخدم الرقاقات بعد، فالمعروض هو الإسناد الحالي. */
   const [picked, setPicked] = useState<number[] | null>(null);
@@ -81,8 +80,6 @@ export default function PopupStaffForm({
           username: username.trim(),
           role,
           ...(password ? { password } : {}),
-          // نرسله دائماً عند التعديل: السلسلة الفارغة تعني إزالة الرقم
-          phone_number: phone.trim(),
           // الإرسال استبدال كامل، والقائمة محمّلة بالإسناد الحالي فلا يضيع منها شيء.
           // لا تُرسل قبل وصول الإسناد كي لا يُمحى بقائمة فارغة.
           ...(needsHalaqat && assigned.isSuccess ? { halaqaIds } : {}),
@@ -94,7 +91,6 @@ export default function PopupStaffForm({
           username: username.trim(),
           password,
           role,
-          ...(phone.trim() ? { phone_number: phone.trim() } : {}),
           halaqaIds: needsHalaqat ? halaqaIds : [],
         });
         notify(t("staff.created"));
@@ -194,19 +190,6 @@ export default function PopupStaffForm({
               {t("staff.passwordTooShort")}
             </p>
           )}
-        </div>
-
-        {/* الهاتف (اختياري) */}
-        <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">
-            {t("staff.phone")}
-          </label>
-          <input
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            dir="ltr"
-            className={fieldClass}
-          />
         </div>
 
         {/* الحلقات المخصّصة — للأستاذ فقط */}

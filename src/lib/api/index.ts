@@ -264,8 +264,6 @@ export const usersApi = {
     name: string;
     username: string;
     password: string;
-    phone_number?: string;
-    country_code?: string;
     role?: Role;
     halaqaIds?: number[];
   }) => api.post<{ data: StaffUser }>("/users", body),
@@ -276,7 +274,6 @@ export const usersApi = {
       name: string;
       username: string;
       password: string;
-      phone_number: string;
       role: Role;
       is_active: boolean;
       halaqaIds: number[];

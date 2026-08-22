@@ -198,8 +198,6 @@ export interface StaffUser {
   id: number;
   name: string;
   username: string | null;
-  phoneNumber: string | null;
-  countryCode: string;
   role: Role;
   isActive: number;
   createdAt: string;

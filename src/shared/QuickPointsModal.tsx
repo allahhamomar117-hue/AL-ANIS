@@ -26,36 +26,22 @@ export default function QuickPointsModal({
   defaultStudentId?: number;
 }) {
   const { t } = useTranslation();
-  const { isTeacher, halaqaId: myHalaqaId, halaqat: myHalaqat } = useAuth();
-
-  // المدرّس مقيَّد بحلقاته: لا خيار "كل حلقاتي" ولا انتقال إلى حلقة غيره.
-  const myScope = myHalaqat.length
-    ? myHalaqat
-    : myHalaqaId
-      ? [{ id: myHalaqaId, name: "" }]
-      : [];
-  const lockedHalaqaId = isTeacher ? (myHalaqaId ?? myScope[0]?.id ?? "") : null;
+  const { isTeacher } = useAuth();
 
   const [operation, setOperation] = useState<Operation>("add");
-  const [halaqaId, setHalaqaId] = useState<number | "">(
-    lockedHalaqaId !== null ? lockedHalaqaId : (defaultHalaqaId ?? "")
-  );
+  const [halaqaId, setHalaqaId] = useState<number | "">(defaultHalaqaId ?? "");
   const [studentId, setStudentId] = useState<number | "">(defaultStudentId ?? "");
   const [amount, setAmount] = useState<number | "">("");
   const [reason, setReason] = useState("");
   const [done, setDone] = useState<string | null>(null);
 
+  // المدرّس لا يختار حلقة: الخادم يقصر /students على حلقاته أصلاً
+  // (‏applyScope في services/scope.ts)، فترك المرشّح فارغاً يعطيه طلاب
+  // حلقاته كلها ولا شيء سواها — ويصحّ للأستاذ ذي الحلقتين كما للواحدة.
   const { data: allHalaqat = [] } = useHalaqat();
-  // المدرّس لا يرى إلا حلقاته؛ المدير والمشرف يريان الجميع.
-  const halaqat = isTeacher
-    ? (Array.isArray(allHalaqat) ? allHalaqat : []).filter((h) =>
-        myScope.some((mine) => mine.id === h.id)
-      )
-    : Array.isArray(allHalaqat)
-      ? allHalaqat
-      : [];
+  const halaqat = isTeacher ? [] : Array.isArray(allHalaqat) ? allHalaqat : [];
   const students = useStudents({
-    halaqaId: halaqaId === "" ? undefined : halaqaId,
+    halaqaId: isTeacher || halaqaId === "" ? undefined : halaqaId,
     limit: 200,
   });
 
@@ -140,56 +126,28 @@ export default function QuickPointsModal({
           </button>
         </div>
 
-        {/* الحلقة — المدرّس مثبَّت على حلقاته بلا خيار "كل حلقاتي" */}
-        {isTeacher ? (
+        {/* الحلقة — تُخفى كلياً عن المدرّس، فطلابه هم كل ما تعرضه القائمة */}
+        {!isTeacher && halaqat.length > 1 && (
           <div>
             <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">
               {t("quickPoints.halaqa")}
             </label>
-            {halaqat.length > 1 ? (
-              <select
-                value={halaqaId}
-                onChange={(e) => {
-                  setHalaqaId(e.target.value === "" ? "" : Number(e.target.value));
-                  setStudentId("");
-                }}
-                className={fieldClass}
-              >
-                {halaqat.map((h) => (
-                  <option key={h.id} value={h.id}>
-                    {h.name}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <p className={`${fieldClass} cursor-not-allowed opacity-70`}>
-                {halaqat[0]?.name || myScope[0]?.name || "—"}
-              </p>
-            )}
+            <select
+              value={halaqaId}
+              onChange={(e) => {
+                setHalaqaId(e.target.value === "" ? "" : Number(e.target.value));
+                setStudentId("");
+              }}
+              className={fieldClass}
+            >
+              <option value="">{t("quickPoints.allHalaqat")}</option>
+              {halaqat.map((h) => (
+                <option key={h.id} value={h.id}>
+                  {h.name}
+                </option>
+              ))}
+            </select>
           </div>
-        ) : (
-          halaqat.length > 1 && (
-            <div>
-              <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">
-                {t("quickPoints.halaqa")}
-              </label>
-              <select
-                value={halaqaId}
-                onChange={(e) => {
-                  setHalaqaId(e.target.value === "" ? "" : Number(e.target.value));
-                  setStudentId("");
-                }}
-                className={fieldClass}
-              >
-                <option value="">{t("quickPoints.allHalaqat")}</option>
-                {halaqat.map((h) => (
-                  <option key={h.id} value={h.id}>
-                    {h.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )
         )}
 
         {/* الطالب */}

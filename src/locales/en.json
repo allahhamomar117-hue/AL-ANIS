@@ -483,7 +483,6 @@
     "username": "Username",
     "password": "Password",
     "passwordKeep": "Leave empty to keep current",
-    "phone": "Phone (optional)",
     "halaqat": "Assigned halaqat",
     "noHalaqat": "No halaqat yet",
     "noAssignedHalaqat": "No assigned halaqat",
