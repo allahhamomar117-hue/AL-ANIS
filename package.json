@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:all": "node scripts/dev.mjs",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -15,7 +16,10 @@
     "db:seed-demo": "npm --prefix server run db:seed-demo",
     "api:seed-demo": "npm --prefix server run db:seed-demo",
     "api:build": "npm --prefix server run build",
-    "api:start": "npm --prefix server run start"
+    "api:start": "npm --prefix server run start",
+    "build:all": "npm run build && npm --prefix server ci && npm --prefix server run build",
+    "start": "npm --prefix server run start",
+    "db:seed-demo:prod": "npm --prefix server run db:seed-demo:prod"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

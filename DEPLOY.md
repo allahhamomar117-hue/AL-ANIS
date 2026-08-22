@@ -22,9 +22,12 @@ cp server/.env.example server/.env
 
 # نسخة العرض: بيانات جاهزة ممتلئة
 DB_FILE=data/demo.db npm run db:seed-demo
-DB_FILE=data/demo.db npm run api      # نافذة
-npm run dev                            # نافذة أخرى
+npm run dev:all                        # الخادم والواجهة معاً
 ```
+
+أو في نافذتين منفصلتين: `npm run api` ثم `npm run dev`. إن نسيت نافذة
+الخادم فسيردّ وسيط Vite بـ **503** ورسالة تقول أيّ أمر ينقص — وليس 500
+غامضاً كما كان.
 
 حسابات نسخة العرض — كلمة المرور للجميع `123456`:
 
@@ -101,3 +104,36 @@ VITE_API_BASE_URL=https://<نطاق-الخادم>
 
 خطأ CORS في الطرفية معناه أن `CORS_ORIGINS` على الخادم لا يطابق نطاق
 الواجهة تماماً (البروتوكول والنطاق، بلا شرطة في النهاية).
+
+---
+
+## Railway بخدمة واحدة (الأبسط)
+
+الخادم نفسه يقدّم الواجهة المبنيّة: `/api/*` للـ API، وكل ما دونه
+`index.html` ليتولّاه React Router. هذا يلغي خطأ **405 Method Not Allowed**
+على `POST /api/auth/login` الناتج عن استضافة الواجهة كموقع ثابت يبتلع
+مسارات الـ API.
+
+| | |
+|---|---|
+| Root Directory | جذر المستودع |
+| Build | `npm ci && npm run build:all` |
+| Start | `npm start` |
+
+المتغيّرات:
+
+```
+NODE_ENV=production
+DB_FILE=data/demo.db                 # أو data/anis.db للمسجد
+UPLOADS_DIR=data/uploads
+JWT_SECRET=<ولّد مفتاحاً>
+SEED_DEMO_ON_START=true              # نسخة العرض فقط
+```
+
+`PORT` تحقنه المنصّة. لا تضبط `VITE_API_BASE_URL` ولا `CORS_ORIGINS`:
+الواجهة والـ API على نفس الأصل، فالطلبات تذهب إلى `/api` نسبياً.
+
+`SEED_DEMO_ON_START=true` يزرع بيانات العرض عند الإقلاع **فقط إن كانت
+القاعدة فارغة**، فلا تُمسح البيانات مع كل إعادة تشغيل. قرص Railway مؤقّت
+ما لم تربط Volume بـ `server/data`؛ مع البذرة التلقائية تقلع نسخة العرض
+ممتلئة بعد كل نشر بلا تدخّل. لإعادة البناء عمداً: `SEED_DEMO_FORCE=true`.

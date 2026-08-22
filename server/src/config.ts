@@ -13,6 +13,18 @@ export const config = {
     ? path.resolve(serverRoot, process.env.DB_FILE)
     : path.join(serverRoot, "data", "anis.db"),
   schemaFile: path.join(here, "db", "schema.sql"),
+  /**
+   * بناء الواجهة (Vite) الذي يقدّمه الخادم نفسه في الإنتاج — خدمة واحدة:
+   * ‏/api للـ API وكل ما دونه للواجهة. الافتراضي مجلّد dist في جذر
+   * المستودع (المجلّد الأب لـ server).
+   */
+  webDir: process.env.WEB_DIR
+    ? path.resolve(serverRoot, process.env.WEB_DIR)
+    : path.resolve(serverRoot, "..", "dist"),
+  /** تشغيل بذرة العرض تلقائياً عند الإقلاع إن كانت القاعدة فارغة. */
+  seedDemoOnStart: process.env.SEED_DEMO_ON_START === "true",
+  /** يعيد بناء بيانات العرض في كل إقلاع (يمسح القاعدة). */
+  seedDemoForce: process.env.SEED_DEMO_FORCE === "true",
   /** ملفات المستخدمين المرفوعة (صور الطلاب) بجوار ملف القاعدة. */
   uploadsDir: process.env.UPLOADS_DIR
     ? path.resolve(serverRoot, process.env.UPLOADS_DIR)

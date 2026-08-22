@@ -1,8 +1,38 @@
 import { createApp } from "./app.js";
 import { config } from "./config.js";
 import { closeDb, db, migrate } from "./db/index.js";
+import { seedDemo } from "./db/seed-demo.js";
 
 migrate();
+
+/**
+ * بذرة العرض عند الإقلاع.
+ *
+ * قرص Railway/Render مؤقّت: ملف SQLite يُمسح مع كل إعادة نشر، فتقلع نسخة
+ * العرض بقاعدة فارغة ولا يوجد حساب يُسجَّل به الدخول. لذا نزرعها هنا —
+ * لكن فقط إن كانت القاعدة فارغة فعلاً، حتى لا تُمحى بيانات أُدخلت أثناء
+ * العرض مع كل إعادة تشغيل. SEED_DEMO_FORCE=true يفرض إعادة البناء.
+ *
+ * الحارس مزدوج (SEED_DEMO_ON_START + فراغ القاعدة) لأن الدالة تمسح كل شيء؛
+ * لا يُفعَّل المتغيّر إطلاقاً على نسخة المسجد الحقيقية.
+ */
+function seedDemoIfNeeded(): void {
+  if (!config.seedDemoOnStart && !config.seedDemoForce) return;
+
+  const { users } = db.prepare("SELECT COUNT(*) AS users FROM users").get() as {
+    users: number;
+  };
+
+  if (users > 0 && !config.seedDemoForce) {
+    console.log(`↷ تخطّي بذرة العرض: القاعدة تحتوي ${users} حساباً أصلاً.`);
+    return;
+  }
+
+  console.log(`🌱 تجهيز بيانات العرض في ${config.dbFile}…`);
+  seedDemo();
+}
+
+seedDemoIfNeeded();
 
 /**
  * فحص سريع بعد الترقية: يمنع اكتشاف نقص المخطط لاحقاً على شكل 500 غامض

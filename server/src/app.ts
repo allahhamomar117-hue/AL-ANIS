@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import cors from "cors";
 import express from "express";
 import morgan from "morgan";
@@ -51,6 +53,15 @@ export function createApp() {
   app.use("/api/recitations", requireAuth, recitationsRouter);
   app.use("/api/reports", requireAuth, reportsRouter);
 
+  // أي مسار تحت /api لم تلتقطه المسارات أعلاه = 404 بصيغة JSON.
+  // يجب أن يسبق تقديم الواجهة، وإلا ابتلع fallback الـ SPA طلبات الـ API
+  // فأعادت index.html (أو 405 على طلب POST إلى ملف ثابت).
+  app.use("/api", (req, _res, next) => {
+    next(ApiError.notFound(`المسار غير موجود: ${req.method} ${req.originalUrl}`));
+  });
+
+  serveWebApp(app);
+
   app.use((req, _res, next) => {
     next(ApiError.notFound(`المسار غير موجود: ${req.method} ${req.path}`));
   });
@@ -58,4 +69,45 @@ export function createApp() {
   app.use(errorHandler);
 
   return app;
+}
+
+/**
+ * تقديم بناء الواجهة (Vite) من الخادم نفسه — نشر بخدمة واحدة على Railway.
+ *
+ * ملفات الأصول (assets/) تحمل بصمة محتوى في اسمها فتُخزَّن مؤدّبة إلى الأبد،
+ * أمّا index.html فبلا تخزين حتى لا يعلق المتصفّح على نسخة قديمة تشير إلى
+ * أصول حُذفت. كل مسار غير معروف يُعاد له index.html ليتولّاه React Router —
+ * وهذا سبب استبعاد /api أعلاه.
+ */
+function serveWebApp(app: express.Express): void {
+  // المسار المشتقّ من موقع الملف أولاً، ثم dist نسبة إلى مجلّد التشغيل —
+  // منصّات مثل Railway قد تشغّل الخادم من جذر المستودع لا من مجلّد server.
+  const candidates = [config.webDir, path.join(process.cwd(), "dist")];
+  const webDir = candidates.find((dir) => fs.existsSync(path.join(dir, "index.html")));
+
+  if (!webDir) {
+    console.warn(
+      `⚠ لم يُعثر على بناء الواجهة في ${candidates.join(" أو ")} — سيقدَّم الـ API وحده.`
+    );
+    console.warn("  شغّل: npm run build (من جذر المستودع) أو اضبط WEB_DIR.");
+    return;
+  }
+
+  const indexFile = path.join(webDir, "index.html");
+
+  app.use(
+    express.static(webDir, {
+      index: false,
+      maxAge: "1y",
+      setHeaders(res, filePath) {
+        if (filePath.endsWith(".html")) res.setHeader("Cache-Control", "no-cache");
+      },
+    })
+  );
+
+  // GET/HEAD فقط: طلب POST إلى مسار غير موجود يجب أن يبقى 404 لا صفحة HTML.
+  app.get("*", (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache");
+    res.sendFile(indexFile);
+  });
 }
