@@ -68,6 +68,17 @@ export async function assertStudentAccess(
   );
 
   if (!student) throw ApiError.notFound("الطالب غير موجود");
+
+  /*
+   * طالب بلا حلقة (حُذفت حلقته أو نُقل ولم يُسنَد بعد) لا يقع في نطاق أي
+   * مدرّس. الرسالة العامة كانت تقول "هذه الحلقة خارج نطاق صلاحياتك" فتُوهم
+   * بوجود حلقة محجوبة، والحقيقة أنه غير مسنَد إلى واحدة — ففرّقناهما حتى
+   * يعرف المدرّس أن العلاج إسناد الطالب لا طلب صلاحية.
+   */
+  if (student.halaqaId === null) {
+    throw ApiError.forbidden("هذا الطالب غير مسنَد إلى أي حلقة — راجع إدارة المركز");
+  }
+
   await assertHalaqaAccess(user, student.halaqaId);
 }
 
