@@ -1,5 +1,5 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
-import { ZodError, type ZodSchema } from "zod";
+import { z, ZodError, type ZodTypeAny } from "zod";
 import { config } from "../config.js";
 
 /** خطأ يحمل رمز حالة HTTP. */
@@ -39,12 +39,18 @@ export function asyncHandler(
   };
 }
 
-export function parse<T>(schema: ZodSchema<T>, data: unknown): T {
+/**
+ * تحقّق من البيانات وإرجاعها بنوع الإخراج.
+ *
+ * النوع مأخوذ من z.output لا من الاستنتاج العام، وإلا ظهرت الحقول ذات
+ * ‏`.default()` كأنها قد تكون undefined رغم أن zod يملؤها دائماً.
+ */
+export function parse<S extends ZodTypeAny>(schema: S, data: unknown): z.output<S> {
   const result = schema.safeParse(data);
   if (!result.success) {
     throw ApiError.badRequest("بيانات غير صالحة", flattenZod(result.error));
   }
-  return result.data;
+  return result.data as z.output<S>;
 }
 
 function flattenZod(error: ZodError) {
@@ -71,13 +77,21 @@ export function errorHandler(
 
   const message = err instanceof Error ? err.message : String(err);
 
-  // قيود SQLite تُترجم إلى أخطاء مفهومة
-  if (message.includes("UNIQUE constraint failed")) {
+  // قيود القاعدة تُترجم إلى أخطاء مفهومة. SQLite يعبّر عنها بنصّ الرسالة،
+  // و Postgres برمز SQLSTATE — نلتقط الاثنين حتى يبقى الردّ واحداً.
+  const sqlState = (err as { code?: string }).code;
+
+  if (message.includes("UNIQUE constraint failed") || sqlState === "23505") {
     res.status(409).json({ error: "السجل موجود مسبقاً", details: message });
     return;
   }
-  if (message.includes("FOREIGN KEY constraint failed")) {
+  if (message.includes("FOREIGN KEY constraint failed") || sqlState === "23503") {
     res.status(400).json({ error: "مرجع غير صالح", details: message });
+    return;
+  }
+  // انتهاك CHECK (قيمة خارج القيم المسموحة) — 23514 في Postgres
+  if (message.includes("CHECK constraint failed") || sqlState === "23514") {
+    res.status(400).json({ error: "قيمة غير مسموحة", details: message });
     return;
   }
 

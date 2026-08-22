@@ -22,57 +22,67 @@ export function canManageUsers(user: AuthUser): boolean {
 }
 
 /** معرّفات الحلقات التي يصل إليها المستخدم. للمشرف تُعاد `null` بمعنى "الكل". */
-export function accessibleHalaqaIds(user: AuthUser): number[] | null {
+export async function accessibleHalaqaIds(user: AuthUser): Promise<number[] | null> {
   if (isAdmin(user)) return null;
 
-  const rows = db
-    .prepare(
-      `SELECT id FROM halaqat WHERE teacher_id = @userId
-       UNION
-       SELECT halaqa_id AS id FROM teacher_halaqat WHERE user_id = @userId`
-    )
-    .all({ userId: user.id }) as { id: number }[];
+  // المعرّف يُمرَّر مرّتين لأن pg لا يدعم المعاملات المسمّاة
+  const rows = await db().all<{ id: number }>(
+    `SELECT id FROM halaqat WHERE teacher_id = ?
+     UNION
+     SELECT halaqa_id AS id FROM teacher_halaqat WHERE user_id = ?`,
+    [user.id, user.id]
+  );
 
   return rows.map((r) => r.id);
 }
 
-export function canAccessHalaqa(user: AuthUser, halaqaId: number | null): boolean {
+export async function canAccessHalaqa(
+  user: AuthUser,
+  halaqaId: number | null
+): Promise<boolean> {
   if (isAdmin(user)) return true;
   if (halaqaId === null) return false;
-  return accessibleHalaqaIds(user)!.includes(halaqaId);
+  return (await accessibleHalaqaIds(user))!.includes(halaqaId);
 }
 
 /** يرمي 403 إذا كانت الحلقة خارج نطاق المستخدم. */
-export function assertHalaqaAccess(user: AuthUser, halaqaId: number | null): void {
-  if (!canAccessHalaqa(user, halaqaId)) {
+export async function assertHalaqaAccess(
+  user: AuthUser,
+  halaqaId: number | null
+): Promise<void> {
+  if (!(await canAccessHalaqa(user, halaqaId))) {
     throw ApiError.forbidden("هذه الحلقة خارج نطاق صلاحياتك");
   }
 }
 
 /** يرمي 403 إذا كان الطالب خارج نطاق المستخدم (أو 404 إن لم يوجد). */
-export function assertStudentAccess(user: AuthUser, studentId: number): void {
+export async function assertStudentAccess(
+  user: AuthUser,
+  studentId: number
+): Promise<void> {
   if (isAdmin(user)) return;
 
-  const student = db
-    .prepare("SELECT halaqa_id AS halaqaId FROM students WHERE id = ?")
-    .get(studentId) as { halaqaId: number | null } | undefined;
+  const student = await db().get<{ halaqaId: number | null }>(
+    "SELECT halaqa_id AS halaqaId FROM students WHERE id = ?",
+    [studentId]
+  );
 
   if (!student) throw ApiError.notFound("الطالب غير موجود");
-  assertHalaqaAccess(user, student.halaqaId);
+  await assertHalaqaAccess(user, student.halaqaId);
 }
 
 /**
  * شرط SQL يقصر النتائج على نطاق المستخدم.
  * يعيد `null` للمشرف (بلا قيد)، وإلا جملة جاهزة مع معاملاتها.
  *
- * مثال: `const f = halaqaFilter(user, "s.halaqa_id");`
+ * مثال: `const f = await halaqaFilter(user, "s.halaqa_id");`
  *       `where.push(f.sql); params.push(...f.params);`
  */
-export function halaqaFilter(
+export async function halaqaFilter(
   user: AuthUser,
   column: string
-): { sql: string; params: number[] } | null {
-  const ids = accessibleHalaqaIds(user);
+): Promise<{ sql: string; params: number[] } | null> {
+  const ids = await accessibleHalaqaIds(user);
   if (ids === null) return null;
 
   // لا حلقات مسندة: لا نتائج (بدل كشف كل شيء)
@@ -85,13 +95,13 @@ export function halaqaFilter(
 }
 
 /** يضيف قيد النطاق إلى مصفوفتَي الشروط والمعاملات إن لزم. */
-export function applyScope(
+export async function applyScope(
   user: AuthUser,
   column: string,
   where: string[],
   params: unknown[]
-): void {
-  const filter = halaqaFilter(user, column);
+): Promise<void> {
+  const filter = await halaqaFilter(user, column);
   if (!filter) return;
   where.push(filter.sql);
   params.push(...filter.params);

@@ -18,51 +18,60 @@ export interface PointEntry {
  * يقيّد حركة نقاط ويحدّث رصيد الطالب.
  * يجب استدعاؤها داخل معاملة عند ربطها بعملية أخرى (حضور/تسميع).
  */
-export function addPoints(entry: PointEntry): number {
-  const info = db
-    .prepare(
-      `INSERT INTO point_transactions (student_id, delta, reason, kind, reference_id, created_by)
-       VALUES (@studentId, @delta, @reason, @kind, @referenceId, @createdBy)`
-    )
-    .run({
-      studentId: entry.studentId,
-      delta: entry.delta,
-      reason: entry.reason ?? null,
-      kind: entry.kind ?? "manual",
-      referenceId: entry.referenceId ?? null,
-      createdBy: entry.createdBy ?? null,
-    });
-
-  db.prepare("UPDATE students SET points = points + ? WHERE id = ?").run(
-    entry.delta,
-    entry.studentId
+/**
+ * يقيّد حركة نقاط ويحدّث رصيد الطالب.
+ * يجب استدعاؤها داخل معاملة عند ربطها بعملية أخرى (حضور/تسميع).
+ */
+export async function addPoints(entry: PointEntry): Promise<number> {
+  const info = await db().run(
+    `INSERT INTO point_transactions (student_id, delta, reason, kind, reference_id, created_by)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [
+      entry.studentId,
+      entry.delta,
+      entry.reason ?? null,
+      entry.kind ?? "manual",
+      entry.referenceId ?? null,
+      entry.createdBy ?? null,
+    ]
   );
 
-  return Number(info.lastInsertRowid);
+  await db().run("UPDATE students SET points = points + ? WHERE id = ?", [
+    entry.delta,
+    entry.studentId,
+  ]);
+
+  return info.lastInsertRowid;
 }
 
 /**
  * يحذف حركات مرتبطة بسجل معيّن ويعيد النقاط (يُستخدم عند تعديل حضور أو تلاوة).
  */
-export function revertPointsFor(kind: PointKind, referenceId: number): void {
-  const rows = db
-    .prepare(
-      "SELECT student_id AS studentId, delta FROM point_transactions WHERE kind = ? AND reference_id = ?"
-    )
-    .all(kind, referenceId) as { studentId: number; delta: number }[];
+export async function revertPointsFor(
+  kind: PointKind,
+  referenceId: number
+): Promise<void> {
+  const rows = await db().all<{ studentId: number; delta: number }>(
+    "SELECT student_id AS studentId, delta FROM point_transactions WHERE kind = ? AND reference_id = ?",
+    [kind, referenceId]
+  );
 
-  const update = db.prepare("UPDATE students SET points = points - ? WHERE id = ?");
-  for (const row of rows) update.run(row.delta, row.studentId);
+  for (const row of rows) {
+    await db().run("UPDATE students SET points = points - ? WHERE id = ?", [
+      row.delta,
+      row.studentId,
+    ]);
+  }
 
-  db.prepare("DELETE FROM point_transactions WHERE kind = ? AND reference_id = ?").run(
-    kind,
-    referenceId
+  await db().run(
+    "DELETE FROM point_transactions WHERE kind = ? AND reference_id = ?",
+    [kind, referenceId]
   );
 }
 
 /** يعيد حساب رصيد كل الطلاب من سجل الحركات (أداة صيانة). */
-export function recalculateAllBalances(): void {
-  db.exec(`
+export async function recalculateAllBalances(): Promise<void> {
+  await db().exec(`
     UPDATE students
     SET points = COALESCE(
       (SELECT SUM(delta) FROM point_transactions WHERE student_id = students.id), 0

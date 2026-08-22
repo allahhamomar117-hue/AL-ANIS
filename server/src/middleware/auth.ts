@@ -2,7 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { config } from "../config.js";
 import { db } from "../db/index.js";
-import { ApiError } from "../lib/http.js";
+import { ApiError, asyncHandler } from "../lib/http.js";
 
 export const ROLES = ["ADMIN", "SUPERVISOR", "TEACHER"] as const;
 export type Role = (typeof ROLES)[number];
@@ -29,7 +29,7 @@ export function signToken(user: { id: number }): string {
 }
 
 /** يتطلب رمز Bearer صالحاً ويحمّل المستخدم في req.user. */
-export function requireAuth(req: Request, _res: Response, next: NextFunction): void {
+export const requireAuth = asyncHandler(async (req: Request, _res: Response, next: NextFunction) => {
   const header = req.headers.authorization ?? "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : null;
   if (!token) return next(ApiError.unauthorized("رمز الدخول مفقود"));
@@ -41,9 +41,10 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction): v
     return next(ApiError.unauthorized("رمز الدخول غير صالح أو منتهي"));
   }
 
-  const user = db
-    .prepare("SELECT id, name, role FROM users WHERE id = ? AND is_active = 1")
-    .get(Number(payload.sub)) as AuthUser | undefined;
+  const user = await db().get<AuthUser>(
+    "SELECT id, name, role FROM users WHERE id = ? AND is_active = TRUE",
+    [Number(payload.sub)]
+  );
 
   if (!user) return next(ApiError.unauthorized("المستخدم غير موجود"));
 
@@ -56,7 +57,7 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction): v
 
   req.user = user;
   next();
-}
+});
 
 /** يقصر الوصول على أدوار معيّنة. يُستخدم بعد requireAuth. */
 export function requireRole(...roles: Role[]) {

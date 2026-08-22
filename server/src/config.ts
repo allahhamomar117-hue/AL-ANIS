@@ -14,6 +14,18 @@ export const config = {
     : path.join(serverRoot, "data", "anis.db"),
   schemaFile: path.join(here, "db", "schema.sql"),
   /**
+   * رابط PostgreSQL‏ (Supabase). وجوده وحده يحوّل الخادم إلى Postgres،
+   * وغيابه يُبقيه على ملف SQLite أعلاه — وهو ما يُبقي نسخة العرض تعمل
+   * دون أي إعداد إضافي.
+   */
+  databaseUrl: process.env.DATABASE_URL?.trim() || null,
+  /** مخطط Postgres — نسخة من schema.sql بأنواع Postgres. */
+  schemaFilePg: path.join(here, "db", "schema.pg.sql"),
+  /** Supabase يفرض TLS. عطّله فقط لـ Postgres محلي بلا شهادة. */
+  databaseSsl: process.env.DATABASE_SSL !== "false",
+  /** حدّ اتصالات المجمّع. أبقِه صغيراً مع pooler الخاص بـ Supabase. */
+  databasePoolMax: Number(process.env.DATABASE_POOL_MAX ?? 10),
+  /**
    * بناء الواجهة (Vite) الذي يقدّمه الخادم نفسه في الإنتاج — خدمة واحدة:
    * ‏/api للـ API وكل ما دونه للواجهة. الافتراضي مجلّد dist في جذر
    * المستودع (المجلّد الأب لـ server).

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
-import { db, tx } from "../db/index.js";
+import { db, tx, type SqlParam } from "../db/index.js";
+import { groupConcat } from "../db/sqlfn.js";
 import { ApiError, asyncHandler, parse } from "../lib/http.js";
 import { idParam, userRole } from "../lib/schemas.js";
 import { requireUserManager } from "../middleware/auth.js";
@@ -17,19 +18,23 @@ export const usersRouter = Router();
  */
 usersRouter.use(requireUserManager);
 
-const SELECT_USER = `
+/**
+ * دالة لا ثابت: دمج أسماء الحلقات يختلف بين اللهجتين
+ * (‏GROUP_CONCAT مقابل string_agg) واللهجة لا تُعرف إلا بعد فتح الاتصال.
+ */
+const selectUser = (): string => `
   SELECT u.id, u.name, u.username, u.phone_number AS phoneNumber,
          u.country_code AS countryCode, u.role, u.is_active AS isActive,
          u.created_at AS createdAt,
          (u.password_hash IS NOT NULL) AS hasPassword,
          (SELECT COUNT(*) FROM halaqat h
-           WHERE h.is_active = 1
+           WHERE h.is_active = TRUE
              AND (h.teacher_id = u.id
                   OR EXISTS (SELECT 1 FROM teacher_halaqat th
                               WHERE th.user_id = u.id AND th.halaqa_id = h.id))
          ) AS halaqatCount,
-         (SELECT GROUP_CONCAT(h.name, '، ') FROM halaqat h
-           WHERE h.is_active = 1
+         (SELECT ${groupConcat("h.name", "، ")} FROM halaqat h
+           WHERE h.is_active = TRUE
              AND (h.teacher_id = u.id
                   OR EXISTS (SELECT 1 FROM teacher_halaqat th
                               WHERE th.user_id = u.id AND th.halaqa_id = h.id))
@@ -37,7 +42,7 @@ const SELECT_USER = `
   FROM users u
 `;
 
-const byId = (id: number | bigint) => db.prepare(`${SELECT_USER} WHERE u.id = ?`).get(id);
+const byId = (id: number) => db().get(`${selectUser()} WHERE u.id = ?`, [id]);
 
 /**
  * مزامنة كاملة لحلقات المستخدم: بعدها يكون نطاقه = القائمة المُرسلة تماماً.
@@ -50,43 +55,46 @@ const byId = (id: number | bigint) => db.prepare(`${SELECT_USER} WHERE u.id = ?`
  *
  * يجب أن تُستدعى داخل معاملة.
  */
-function syncUserHalaqat(userId: number, halaqaIds: number[]): void {
+async function syncUserHalaqat(userId: number, halaqaIds: number[]): Promise<void> {
   const wanted = [...new Set(halaqaIds)];
 
-  db.prepare("DELETE FROM teacher_halaqat WHERE user_id = ?").run(userId);
+  await db().run("DELETE FROM teacher_halaqat WHERE user_id = ?", [userId]);
 
-  const insert = db.prepare(
-    "INSERT OR IGNORE INTO teacher_halaqat (user_id, halaqa_id) VALUES (?, ?)"
-  );
-  for (const halaqaId of wanted) insert.run(userId, halaqaId);
+  for (const halaqaId of wanted) {
+    await db().run(
+      `INSERT INTO teacher_halaqat (user_id, halaqa_id) VALUES (?, ?)
+       ON CONFLICT (user_id, halaqa_id) DO NOTHING`,
+      [userId, halaqaId]
+    );
+  }
 
   const keep = wanted.length ? `AND id NOT IN (${wanted.map(() => "?").join(", ")})` : "";
-  db.prepare(`UPDATE halaqat SET teacher_id = NULL WHERE teacher_id = ? ${keep}`).run(
+  await db().run(`UPDATE halaqat SET teacher_id = NULL WHERE teacher_id = ? ${keep}`, [
     userId,
-    ...wanted
-  );
+    ...wanted,
+  ]);
 }
 
 /** عدد المديرين الفاعلين — لمنع فقدان آخر حساب قادر على إدارة الحسابات. */
-function activeAdminCount(): number {
-  const row = db
-    .prepare("SELECT COUNT(*) AS n FROM users WHERE role = 'ADMIN' AND is_active = 1")
-    .get() as { n: number };
-  return row.n;
+async function activeAdminCount(): Promise<number> {
+  const row = await db().get<{ n: number }>(
+    "SELECT COUNT(*) AS n FROM users WHERE role = 'ADMIN' AND is_active = TRUE"
+  );
+  return row?.n ?? 0;
 }
 
 /** يرمي 409 إذا كان اسم المستخدم محجوزاً (الفهرس فريد، لكن الرسالة أوضح من هنا). */
-function assertUsernameFree(username: string, exceptId?: number): void {
-  const row = db.prepare("SELECT id FROM users WHERE username = ?").get(username) as
-    | { id: number }
-    | undefined;
+async function assertUsernameFree(username: string, exceptId?: number): Promise<void> {
+  const row = await db().get<{ id: number }>("SELECT id FROM users WHERE username = ?", [
+    username,
+  ]);
   if (row && row.id !== exceptId) throw ApiError.conflict("اسم المستخدم محجوز");
 }
 
 /** GET /api/users?role=TEACHER&includeInactive=1 — دليل الكادر. */
 usersRouter.get(
   "/",
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const q = parse(
       z.object({
         role: userRole.optional(),
@@ -96,18 +104,18 @@ usersRouter.get(
     );
 
     const where: string[] = [];
-    const params: unknown[] = [];
-    if (!q.includeInactive) where.push("u.is_active = 1");
+    const params: SqlParam[] = [];
+    if (!q.includeInactive) where.push("u.is_active = TRUE");
     if (q.role) {
       where.push("u.role = ?");
       params.push(q.role);
     }
 
-    const sql = `${SELECT_USER}
+    const sql = `${selectUser()}
       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
       ORDER BY CASE u.role WHEN 'ADMIN' THEN 0 WHEN 'SUPERVISOR' THEN 1 ELSE 2 END, u.name`;
 
-    res.json({ data: db.prepare(sql).all(...params) });
+    res.json({ data: await db().all(sql, params) });
   })
 );
 
@@ -117,7 +125,7 @@ usersRouter.get(
  */
 usersRouter.post(
   "/",
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const body = parse(
       z.object({
         name: z.string().trim().min(2),
@@ -131,31 +139,34 @@ usersRouter.post(
       req.body
     );
 
-    assertUsernameFree(body.username);
+    await assertUsernameFree(body.username);
 
     // العمود يقبل NULL منذ ترقية 006؛ الحساب بلا هاتف يُخزَّن فارغاً
-    // بدل قيمة نائبة، وSQLite يعتبر كل NULL مميّزاً فلا يتضارب مع القيد الفريد.
+    // بدل قيمة نائبة، والقاعدتان تعتبران كل NULL مميّزاً فلا يتضارب
+    // مع القيد الفريد على (country_code, phone_number).
     const phone = body.phone_number || null;
 
-    const created = tx(() => {
-      const info = db
-        .prepare(
-          `INSERT INTO users (name, username, password_hash, phone_number, country_code, role)
-           VALUES (@name, @username, @password_hash, @phone_number, @country_code, @role)`
-        )
-        .run({
-          name: body.name,
-          username: body.username,
-          password_hash: hashPassword(body.password),
-          phone_number: phone,
-          country_code: body.country_code,
-          role: body.role,
-        });
-
-      const insert = db.prepare(
-        "INSERT OR IGNORE INTO teacher_halaqat (user_id, halaqa_id) VALUES (?, ?)"
+    const created = await tx(async () => {
+      const info = await db().run(
+        `INSERT INTO users (name, username, password_hash, phone_number, country_code, role)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          body.name,
+          body.username,
+          hashPassword(body.password),
+          phone,
+          body.country_code,
+          body.role,
+        ]
       );
-      for (const halaqaId of body.halaqaIds ?? []) insert.run(info.lastInsertRowid, halaqaId);
+
+      for (const halaqaId of body.halaqaIds ?? []) {
+        await db().run(
+          `INSERT INTO teacher_halaqat (user_id, halaqa_id) VALUES (?, ?)
+           ON CONFLICT (user_id, halaqa_id) DO NOTHING`,
+          [info.lastInsertRowid, halaqaId]
+        );
+      }
 
       return byId(info.lastInsertRowid);
     });
@@ -167,19 +178,18 @@ usersRouter.post(
 /** GET /api/users/:id/halaqat — الحلقات المسندة إلى مستخدم. */
 usersRouter.get(
   "/:id/halaqat",
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
 
-    const data = db
-      .prepare(
-        `SELECT h.id, h.name, (h.teacher_id = ?) AS isPrimary
-         FROM halaqat h
-         WHERE h.teacher_id = ?
-            OR EXISTS (SELECT 1 FROM teacher_halaqat th
-                        WHERE th.user_id = ? AND th.halaqa_id = h.id)
-         ORDER BY h.name`
-      )
-      .all(id, id, id);
+    const data = await db().all(
+      `SELECT h.id, h.name, (h.teacher_id = ?) AS isPrimary
+       FROM halaqat h
+       WHERE h.teacher_id = ?
+          OR EXISTS (SELECT 1 FROM teacher_halaqat th
+                      WHERE th.user_id = ? AND th.halaqa_id = h.id)
+       ORDER BY h.name`,
+      [id, id, id]
+    );
 
     res.json({ data });
   })
@@ -191,28 +201,25 @@ usersRouter.get(
  */
 usersRouter.put(
   "/:id/halaqat",
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
     const { halaqaIds } = parse(
       z.object({ halaqaIds: z.array(z.number().int().positive()) }),
       req.body
     );
 
-    const user = db.prepare("SELECT id FROM users WHERE id = ?").get(id) as
-      | { id: number }
-      | undefined;
+    const user = await db().get<{ id: number }>("SELECT id FROM users WHERE id = ?", [id]);
     if (!user) throw ApiError.notFound("المستخدم غير موجود");
 
-    tx(() => syncUserHalaqat(id, halaqaIds));
+    await tx(() => syncUserHalaqat(id, halaqaIds));
 
     res.json({
-      data: db
-        .prepare(
-          `SELECT h.id, h.name FROM halaqat h
-           JOIN teacher_halaqat th ON th.halaqa_id = h.id
-           WHERE th.user_id = ? ORDER BY h.name`
-        )
-        .all(id),
+      data: await db().all(
+        `SELECT h.id, h.name FROM halaqat h
+         JOIN teacher_halaqat th ON th.halaqa_id = h.id
+         WHERE th.user_id = ? ORDER BY h.name`,
+        [id]
+      ),
     });
   })
 );
@@ -223,7 +230,7 @@ usersRouter.put(
  */
 usersRouter.patch(
   "/:id",
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
     const body = parse(
       z.object({
@@ -238,76 +245,78 @@ usersRouter.patch(
       req.body
     );
 
-    const current = db.prepare("SELECT * FROM users WHERE id = ?").get(id) as
-      | {
-          id: number;
-          name: string;
-          username: string | null;
-          password_hash: string | null;
-          phone_number: string | null;
-          role: string;
-          is_active: number;
-        }
-      | undefined;
+    const current = await db().get<{
+      id: number;
+      name: string;
+      username: string | null;
+      password_hash: string | null;
+      phone_number: string | null;
+      role: string;
+      is_active: number;
+    }>("SELECT * FROM users WHERE id = ?", [id]);
     if (!current) throw ApiError.notFound("المستخدم غير موجود");
 
-    if (body.username) assertUsernameFree(body.username, id);
+    if (body.username) await assertUsernameFree(body.username, id);
 
     const nextRole = body.role ?? current.role;
-    const nextActive = body.is_active !== undefined ? Number(body.is_active) : current.is_active;
+    // منطقيّ صريح: عمود Postgres من نوع boolean لا يقبل 0/1
+    const nextActive =
+      body.is_active !== undefined ? body.is_active : Boolean(current.is_active);
 
     // لا يجوز إفراغ المنظومة من المديرين: آخر مدير فاعل لا يُخفَّض ولا يُعطَّل.
-    const losesAdmin = current.role === "ADMIN" && (nextRole !== "ADMIN" || nextActive === 0);
-    if (losesAdmin && activeAdminCount() <= 1) {
+    const losesAdmin = current.role === "ADMIN" && (nextRole !== "ADMIN" || !nextActive);
+    if (losesAdmin && (await activeAdminCount()) <= 1) {
       throw ApiError.badRequest("لا يمكن إزالة آخر حساب مدير");
     }
 
     // المدير لا يسحب صلاحيته من نفسه بالخطأ فيفقد الوصول إلى هذه الصفحة
-    if (req.user!.id === id && (nextRole !== "ADMIN" || nextActive === 0)) {
+    if (req.user!.id === id && (nextRole !== "ADMIN" || !nextActive)) {
       throw ApiError.badRequest("لا يمكنك تعديل دور حسابك أو تعطيله");
     }
 
-    tx(() => {
-      db.prepare(
+    await tx(async () => {
+      await db().run(
         `UPDATE users
             SET name = ?, username = ?, password_hash = ?, phone_number = ?,
                 role = ?, is_active = ?
-          WHERE id = ?`
-      ).run(
-        body.name ?? current.name,
-        body.username ?? current.username,
-        body.password ? hashPassword(body.password) : current.password_hash,
-        body.phone_number !== undefined ? body.phone_number || null : current.phone_number,
-        nextRole,
-        nextActive,
-        id
+          WHERE id = ?`,
+        [
+          body.name ?? current.name,
+          body.username ?? current.username,
+          body.password ? hashPassword(body.password) : current.password_hash,
+          body.phone_number !== undefined ? body.phone_number || null : current.phone_number,
+          nextRole,
+          nextActive,
+          id,
+        ]
       );
 
       // القائمة المرسلة هي الحالة النهائية للنطاق، لا إضافة عليه
-      if (body.halaqaIds) syncUserHalaqat(id, body.halaqaIds);
+      if (body.halaqaIds) await syncUserHalaqat(id, body.halaqaIds);
     });
 
-    res.json({ data: byId(id) });
+    res.json({ data: await byId(id) });
   })
 );
 
 /** DELETE /api/users/:id — تعطيل الحساب (لا حذف فعلي، حفاظاً على السجلات). */
 usersRouter.delete(
   "/:id",
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
 
-    const current = db.prepare("SELECT id, role FROM users WHERE id = ?").get(id) as
-      | { id: number; role: string }
-      | undefined;
+    const current = await db().get<{ id: number; role: string }>(
+      "SELECT id, role FROM users WHERE id = ?",
+      [id]
+    );
     if (!current) throw ApiError.notFound("المستخدم غير موجود");
 
     if (req.user!.id === id) throw ApiError.badRequest("لا يمكنك تعطيل حسابك");
-    if (current.role === "ADMIN" && activeAdminCount() <= 1) {
+    if (current.role === "ADMIN" && (await activeAdminCount()) <= 1) {
       throw ApiError.badRequest("لا يمكن إزالة آخر حساب مدير");
     }
 
-    db.prepare("UPDATE users SET is_active = 0 WHERE id = ?").run(id);
-    res.json({ data: byId(id) });
+    await db().run("UPDATE users SET is_active = FALSE WHERE id = ?", [id]);
+    res.json({ data: await byId(id) });
   })
 );

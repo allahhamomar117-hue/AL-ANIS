@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { config } from "../config.js";
 import { db } from "../db/index.js";
+import { nowExpr, nowPlusMinutes } from "../db/sqlfn.js";
 import { ApiError, asyncHandler, parse } from "../lib/http.js";
 import { requireAuth, signToken } from "../middleware/auth.js";
 import { verifyPassword } from "../lib/password.js";
@@ -26,54 +27,51 @@ function normalizeUsername(value: string): string {
 }
 
 /** يبحث عن المستخدم بالمطابقة التامة أولاً، ثم بالمقارنة الموحَّدة. */
-function findUserByUsername(username: string) {
+async function findUserByUsername(username: string) {
   type Row = { id: number; username: string | null; password_hash: string | null };
 
-  const exact = db
-    .prepare("SELECT id, username, password_hash FROM users WHERE username = ? AND is_active = 1")
-    .get(username.trim()) as Row | undefined;
+  const exact = await db().get<Row>(
+    "SELECT id, username, password_hash FROM users WHERE username = ? AND is_active = TRUE",
+    [username.trim()]
+  );
   if (exact) return exact;
 
   // الجدول صغير (حسابات كادر)، فالمسح هنا أرخص من دوال SQL نصية معقّدة
   const target = normalizeUsername(username);
-  const rows = db
-    .prepare("SELECT id, username, password_hash FROM users WHERE is_active = 1")
-    .all() as Row[];
+  const rows = await db().all<Row>(
+    "SELECT id, username, password_hash FROM users WHERE is_active = TRUE"
+  );
 
   return rows.find((row) => row.username && normalizeUsername(row.username) === target);
 }
 
-
 /** يبني كائن المستخدم المُعاد للواجهة: الدور والحلقة المرتبطة به. */
-function publicUser(id: number) {
-  const user = db
-    .prepare(
-      `SELECT u.id, u.name, u.username, u.phone_number, u.country_code, u.role
-       FROM users u WHERE u.id = ?`
-    )
-    .get(id) as
-    | {
-        id: number;
-        name: string;
-        username: string | null;
-        phone_number: string | null;
-        country_code: string;
-        role: "ADMIN" | "SUPERVISOR" | "TEACHER";
-      }
-    | undefined;
+async function publicUser(id: number) {
+  const user = await db().get<{
+    id: number;
+    name: string;
+    username: string | null;
+    phone_number: string | null;
+    country_code: string;
+    role: "ADMIN" | "SUPERVISOR" | "TEACHER";
+  }>(
+    `SELECT u.id, u.name, u.username, u.phone_number, u.country_code, u.role
+     FROM users u WHERE u.id = ?`,
+    [id]
+  );
 
   if (!user) throw ApiError.notFound("المستخدم غير موجود");
 
   // حلقات المدرّس؛ للمشرف تبقى فارغة لأنه يرى الكل
-  const halaqaIds = accessibleHalaqaIds({ id: user.id, name: user.name, role: user.role }) ?? [];
+  const halaqaIds =
+    (await accessibleHalaqaIds({ id: user.id, name: user.name, role: user.role })) ?? [];
 
   const halaqat = halaqaIds.length
-    ? (db
-        .prepare(
-          `SELECT id, name FROM halaqat WHERE id IN (${halaqaIds.map(() => "?").join(", ")})
-           ORDER BY name`
-        )
-        .all(...halaqaIds) as { id: number; name: string }[])
+    ? await db().all<{ id: number; name: string }>(
+        `SELECT id, name FROM halaqat WHERE id IN (${halaqaIds.map(() => "?").join(", ")})
+         ORDER BY name`,
+        halaqaIds
+      )
     : [];
 
   return {
@@ -91,7 +89,7 @@ function publicUser(id: number) {
  */
 authRouter.post(
   "/login",
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const body = parse(
       z.object({
         username: z.string().trim().min(1, "اسم المستخدم مطلوب"),
@@ -102,7 +100,7 @@ authRouter.post(
     );
 
     try {
-      const row = findUserByUsername(body.username);
+      const row = await findUserByUsername(body.username);
 
       if (!row) {
         // نسجّل السبب الحقيقي في الطرفية، ونُعيد للمستخدم رسالة عامة
@@ -124,10 +122,13 @@ authRouter.post(
       }
 
       if (body.fcm_token) {
-        db.prepare("UPDATE users SET fcm_token = ? WHERE id = ?").run(body.fcm_token, row.id);
+        await db().run("UPDATE users SET fcm_token = ? WHERE id = ?", [
+          body.fcm_token,
+          row.id,
+        ]);
       }
 
-      const user = publicUser(row.id);
+      const user = await publicUser(row.id);
       console.log(`[auth/login] دخول ناجح: "${user.username ?? user.name}" (${user.role})`);
 
       res.json({ token: signToken({ id: row.id }), user });
@@ -143,15 +144,19 @@ authRouter.post(
       });
       if (error instanceof Error && error.stack) console.error(error.stack);
 
-      // السبب الأشيع: قاعدة بيانات لم تُطبَّق عليها ترقية أسماء المستخدمين
-      if (/no such column: (username|password_hash)/i.test(message)) {
+      // السبب الأشيع: قاعدة بيانات لم تُطبَّق عليها ترقية أسماء المستخدمين.
+      // الرسالة تختلف بين اللهجتين، فنلتقط الصيغتين.
+      if (
+        /no such column: (username|password_hash)/i.test(message) ||
+        /column .*(username|password_hash).* does not exist/i.test(message)
+      ) {
         throw new ApiError(
           500,
           "قاعدة البيانات تحتاج ترقية: أوقف الخادم ثم شغّل npm run db:migrate",
           message
         );
       }
-      if (/no such table/i.test(message)) {
+      if (/no such table/i.test(message) || /relation .* does not exist/i.test(message)) {
         throw new ApiError(
           500,
           "جداول قاعدة البيانات ناقصة: شغّل npm run db:migrate ثم npm run db:seed",
@@ -170,14 +175,13 @@ authRouter.post(
  */
 authRouter.post(
   "/request-otp",
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const { phone_number, country_code } = parse(phoneSchema, req.body);
 
-    const user = db
-      .prepare(
-        "SELECT id FROM users WHERE country_code = ? AND phone_number = ? AND is_active = 1"
-      )
-      .get(country_code, phone_number) as { id: number } | undefined;
+    const user = await db().get<{ id: number }>(
+      "SELECT id FROM users WHERE country_code = ? AND phone_number = ? AND is_active = TRUE",
+      [country_code, phone_number]
+    );
 
     if (!user) throw ApiError.notFound("هذا الرقم غير مسجّل");
 
@@ -185,10 +189,11 @@ authRouter.post(
       ? String(Math.floor(100000 + Math.random() * 900000))
       : config.devOtp;
 
-    db.prepare(
+    await db().run(
       `INSERT INTO otp_codes (country_code, phone_number, code, expires_at)
-       VALUES (?, ?, ?, datetime('now', '+${OTP_TTL_MINUTES} minutes'))`
-    ).run(country_code, phone_number, code);
+       VALUES (?, ?, ?, ${nowPlusMinutes(OTP_TTL_MINUTES)})`,
+      [country_code, phone_number, code]
+    );
 
     // TODO: إرسال الرمز عبر مزوّد SMS في بيئة الإنتاج.
     res.json({
@@ -205,7 +210,7 @@ authRouter.post(
  */
 authRouter.post(
   "/verify-otp",
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const body = parse(
       phoneSchema.extend({
         otp: z.string().min(4).max(8),
@@ -214,41 +219,50 @@ authRouter.post(
       req.body
     );
 
-    const record = db
-      .prepare(
-        `SELECT id FROM otp_codes
-         WHERE country_code = ? AND phone_number = ? AND code = ?
-           AND consumed_at IS NULL AND expires_at > datetime('now')
-         ORDER BY id DESC LIMIT 1`
-      )
-      .get(body.country_code, body.phone_number, body.otp) as { id: number } | undefined;
+    const record = await db().get<{ id: number }>(
+      `SELECT id FROM otp_codes
+       WHERE country_code = ? AND phone_number = ? AND code = ?
+         AND consumed_at IS NULL AND expires_at > ${nowExpr()}
+       ORDER BY id DESC LIMIT 1`,
+      [body.country_code, body.phone_number, body.otp]
+    );
 
     if (!record) throw ApiError.badRequest("رمز التحقق غير صحيح أو منتهي الصلاحية");
 
-    db.prepare("UPDATE otp_codes SET consumed_at = datetime('now') WHERE id = ?").run(
-      record.id
-    );
+    await db().run(`UPDATE otp_codes SET consumed_at = ${nowExpr()} WHERE id = ?`, [
+      record.id,
+    ]);
 
-    const user = db
-      .prepare(
-        `SELECT id, name, phone_number, country_code, role
-         FROM users WHERE country_code = ? AND phone_number = ? AND is_active = 1`
-      )
-      .get(body.country_code, body.phone_number) as
-      | { id: number; name: string; phone_number: string; country_code: string; role: string }
-      | undefined;
+    const user = await db().get<{
+      id: number;
+      name: string;
+      phone_number: string;
+      country_code: string;
+      role: string;
+    }>(
+      `SELECT id, name, phone_number, country_code, role
+       FROM users WHERE country_code = ? AND phone_number = ? AND is_active = TRUE`,
+      [body.country_code, body.phone_number]
+    );
 
     if (!user) throw ApiError.notFound("المستخدم غير موجود");
 
     if (body.fcm_token) {
-      db.prepare("UPDATE users SET fcm_token = ? WHERE id = ?").run(body.fcm_token, user.id);
+      await db().run("UPDATE users SET fcm_token = ? WHERE id = ?", [
+        body.fcm_token,
+        user.id,
+      ]);
     }
 
-    res.json({ token: signToken(user), user: publicUser(user.id) });
+    res.json({ token: signToken(user), user: await publicUser(user.id) });
   })
 );
 
 /** GET /api/auth/me — بيانات المستخدم الحالي. */
-authRouter.get("/me", requireAuth, (req, res) => {
-  res.json({ user: publicUser(req.user!.id) });
-});
+authRouter.get(
+  "/me",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    res.json({ user: await publicUser(req.user!.id) });
+  })
+);

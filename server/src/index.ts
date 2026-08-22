@@ -3,8 +3,6 @@ import { config } from "./config.js";
 import { closeDb, db, migrate } from "./db/index.js";
 import { seedDemo } from "./db/seed-demo.js";
 
-migrate();
-
 /**
  * بذرة العرض عند الإقلاع.
  *
@@ -16,29 +14,26 @@ migrate();
  * الحارس مزدوج (SEED_DEMO_ON_START + فراغ القاعدة) لأن الدالة تمسح كل شيء؛
  * لا يُفعَّل المتغيّر إطلاقاً على نسخة المسجد الحقيقية.
  */
-function seedDemoIfNeeded(): void {
+async function seedDemoIfNeeded(): Promise<void> {
   if (!config.seedDemoOnStart && !config.seedDemoForce) return;
 
-  const { users } = db.prepare("SELECT COUNT(*) AS users FROM users").get() as {
-    users: number;
-  };
+  const row = await db().get<{ users: number }>("SELECT COUNT(*) AS users FROM users");
+  const users = row?.users ?? 0;
 
   if (users > 0 && !config.seedDemoForce) {
     console.log(`↷ تخطّي بذرة العرض: القاعدة تحتوي ${users} حساباً أصلاً.`);
     return;
   }
 
-  console.log(`🌱 تجهيز بيانات العرض في ${config.dbFile}…`);
-  seedDemo();
+  console.log("🌱 تجهيز بيانات العرض…");
+  await seedDemo();
 }
-
-seedDemoIfNeeded();
 
 /**
  * فحص سريع بعد الترقية: يمنع اكتشاف نقص المخطط لاحقاً على شكل 500 غامض
  * في منتصف الاستخدام (مثل تسجيل الدخول بلا عمود password_hash).
  */
-function verifySchema(): void {
+async function verifySchema(): Promise<void> {
   const required: Record<string, string[]> = {
     users: ["username", "password_hash", "role"],
     teacher_halaqat: ["user_id", "halaqa_id"],
@@ -47,7 +42,17 @@ function verifySchema(): void {
   const missing: string[] = [];
 
   for (const [table, columns] of Object.entries(required)) {
-    const info = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+    // لكل لهجة طريقها: SQLite عبر PRAGMA، و Postgres عبر information_schema
+    // (لا وجود لأيّهما عند الآخر). اسم الجدول ثابت في الكود لا مُدخَل مستخدم.
+    const info =
+      db().dialect === "postgres"
+        ? await db().all<{ name: string }>(
+            `SELECT column_name AS name FROM information_schema.columns
+             WHERE table_schema = 'public' AND table_name = ?`,
+            [table]
+          )
+        : await db().all<{ name: string }>(`PRAGMA table_info(${table})`);
+
     if (info.length === 0) {
       missing.push(`الجدول ${table}`);
       continue;
@@ -65,20 +70,28 @@ function verifySchema(): void {
   }
 }
 
-verifySchema();
+async function main(): Promise<void> {
+  await migrate();
+  await seedDemoIfNeeded();
+  await verifySchema();
 
-const server = createApp().listen(config.port, () => {
-  console.log(`🕌 الأنيس API يعمل على http://localhost:${config.port}/api`);
-  console.log(`   قاعدة البيانات: ${config.dbFile}`);
-});
-
-// إيقاف نظيف: نغلق المنفذ وندمج سجل WAL حتى يبقى ملف القاعدة مكتفياً بذاته
-for (const signal of ["SIGINT", "SIGTERM"] as const) {
-  process.once(signal, () => {
-    console.log("\nإيقاف الخادم…");
-    server.close(() => {
-      closeDb();
-      process.exit(0);
-    });
+  const server = createApp().listen(config.port, () => {
+    console.log(`🕌 الأنيس API يعمل على http://localhost:${config.port}/api`);
+    console.log(`   قاعدة البيانات: ${config.databaseUrl ? "PostgreSQL" : config.dbFile}`);
   });
+
+  // إيقاف نظيف: نغلق المنفذ وننهي الاتصال بالقاعدة
+  for (const signal of ["SIGINT", "SIGTERM"] as const) {
+    process.once(signal, () => {
+      console.log("\nإيقاف الخادم…");
+      server.close(() => {
+        void closeDb().then(() => process.exit(0));
+      });
+    });
+  }
 }
+
+main().catch((error) => {
+  console.error("✖ فشل إقلاع الخادم:", error);
+  process.exit(1);
+});

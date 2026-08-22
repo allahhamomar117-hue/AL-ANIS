@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { db, tx } from "../db/index.js";
+import { db, tx, type SqlParam } from "../db/index.js";
 import { ApiError, asyncHandler, parse } from "../lib/http.js";
 import { idParam, isoDate, pagination } from "../lib/schemas.js";
 import { requireRole } from "../middleware/auth.js";
@@ -41,18 +41,19 @@ const studentBody = z.object({
     .optional(),
 });
 
-function nextStudentCode(): string {
+async function nextStudentCode(): Promise<string> {
   const year = new Date().getFullYear();
-  const row = db
-    .prepare("SELECT COUNT(*) AS n FROM students WHERE code LIKE ?")
-    .get(`${year}%`) as { n: number };
-  return `${year}${String(row.n + 1).padStart(3, "0")}`;
+  const row = await db().get<{ n: number }>(
+    "SELECT COUNT(*) AS n FROM students WHERE code LIKE ?",
+    [`${year}%`]
+  );
+  return `${year}${String((row?.n ?? 0) + 1).padStart(3, "0")}`;
 }
 
 /** GET /api/students?halaqaId=&search= — قائمة الطلاب (شكل صفحة كل الطلاب). */
 studentsRouter.get(
   "/",
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const q = parse(
       pagination.extend({
         halaqaId: z.coerce.number().int().positive().optional(),
@@ -63,8 +64,8 @@ studentsRouter.get(
     );
 
     const where: string[] = [];
-    const params: unknown[] = [];
-    if (q.active) where.push("s.is_active = 1");
+    const params: SqlParam[] = [];
+    if (q.active) where.push("s.is_active = TRUE");
     if (q.halaqaId) {
       where.push("s.halaqa_id = ?");
       params.push(q.halaqaId);
@@ -75,16 +76,19 @@ studentsRouter.get(
     }
 
     // المدرّس لا يرى إلا طلاب حلقاته — هذا ما يغذّي نافذة النقاط السريعة
-    applyScope(req.user!, "s.halaqa_id", where, params);
+    await applyScope(req.user!, "s.halaqa_id", where, params);
 
     const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
-    const total = (
-      db.prepare(`SELECT COUNT(*) AS n FROM students s ${clause}`).get(...params) as { n: number }
-    ).n;
+    const counted = await db().get<{ n: number }>(
+      `SELECT COUNT(*) AS n FROM students s ${clause}`,
+      params
+    );
+    const total = counted?.n ?? 0;
 
-    const data = db
-      .prepare(`${SELECT_STUDENT} ${clause} ORDER BY s.name LIMIT ? OFFSET ?`)
-      .all(...params, q.limit, q.offset);
+    const data = await db().all(
+      `${SELECT_STUDENT} ${clause} ORDER BY s.name LIMIT ? OFFSET ?`,
+      [...params, q.limit, q.offset]
+    );
 
     res.json({ data, meta: { total, limit: q.limit, offset: q.offset } });
   })
@@ -93,44 +97,47 @@ studentsRouter.get(
 /** GET /api/students/:id — ملف الطالب مع ملخّص إحصائي. */
 studentsRouter.get(
   "/:id",
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
-    assertStudentAccess(req.user!, id);
+    await assertStudentAccess(req.user!, id);
 
-    const student = db.prepare(`${SELECT_STUDENT} WHERE s.id = ?`).get(id);
+    const student = await db().get(`${SELECT_STUDENT} WHERE s.id = ?`, [id]);
     if (!student) throw ApiError.notFound("الطالب غير موجود");
 
-    const attendance = db
-      .prepare(
-        `SELECT COUNT(*) AS total,
-                SUM(CASE WHEN status IN ('present','late') THEN 1 ELSE 0 END) AS attended
-         FROM attendance_entries WHERE student_id = ?`
-      )
-      .get(id) as { total: number; attended: number | null };
+    const attendance = await db().get<{ total: number; attended: number | null }>(
+      `SELECT COUNT(*) AS total,
+              SUM(CASE WHEN status IN ('present','late') THEN 1 ELSE 0 END) AS attended
+       FROM attendance_entries WHERE student_id = ?`,
+      [id]
+    );
 
-    const recitations = db
-      .prepare(
-        `SELECT COUNT(*) AS total,
-                SUM(CASE WHEN rating = 'excellent' THEN 1 ELSE 0 END) AS excellent,
-                MAX(recited_at) AS lastDate
-         FROM recitations WHERE student_id = ?`
-      )
-      .get(id) as { total: number; excellent: number | null; lastDate: string | null };
+    const recitations = await db().get<{
+      total: number;
+      excellent: number | null;
+      lastDate: string | null;
+    }>(
+      `SELECT COUNT(*) AS total,
+              SUM(CASE WHEN rating = 'excellent' THEN 1 ELSE 0 END) AS excellent,
+              MAX(recited_at) AS lastDate
+       FROM recitations WHERE student_id = ?`,
+      [id]
+    );
+
+    const sessions = attendance?.total ?? 0;
+    const attended = attendance?.attended ?? 0;
 
     res.json({
       data: student,
       stats: {
         attendance: {
-          sessions: attendance.total,
-          attended: attendance.attended ?? 0,
-          rate: attendance.total
-            ? Math.round(((attendance.attended ?? 0) / attendance.total) * 100)
-            : 0,
+          sessions,
+          attended,
+          rate: sessions ? Math.round((attended / sessions) * 100) : 0,
         },
         recitations: {
-          total: recitations.total,
-          excellent: recitations.excellent ?? 0,
-          lastDate: recitations.lastDate,
+          total: recitations?.total ?? 0,
+          excellent: recitations?.excellent ?? 0,
+          lastDate: recitations?.lastDate ?? null,
         },
       },
     });
@@ -141,29 +148,28 @@ studentsRouter.get(
 studentsRouter.post(
   "/",
   requireRole("ADMIN", "SUPERVISOR"),
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const body = parse(studentBody, req.body);
-    assertHalaqaAccess(req.user!, body.halaqa_id ?? null);
-    const code = body.code ?? nextStudentCode();
+    await assertHalaqaAccess(req.user!, body.halaqa_id ?? null);
+    const code = body.code ?? (await nextStudentCode());
 
-    const info = db
-      .prepare(
-        `INSERT INTO students (code, name, halaqa_id, birth_date, student_phone, parent_phone, avatar_url)
-         VALUES (@code, @name, @halaqa_id, @birth_date, @student_phone, @parent_phone, @avatar_url)`
-      )
-      .run({
+    const info = await db().run(
+      `INSERT INTO students (code, name, halaqa_id, birth_date, student_phone, parent_phone, avatar_url)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
         code,
-        name: body.name,
-        halaqa_id: body.halaqa_id ?? null,
-        birth_date: body.birth_date ?? null,
-        student_phone: body.student_phone ?? null,
-        parent_phone: body.parent_phone ?? null,
-        avatar_url: body.avatar_url ?? null,
-      });
+        body.name,
+        body.halaqa_id ?? null,
+        body.birth_date ?? null,
+        body.student_phone ?? null,
+        body.parent_phone ?? null,
+        body.avatar_url ?? null,
+      ]
+    );
 
-    res
-      .status(201)
-      .json({ data: db.prepare(`${SELECT_STUDENT} WHERE s.id = ?`).get(info.lastInsertRowid) });
+    res.status(201).json({
+      data: await db().get(`${SELECT_STUDENT} WHERE s.id = ?`, [info.lastInsertRowid]),
+    });
   })
 );
 
@@ -171,9 +177,9 @@ studentsRouter.post(
 studentsRouter.patch(
   "/:id",
   requireRole("ADMIN", "SUPERVISOR"),
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
-    assertStudentAccess(req.user!, id);
+    await assertStudentAccess(req.user!, id);
 
     const body = parse(
       studentBody.partial().extend({ is_active: z.boolean().optional() }),
@@ -182,34 +188,36 @@ studentsRouter.patch(
 
     // نقل الطالب إلى حلقة أخرى يتطلب صلاحية على الحلقة الهدف أيضاً
     if (body.halaqa_id !== undefined) {
-      assertHalaqaAccess(req.user!, body.halaqa_id);
+      await assertHalaqaAccess(req.user!, body.halaqa_id);
     }
 
-    const current = db.prepare("SELECT * FROM students WHERE id = ?").get(id) as
-      | Record<string, unknown>
-      | undefined;
+    const current = await db().get<Record<string, SqlParam>>(
+      "SELECT * FROM students WHERE id = ?",
+      [id]
+    );
     if (!current) throw ApiError.notFound("الطالب غير موجود");
 
-    db.prepare(
+    await db().run(
       `UPDATE students SET
-         name = @name, code = @code, halaqa_id = @halaqa_id, birth_date = @birth_date,
-         student_phone = @student_phone, parent_phone = @parent_phone,
-         avatar_url = @avatar_url, is_active = @is_active
-       WHERE id = @id`
-    ).run({
-      id,
-      name: body.name ?? current.name,
-      code: body.code ?? current.code,
-      halaqa_id: body.halaqa_id !== undefined ? body.halaqa_id : current.halaqa_id,
-      birth_date: body.birth_date !== undefined ? body.birth_date : current.birth_date,
-      student_phone:
+         name = ?, code = ?, halaqa_id = ?, birth_date = ?,
+         student_phone = ?, parent_phone = ?,
+         avatar_url = ?, is_active = ?
+       WHERE id = ?`,
+      [
+        body.name ?? current.name,
+        body.code ?? current.code,
+        body.halaqa_id !== undefined ? body.halaqa_id : current.halaqa_id,
+        body.birth_date !== undefined ? body.birth_date : current.birth_date,
         body.student_phone !== undefined ? body.student_phone : current.student_phone,
-      parent_phone: body.parent_phone !== undefined ? body.parent_phone : current.parent_phone,
-      avatar_url: body.avatar_url !== undefined ? body.avatar_url : current.avatar_url,
-      is_active: body.is_active !== undefined ? Number(body.is_active) : current.is_active,
-    });
+        body.parent_phone !== undefined ? body.parent_phone : current.parent_phone,
+        body.avatar_url !== undefined ? body.avatar_url : current.avatar_url,
+        // منطقيّ صريح: عمود Postgres من نوع boolean لا يقبل 0/1
+        body.is_active !== undefined ? body.is_active : Boolean(current.is_active),
+        id,
+      ]
+    );
 
-    res.json({ data: db.prepare(`${SELECT_STUDENT} WHERE s.id = ?`).get(id) });
+    res.json({ data: await db().get(`${SELECT_STUDENT} WHERE s.id = ?`, [id]) });
   })
 );
 
@@ -220,14 +228,14 @@ studentsRouter.patch(
 studentsRouter.delete(
   "/:id",
   requireRole("ADMIN", "SUPERVISOR"),
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
-    assertStudentAccess(req.user!, id);
+    await assertStudentAccess(req.user!, id);
     const hard = req.query.hard === "true";
 
     const info = hard
-      ? db.prepare("DELETE FROM students WHERE id = ?").run(id)
-      : db.prepare("UPDATE students SET is_active = 0 WHERE id = ?").run(id);
+      ? await db().run("DELETE FROM students WHERE id = ?", [id])
+      : await db().run("UPDATE students SET is_active = FALSE WHERE id = ?", [id]);
 
     if (info.changes === 0) throw ApiError.notFound("الطالب غير موجود");
     res.status(204).end();
@@ -239,27 +247,27 @@ studentsRouter.delete(
 /** GET /api/students/:id/points — سجل حركات النقاط. */
 studentsRouter.get(
   "/:id/points",
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
-    assertStudentAccess(req.user!, id);
+    await assertStudentAccess(req.user!, id);
 
     const q = parse(pagination, req.query);
 
-    const student = db.prepare("SELECT points FROM students WHERE id = ?").get(id) as
-      | { points: number }
-      | undefined;
+    const student = await db().get<{ points: number }>(
+      "SELECT points FROM students WHERE id = ?",
+      [id]
+    );
     if (!student) throw ApiError.notFound("الطالب غير موجود");
 
-    const data = db
-      .prepare(
-        `SELECT p.id, p.delta, p.reason, p.kind, p.reference_id AS referenceId,
-                p.created_at AS createdAt, COALESCE(u.name, '') AS createdBy
-         FROM point_transactions p
-         LEFT JOIN users u ON u.id = p.created_by
-         WHERE p.student_id = ?
-         ORDER BY p.id DESC LIMIT ? OFFSET ?`
-      )
-      .all(id, q.limit, q.offset);
+    const data = await db().all(
+      `SELECT p.id, p.delta, p.reason, p.kind, p.reference_id AS referenceId,
+              p.created_at AS createdAt, COALESCE(u.name, '') AS createdBy
+       FROM point_transactions p
+       LEFT JOIN users u ON u.id = p.created_by
+       WHERE p.student_id = ?
+       ORDER BY p.id DESC LIMIT ? OFFSET ?`,
+      [id, q.limit, q.offset]
+    );
 
     res.json({ data, meta: { balance: student.points } });
   })
@@ -271,9 +279,9 @@ studentsRouter.get(
  */
 studentsRouter.post(
   "/:id/points",
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
-    assertStudentAccess(req.user!, id);
+    await assertStudentAccess(req.user!, id);
 
     const body = parse(
       z.object({
@@ -284,19 +292,25 @@ studentsRouter.post(
       req.body
     );
 
-    const student = db.prepare("SELECT id, points FROM students WHERE id = ?").get(id) as
-      | { id: number; points: number }
-      | undefined;
+    const student = await db().get<{ id: number; points: number }>(
+      "SELECT id, points FROM students WHERE id = ?",
+      [id]
+    );
     if (!student) throw ApiError.notFound("الطالب غير موجود");
 
     const magnitude = Math.abs(body.amount);
-    const delta = body.operation === "deduct" ? -magnitude : body.operation === "add" ? magnitude : body.amount;
+    const delta =
+      body.operation === "deduct"
+        ? -magnitude
+        : body.operation === "add"
+          ? magnitude
+          : body.amount;
 
     if (student.points + delta < 0) {
       throw ApiError.badRequest("لا يمكن أن يصبح رصيد النقاط سالباً");
     }
 
-    const txId = tx(() =>
+    const txId = await tx(() =>
       addPoints({
         studentId: id,
         delta,
@@ -315,10 +329,11 @@ studentsRouter.post(
 /* ==================== الصورة الشخصية ==================== */
 
 /** يقرأ الطالب أو يرمي 404. */
-function avatarOf(id: number): string | null {
-  const row = db.prepare("SELECT avatar_url AS url FROM students WHERE id = ?").get(id) as
-    | { url: string | null }
-    | undefined;
+async function avatarOf(id: number): Promise<string | null> {
+  const row = await db().get<{ url: string | null }>(
+    "SELECT avatar_url AS url FROM students WHERE id = ?",
+    [id]
+  );
   if (!row) throw ApiError.notFound("الطالب غير موجود");
   return row.url;
 }
@@ -331,18 +346,18 @@ function avatarOf(id: number): string | null {
 studentsRouter.post(
   "/:id/avatar",
   requireRole("ADMIN", "SUPERVISOR"),
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
     const { data } = parse(z.object({ data: z.string().min(1) }), req.body);
 
-    const previous = avatarOf(id);
+    const previous = await avatarOf(id);
     const url = saveAvatar(data);
 
-    db.prepare("UPDATE students SET avatar_url = ? WHERE id = ?").run(url, id);
+    await db().run("UPDATE students SET avatar_url = ? WHERE id = ?", [url, id]);
     // بعد نجاح التحديث لا قبله: لو فشل الحفظ بقيت الصورة القديمة سليمة
     deleteAvatar(previous);
 
-    res.status(201).json({ data: db.prepare(`${SELECT_STUDENT} WHERE s.id = ?`).get(id) });
+    res.status(201).json({ data: await db().get(`${SELECT_STUDENT} WHERE s.id = ?`, [id]) });
   })
 );
 
@@ -350,14 +365,14 @@ studentsRouter.post(
 studentsRouter.delete(
   "/:id/avatar",
   requireRole("ADMIN", "SUPERVISOR"),
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
-    const previous = avatarOf(id);
+    const previous = await avatarOf(id);
 
-    db.prepare("UPDATE students SET avatar_url = NULL WHERE id = ?").run(id);
+    await db().run("UPDATE students SET avatar_url = NULL WHERE id = ?", [id]);
     deleteAvatar(previous);
 
-    res.json({ data: db.prepare(`${SELECT_STUDENT} WHERE s.id = ?`).get(id) });
+    res.json({ data: await db().get(`${SELECT_STUDENT} WHERE s.id = ?`, [id]) });
   })
 );
 
@@ -365,13 +380,16 @@ studentsRouter.delete(
 studentsRouter.post(
   "/:id/transfer",
   requireRole("ADMIN", "SUPERVISOR"),
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
     const { halaqa_id } = parse(z.object({ halaqa_id: z.number().int().positive() }), req.body);
 
-    const info = db.prepare("UPDATE students SET halaqa_id = ? WHERE id = ?").run(halaqa_id, id);
+    const info = await db().run("UPDATE students SET halaqa_id = ? WHERE id = ?", [
+      halaqa_id,
+      id,
+    ]);
     if (info.changes === 0) throw ApiError.notFound("الطالب غير موجود");
 
-    res.json({ data: db.prepare(`${SELECT_STUDENT} WHERE s.id = ?`).get(id) });
+    res.json({ data: await db().get(`${SELECT_STUDENT} WHERE s.id = ?`, [id]) });
   })
 );

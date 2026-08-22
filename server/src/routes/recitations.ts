@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { db, tx } from "../db/index.js";
+import { db, tx, type SqlParam } from "../db/index.js";
 import { ApiError, asyncHandler, parse } from "../lib/http.js";
 import { JUZ_AMMA_FIRST, JUZ_AMMA_LAST, surahByNumber } from "../lib/juzAmma.js";
 import { idParam, isoDate, pagination, rating, recitationType, today } from "../lib/schemas.js";
@@ -95,7 +95,7 @@ const recitationBody = z
 /** GET /api/recitations?studentId=&halaqaId=&from=&to= — سجل التلاوة. */
 recitationsRouter.get(
   "/",
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const q = parse(
       pagination.extend({
         studentId: z.coerce.number().int().positive().optional(),
@@ -108,7 +108,7 @@ recitationsRouter.get(
     );
 
     const where: string[] = [];
-    const params: unknown[] = [];
+    const params: SqlParam[] = [];
     if (q.studentId) {
       where.push("r.student_id = ?");
       params.push(q.studentId);
@@ -131,21 +131,20 @@ recitationsRouter.get(
     }
 
     // المدرّس لا يرى إلا تلاوات حلقاته
-    applyScope(req.user!, "r.halaqa_id", where, params);
+    await applyScope(req.user!, "r.halaqa_id", where, params);
 
     const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
-    const total = (
-      db.prepare(`SELECT COUNT(*) AS n FROM recitations r ${clause}`).get(...params) as {
-        n: number;
-      }
-    ).n;
+    const counted = await db().get<{ n: number }>(
+      `SELECT COUNT(*) AS n FROM recitations r ${clause}`,
+      params
+    );
+    const total = counted?.n ?? 0;
 
-    const data = db
-      .prepare(
-        `${SELECT_RECITATION} ${clause} ORDER BY r.recited_at DESC, r.id DESC LIMIT ? OFFSET ?`
-      )
-      .all(...params, q.limit, q.offset);
+    const data = await db().all(
+      `${SELECT_RECITATION} ${clause} ORDER BY r.recited_at DESC, r.id DESC LIMIT ? OFFSET ?`,
+      [...params, q.limit, q.offset]
+    );
 
     res.json({ data, meta: { total, limit: q.limit, offset: q.offset } });
   })
@@ -154,13 +153,13 @@ recitationsRouter.get(
 /** GET /api/recitations/:id */
 recitationsRouter.get(
   "/:id",
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
-    const row = db.prepare(`${SELECT_RECITATION} WHERE r.id = ?`).get(id) as
-      | { studentId: number }
-      | undefined;
+    const row = await db().get<{ studentId: number }>(`${SELECT_RECITATION} WHERE r.id = ?`, [
+      id,
+    ]);
     if (!row) throw ApiError.notFound("سجل التلاوة غير موجود");
-    assertStudentAccess(req.user!, row.studentId);
+    await assertStudentAccess(req.user!, row.studentId);
     res.json({ data: row });
   })
 );
@@ -168,18 +167,19 @@ recitationsRouter.get(
 /** POST /api/recitations — تسجيل تلاوة/تسميع ومنح النقاط بحسب التقييم. */
 recitationsRouter.post(
   "/",
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const body = parse(recitationBody, req.body);
 
-    const student = db
-      .prepare("SELECT id, halaqa_id AS halaqaId FROM students WHERE id = ? AND is_active = 1")
-      .get(body.studentId) as { id: number; halaqaId: number | null } | undefined;
+    const student = await db().get<{ id: number; halaqaId: number | null }>(
+      "SELECT id, halaqa_id AS halaqaId FROM students WHERE id = ? AND is_active = TRUE",
+      [body.studentId]
+    );
     if (!student) throw ApiError.notFound("الطالب غير موجود");
 
     const halaqaId = body.halaqaId ?? student.halaqaId;
     // الطالب والحلقة المستهدفة كلاهما يجب أن يكونا ضمن نطاق المستخدم
-    assertStudentAccess(req.user!, body.studentId);
-    assertHalaqaAccess(req.user!, halaqaId);
+    await assertStudentAccess(req.user!, body.studentId);
+    await assertHalaqaAccess(req.user!, halaqaId);
 
     // التسميع بالسورة يُخزَّن بصفحاته أيضاً، فتبقى التقارير القائمة على الصفحات صالحة
     const surah = body.surahNumber != null ? surahByNumber(body.surahNumber) : undefined;
@@ -196,34 +196,32 @@ recitationsRouter.post(
         ? body.toPage!
         : null;
 
-    const id = tx(() => {
-      const info = db
-        .prepare(
-          `INSERT INTO recitations
-             (student_id, halaqa_id, type, page_number, to_page, verse, page_completed,
-              surah_number, rating, notes, recited_at, recorded_by)
-           VALUES
-             (@studentId, @halaqaId, @type, @pageNumber, @toPage, @verse, @pageCompleted,
-              @surahNumber, @rating, @notes, @recitedAt, @recordedBy)`
-        )
-        .run({
-          studentId: body.studentId,
+    const id = await tx(async () => {
+      const info = await db().run(
+        `INSERT INTO recitations
+           (student_id, halaqa_id, type, page_number, to_page, verse, page_completed,
+            surah_number, rating, notes, recited_at, recorded_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          body.studentId,
           halaqaId,
-          type: body.type,
+          body.type,
           pageNumber,
           toPage,
-          verse: surah ? null : body.type === "half" ? body.verse! : null,
-          pageCompleted: Number(surah ? true : body.type === "half" ? body.pageCompleted : true),
-          surahNumber: body.surahNumber ?? null,
-          rating: body.rating,
-          notes: body.notes ?? null,
-          recitedAt: body.recitedAt,
-          recordedBy: req.user!.id,
-        });
+          surah ? null : body.type === "half" ? body.verse! : null,
+          // منطقيّ صريح: عمود Postgres من نوع boolean لا يقبل 0/1
+          surah ? true : body.type === "half" ? body.pageCompleted : true,
+          body.surahNumber ?? null,
+          body.rating,
+          body.notes ?? null,
+          body.recitedAt,
+          req.user!.id,
+        ]
+      );
 
-      const recitationId = Number(info.lastInsertRowid);
+      const recitationId = info.lastInsertRowid;
 
-      addPoints({
+      await addPoints({
         studentId: body.studentId,
         delta: recitationPoints({
           rating: body.rating,
@@ -241,20 +239,23 @@ recitationsRouter.post(
       return recitationId;
     });
 
-    res.status(201).json({ data: db.prepare(`${SELECT_RECITATION} WHERE r.id = ?`).get(id) });
+    res.status(201).json({
+      data: await db().get(`${SELECT_RECITATION} WHERE r.id = ?`, [id]),
+    });
   })
 );
 
 /** PATCH /api/recitations/:id — يعيد احتساب النقاط عند تغيير التقييم. */
 recitationsRouter.patch(
   "/:id",
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
-    const current = db.prepare("SELECT * FROM recitations WHERE id = ?").get(id) as
-      | Record<string, any>
-      | undefined;
+    const current = await db().get<Record<string, any>>(
+      "SELECT * FROM recitations WHERE id = ?",
+      [id]
+    );
     if (!current) throw ApiError.notFound("سجل التلاوة غير موجود");
-    assertStudentAccess(req.user!, current.student_id);
+    await assertStudentAccess(req.user!, current.student_id);
 
     const body = parse(
       z.object({
@@ -270,51 +271,52 @@ recitationsRouter.patch(
       req.body
     );
 
-    tx(() => {
-      db.prepare(
+    await tx(async () => {
+      await db().run(
         `UPDATE recitations SET
-           type = @type, page_number = @pageNumber, to_page = @toPage, verse = @verse,
-           page_completed = @pageCompleted, rating = @rating, notes = @notes,
-           recited_at = @recitedAt
-         WHERE id = @id`
-      ).run({
-        id,
-        // سجل مرتبط بسورة يبقى نوعه 'surah' مهما أُرسل
-        type: current.surah_number != null ? "surah" : (body.type ?? current.type),
-        pageNumber: body.pageNumber ?? current.page_number,
-        toPage: body.toPage !== undefined ? body.toPage : current.to_page,
-        verse: body.verse !== undefined ? body.verse : current.verse,
-        pageCompleted:
+           type = ?, page_number = ?, to_page = ?, verse = ?,
+           page_completed = ?, rating = ?, notes = ?,
+           recited_at = ?
+         WHERE id = ?`,
+        [
+          // سجل مرتبط بسورة يبقى نوعه 'surah' مهما أُرسل
+          current.surah_number != null ? "surah" : (body.type ?? current.type),
+          body.pageNumber ?? current.page_number,
+          body.toPage !== undefined ? body.toPage : current.to_page,
+          body.verse !== undefined ? body.verse : current.verse,
+          // منطقيّ صريح: القيمة المقروءة تعود 0/1 فتُحوَّل قبل الكتابة
           body.pageCompleted !== undefined
-            ? Number(body.pageCompleted)
-            : current.page_completed,
-        rating: body.rating ?? current.rating,
-        notes: body.notes !== undefined ? body.notes : current.notes,
-        recitedAt: body.recitedAt ?? current.recited_at,
-      });
+            ? body.pageCompleted
+            : Boolean(current.page_completed),
+          body.rating ?? current.rating,
+          body.notes !== undefined ? body.notes : current.notes,
+          body.recitedAt ?? current.recited_at,
+          id,
+        ]
+      );
 
       // النقاط تتبع التقييم والمقدار معاً، فأي تغيّر في أيّهما يوجب إعادة الاحتساب
-      const next = db.prepare("SELECT * FROM recitations WHERE id = ?").get(id) as Record<
-        string,
-        any
-      >;
+      const next = await db().get<Record<string, any>>(
+        "SELECT * FROM recitations WHERE id = ?",
+        [id]
+      );
 
       const affectsPoints =
-        next.rating !== current.rating ||
-        next.type !== current.type ||
-        next.page_number !== current.page_number ||
-        next.to_page !== current.to_page;
+        next!.rating !== current.rating ||
+        next!.type !== current.type ||
+        next!.page_number !== current.page_number ||
+        next!.to_page !== current.to_page;
 
       if (affectsPoints) {
-        revertPointsFor("recitation", id);
-        addPoints({
+        await revertPointsFor("recitation", id);
+        await addPoints({
           studentId: current.student_id,
           delta: recitationPoints({
-            rating: next.rating,
-            type: next.type,
-            pageNumber: next.page_number,
-            toPage: next.to_page,
-            surahNumber: next.surah_number,
+            rating: next!.rating,
+            type: next!.type,
+            pageNumber: next!.page_number,
+            toPage: next!.to_page,
+            surahNumber: next!.surah_number,
           }),
           reason: "تعديل التسميع",
           kind: "recitation",
@@ -324,25 +326,26 @@ recitationsRouter.patch(
       }
     });
 
-    res.json({ data: db.prepare(`${SELECT_RECITATION} WHERE r.id = ?`).get(id) });
+    res.json({ data: await db().get(`${SELECT_RECITATION} WHERE r.id = ?`, [id]) });
   })
 );
 
 /** DELETE /api/recitations/:id */
 recitationsRouter.delete(
   "/:id",
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
 
-    const existing = db.prepare("SELECT student_id AS studentId FROM recitations WHERE id = ?").get(id) as
-      | { studentId: number }
-      | undefined;
+    const existing = await db().get<{ studentId: number }>(
+      "SELECT student_id AS studentId FROM recitations WHERE id = ?",
+      [id]
+    );
     if (!existing) throw ApiError.notFound("سجل التلاوة غير موجود");
-    assertStudentAccess(req.user!, existing.studentId);
+    await assertStudentAccess(req.user!, existing.studentId);
 
-    const info = tx(() => {
-      revertPointsFor("recitation", id);
-      return db.prepare("DELETE FROM recitations WHERE id = ?").run(id);
+    const info = await tx(async () => {
+      await revertPointsFor("recitation", id);
+      return db().run("DELETE FROM recitations WHERE id = ?", [id]);
     });
 
     if (info.changes === 0) throw ApiError.notFound("سجل التلاوة غير موجود");

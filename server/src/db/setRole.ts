@@ -9,7 +9,7 @@
  * فأي حساب يُنشأ دون تحديد الدور صراحةً يصير مدرّساً — ومن ثمّ يُرفض بـ403
  * عند تعديل بيانات الطلاب أو رفع صورهم، وهي عمليات للمشرف وحده.
  */
-import { db } from "./index.js";
+import { closeDb, db, initDb } from "./index.js";
 
 type Role = "ADMIN" | "SUPERVISOR" | "TEACHER";
 
@@ -21,10 +21,10 @@ interface UserRow {
   is_active: number;
 }
 
-function listUsers(): void {
-  const users = db
-    .prepare("SELECT id, name, username, role, is_active FROM users ORDER BY role, name")
-    .all() as UserRow[];
+async function listUsers(): Promise<void> {
+  const users = await db().all<UserRow>(
+    "SELECT id, name, username, role, is_active FROM users ORDER BY role, name"
+  );
 
   if (users.length === 0) {
     console.log("لا توجد حسابات. شغّل: npm run db:seed");
@@ -44,16 +44,17 @@ function listUsers(): void {
   console.log(`\nللترقية:  npm run user:role -- "اسم الحساب" ADMIN`);
 }
 
-function setRole(identifier: string, role: Role): void {
+async function setRole(identifier: string, role: Role): Promise<void> {
   // يقبل اسم المستخدم أو الاسم الكامل، فالمستخدم قد يعرف أحدهما فقط
-  const user = db
-    .prepare("SELECT id, name, username, role, is_active FROM users WHERE username = ? OR name = ?")
-    .get(identifier, identifier) as UserRow | undefined;
+  const user = await db().get<UserRow>(
+    "SELECT id, name, username, role, is_active FROM users WHERE username = ? OR name = ?",
+    [identifier, identifier]
+  );
 
   if (!user) {
     console.error(`لا يوجد حساب باسم: ${identifier}`);
     console.error("");
-    listUsers();
+    await listUsers();
     process.exit(1);
   }
 
@@ -62,7 +63,7 @@ function setRole(identifier: string, role: Role): void {
     return;
   }
 
-  db.prepare("UPDATE users SET role = ? WHERE id = ?").run(role, user.id);
+  await db().run("UPDATE users SET role = ? WHERE id = ?", [role, user.id]);
   console.log(`✔ ${user.name}: ${user.role} → ${role}`);
 
   if (role === "ADMIN") {
@@ -71,14 +72,25 @@ function setRole(identifier: string, role: Role): void {
   console.log("\n  سجّل الخروج ثم الدخول من جديد ليأخذ المتصفح الدور الجديد.");
 }
 
-const [identifier, roleArg] = process.argv.slice(2);
+async function main(): Promise<void> {
+  await initDb();
 
-if (!identifier) {
-  listUsers();
-} else if (roleArg !== "ADMIN" && roleArg !== "SUPERVISOR" && roleArg !== "TEACHER") {
-  console.error('الدور يجب أن يكون ADMIN أو SUPERVISOR أو TEACHER.');
-  console.error('مثال:  npm run user:role -- "عمار شهوري" ADMIN');
-  process.exit(1);
-} else {
-  setRole(identifier, roleArg);
+  const [identifier, roleArg] = process.argv.slice(2);
+
+  if (!identifier) {
+    await listUsers();
+  } else if (roleArg !== "ADMIN" && roleArg !== "SUPERVISOR" && roleArg !== "TEACHER") {
+    console.error("الدور يجب أن يكون ADMIN أو SUPERVISOR أو TEACHER.");
+    console.error('مثال:  npm run user:role -- "عمار شهوري" ADMIN');
+    process.exit(1);
+  } else {
+    await setRole(identifier, roleArg);
+  }
+
+  await closeDb();
 }
+
+main().catch((error) => {
+  console.error("✖ فشل:", error);
+  process.exit(1);
+});

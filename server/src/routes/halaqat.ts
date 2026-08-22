@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { db, tx } from "../db/index.js";
+import { db, tx, type SqlParam } from "../db/index.js";
 import { ApiError, asyncHandler, parse } from "../lib/http.js";
 import { idParam } from "../lib/schemas.js";
 import { requireRole } from "../middleware/auth.js";
@@ -26,7 +26,7 @@ const SELECT_HALAQA = `
          h.stage,
          h.is_active                        AS isActive,
          (SELECT COUNT(*) FROM students s
-           WHERE s.halaqa_id = h.id AND s.is_active = 1) AS students
+           WHERE s.halaqa_id = h.id AND s.is_active = TRUE) AS students
   FROM halaqat h
   LEFT JOIN users u ON u.id = h.teacher_id
 `;
@@ -37,12 +37,9 @@ function cleanName(name: string): string {
 }
 
 /** اسم مكرّر (بعد التوحيد) يربك كل قوائم اختيار الحلقات، فيُرفض. */
-function assertNameFree(name: string, exceptId?: number) {
+async function assertNameFree(name: string, exceptId?: number): Promise<void> {
   const target = cleanName(name).toLowerCase();
-  const rows = db.prepare("SELECT id, name FROM halaqat").all() as {
-    id: number;
-    name: string;
-  }[];
+  const rows = await db().all<{ id: number; name: string }>("SELECT id, name FROM halaqat");
 
   const clash = rows.some(
     (row) => row.id !== exceptId && cleanName(row.name).toLowerCase() === target
@@ -64,36 +61,36 @@ const halaqaBody = z.object({
 /** GET /api/halaqat — قائمة الحلقات مع عدد الطلاب (شكل HalaqaCard). */
 halaqatRouter.get(
   "/",
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const { mine, active } = parse(
       z.object({ mine: boolParam.optional(), active: boolParam.default(true) }),
       req.query
     );
 
     const where: string[] = [];
-    const params: unknown[] = [];
-    if (active) where.push("h.is_active = 1");
+    const params: SqlParam[] = [];
+    if (active) where.push("h.is_active = TRUE");
     if (mine) {
       where.push("h.teacher_id = ?");
       params.push(req.user!.id);
     }
 
     // المدرّس لا يرى إلا حلقاته
-    applyScope(req.user!, "h.id", where, params);
+    await applyScope(req.user!, "h.id", where, params);
 
     const sql = `${SELECT_HALAQA} ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY h.name`;
-    res.json({ data: db.prepare(sql).all(...params) });
+    res.json({ data: await db().all(sql, params) });
   })
 );
 
 /** GET /api/halaqat/:id */
 halaqatRouter.get(
   "/:id",
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
-    assertHalaqaAccess(req.user!, id);
+    await assertHalaqaAccess(req.user!, id);
 
-    const halaqa = db.prepare(`${SELECT_HALAQA} WHERE h.id = ?`).get(id);
+    const halaqa = await db().get(`${SELECT_HALAQA} WHERE h.id = ?`, [id]);
     if (!halaqa) throw ApiError.notFound("الحلقة غير موجودة");
     res.json({ data: halaqa });
   })
@@ -102,31 +99,30 @@ halaqatRouter.get(
 /** GET /api/halaqat/:id/students — طلاب الحلقة مع آخر تسميع (شكل StudentCard). */
 halaqatRouter.get(
   "/:id/students",
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
-    assertHalaqaAccess(req.user!, id);
+    await assertHalaqaAccess(req.user!, id);
 
-    const exists = db.prepare("SELECT 1 FROM halaqat WHERE id = ?").get(id);
+    const exists = await db().get("SELECT 1 FROM halaqat WHERE id = ?", [id]);
     if (!exists) throw ApiError.notFound("الحلقة غير موجودة");
 
-    const data = db
-      .prepare(
-        `SELECT s.id,
-                s.code,
-                s.name,
-                s.points,
-                s.avatar_url AS avatarUrl,
-                (SELECT r.recited_at FROM recitations r
-                  WHERE r.student_id = s.id
-                  ORDER BY r.recited_at DESC, r.id DESC LIMIT 1) AS lastRecitation,
-                (SELECT r.page_number FROM recitations r
-                  WHERE r.student_id = s.id
-                  ORDER BY r.recited_at DESC, r.id DESC LIMIT 1) AS lastPage
-         FROM students s
-         WHERE s.halaqa_id = ? AND s.is_active = 1
-         ORDER BY s.name`
-      )
-      .all(id);
+    const data = await db().all(
+      `SELECT s.id,
+              s.code,
+              s.name,
+              s.points,
+              s.avatar_url AS avatarUrl,
+              (SELECT r.recited_at FROM recitations r
+                WHERE r.student_id = s.id
+                ORDER BY r.recited_at DESC, r.id DESC LIMIT 1) AS lastRecitation,
+              (SELECT r.page_number FROM recitations r
+                WHERE r.student_id = s.id
+                ORDER BY r.recited_at DESC, r.id DESC LIMIT 1) AS lastPage
+       FROM students s
+       WHERE s.halaqa_id = ? AND s.is_active = TRUE
+       ORDER BY s.name`,
+      [id]
+    );
 
     res.json({ data });
   })
@@ -136,26 +132,25 @@ halaqatRouter.get(
 halaqatRouter.post(
   "/",
   requireRole("ADMIN"),
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const body = parse(halaqaBody, req.body);
-    assertNameFree(body.name);
+    await assertNameFree(body.name);
 
-    const info = db
-      .prepare(
-        `INSERT INTO halaqat (name, teacher_id, stage, schedule_time, location)
-         VALUES (@name, @teacher_id, @stage, @schedule_time, @location)`
-      )
-      .run({
-        name: cleanName(body.name),
-        teacher_id: body.teacher_id ?? null,
-        stage: body.stage ?? null,
-        schedule_time: body.schedule_time ?? null,
-        location: body.location ?? null,
-      });
+    const info = await db().run(
+      `INSERT INTO halaqat (name, teacher_id, stage, schedule_time, location)
+       VALUES (?, ?, ?, ?, ?)`,
+      [
+        cleanName(body.name),
+        body.teacher_id ?? null,
+        body.stage ?? null,
+        body.schedule_time ?? null,
+        body.location ?? null,
+      ]
+    );
 
-    res
-      .status(201)
-      .json({ data: db.prepare(`${SELECT_HALAQA} WHERE h.id = ?`).get(info.lastInsertRowid) });
+    res.status(201).json({
+      data: await db().get(`${SELECT_HALAQA} WHERE h.id = ?`, [info.lastInsertRowid]),
+    });
   })
 );
 
@@ -163,33 +158,38 @@ halaqatRouter.post(
 halaqatRouter.patch(
   "/:id",
   requireRole("ADMIN"),
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
-    const body = parse(halaqaBody.partial().extend({ is_active: z.boolean().optional() }), req.body);
+    const body = parse(
+      halaqaBody.partial().extend({ is_active: z.boolean().optional() }),
+      req.body
+    );
 
-    const current = db.prepare("SELECT * FROM halaqat WHERE id = ?").get(id) as
-      | Record<string, unknown>
-      | undefined;
+    const current = await db().get<Record<string, SqlParam>>(
+      "SELECT * FROM halaqat WHERE id = ?",
+      [id]
+    );
     if (!current) throw ApiError.notFound("الحلقة غير موجودة");
-    if (body.name !== undefined) assertNameFree(body.name, id);
+    if (body.name !== undefined) await assertNameFree(body.name, id);
 
-    db.prepare(
+    await db().run(
       `UPDATE halaqat
-       SET name = @name, teacher_id = @teacher_id, stage = @stage,
-           schedule_time = @schedule_time, location = @location, is_active = @is_active
-       WHERE id = @id`
-    ).run({
-      id,
-      name: body.name !== undefined ? cleanName(body.name) : current.name,
-      teacher_id: body.teacher_id !== undefined ? body.teacher_id : current.teacher_id,
-      stage: body.stage !== undefined ? body.stage : current.stage,
-      schedule_time:
+       SET name = ?, teacher_id = ?, stage = ?,
+           schedule_time = ?, location = ?, is_active = ?
+       WHERE id = ?`,
+      [
+        body.name !== undefined ? cleanName(body.name) : current.name,
+        body.teacher_id !== undefined ? body.teacher_id : current.teacher_id,
+        body.stage !== undefined ? body.stage : current.stage,
         body.schedule_time !== undefined ? body.schedule_time : current.schedule_time,
-      location: body.location !== undefined ? body.location : current.location,
-      is_active: body.is_active !== undefined ? Number(body.is_active) : current.is_active,
-    });
+        body.location !== undefined ? body.location : current.location,
+        // منطقيّ صريح: عمود Postgres من نوع boolean لا يقبل 0/1
+        body.is_active !== undefined ? body.is_active : Boolean(current.is_active),
+        id,
+      ]
+    );
 
-    res.json({ data: db.prepare(`${SELECT_HALAQA} WHERE h.id = ?`).get(id) });
+    res.json({ data: await db().get(`${SELECT_HALAQA} WHERE h.id = ?`, [id]) });
   })
 );
 
@@ -203,21 +203,21 @@ halaqatRouter.patch(
 halaqatRouter.delete(
   "/:id",
   requireRole("ADMIN"),
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
     const { reassignTo } = parse(
       z.object({ reassignTo: z.coerce.number().int().positive().optional() }),
       req.query
     );
 
-    const halaqa = db.prepare("SELECT id FROM halaqat WHERE id = ?").get(id) as
-      | { id: number }
-      | undefined;
+    const halaqa = await db().get<{ id: number }>("SELECT id FROM halaqat WHERE id = ?", [id]);
     if (!halaqa) throw ApiError.notFound("الحلقة غير موجودة");
 
-    const { n: students } = db
-      .prepare("SELECT COUNT(*) AS n FROM students WHERE halaqa_id = ? AND is_active = 1")
-      .get(id) as { n: number };
+    const counted = await db().get<{ n: number }>(
+      "SELECT COUNT(*) AS n FROM students WHERE halaqa_id = ? AND is_active = TRUE",
+      [id]
+    );
+    const students = counted?.n ?? 0;
 
     if (students > 0 && reassignTo === undefined) {
       throw new ApiError(
@@ -230,18 +230,24 @@ halaqatRouter.delete(
     if (reassignTo !== undefined) {
       if (reassignTo === id) throw ApiError.badRequest("لا يمكن نقل الطلاب إلى الحلقة نفسها");
 
-      const target = db
-        .prepare("SELECT id FROM halaqat WHERE id = ? AND is_active = 1")
-        .get(reassignTo);
+      const target = await db().get(
+        "SELECT id FROM halaqat WHERE id = ? AND is_active = TRUE",
+        [reassignTo]
+      );
       if (!target) throw ApiError.badRequest("حلقة الوجهة غير موجودة أو معطّلة");
     }
 
-    tx(() => {
+    await tx(async () => {
       if (reassignTo !== undefined) {
-        db.prepare("UPDATE students SET halaqa_id = ? WHERE halaqa_id = ?").run(reassignTo, id);
+        await db().run("UPDATE students SET halaqa_id = ? WHERE halaqa_id = ?", [
+          reassignTo,
+          id,
+        ]);
       }
-      db.prepare("DELETE FROM teacher_halaqat WHERE halaqa_id = ?").run(id);
-      db.prepare("UPDATE halaqat SET is_active = 0, teacher_id = NULL WHERE id = ?").run(id);
+      await db().run("DELETE FROM teacher_halaqat WHERE halaqa_id = ?", [id]);
+      await db().run("UPDATE halaqat SET is_active = FALSE, teacher_id = NULL WHERE id = ?", [
+        id,
+      ]);
     });
 
     res.status(204).end();

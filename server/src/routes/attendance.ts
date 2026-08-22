@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { config } from "../config.js";
-import { db, tx } from "../db/index.js";
+import { db, tx, type SqlParam } from "../db/index.js";
+import { nowExpr } from "../db/sqlfn.js";
 import { ApiError, asyncHandler, parse } from "../lib/http.js";
 import { attendanceStatus, idParam, isoDate, pagination, today } from "../lib/schemas.js";
 import { addPoints, revertPointsFor } from "../services/points.js";
@@ -31,25 +32,25 @@ const SELECT_SESSION = `
 `;
 
 /** يتحقق أن الجلسة ضمن نطاق المستخدم (تُستخدم قبل تعديل أو حذف جلسة). */
-function assertSessionAccess(user: AuthUser, sessionId: number): void {
-  const row = db
-    .prepare("SELECT halaqa_id AS halaqaId FROM attendance_sessions WHERE id = ?")
-    .get(sessionId) as { halaqaId: number } | undefined;
+async function assertSessionAccess(user: AuthUser, sessionId: number): Promise<void> {
+  const row = await db().get<{ halaqaId: number }>(
+    "SELECT halaqa_id AS halaqaId FROM attendance_sessions WHERE id = ?",
+    [sessionId]
+  );
   if (!row) throw ApiError.notFound("الجلسة غير موجودة");
-  assertHalaqaAccess(user, row.halaqaId);
+  await assertHalaqaAccess(user, row.halaqaId);
 }
 
 function entriesOf(sessionId: number) {
-  return db
-    .prepare(
-      `SELECT e.id, e.student_id AS studentId, s.name, s.code,
-              s.avatar_url AS avatarUrl, e.status
-       FROM attendance_entries e
-       JOIN students s ON s.id = e.student_id
-       WHERE e.session_id = ?
-       ORDER BY s.name`
-    )
-    .all(sessionId);
+  return db().all(
+    `SELECT e.id, e.student_id AS studentId, s.name, s.code,
+            s.avatar_url AS avatarUrl, e.status
+     FROM attendance_entries e
+     JOIN students s ON s.id = e.student_id
+     WHERE e.session_id = ?
+     ORDER BY s.name`,
+    [sessionId]
+  );
 }
 
 /**
@@ -58,7 +59,7 @@ function entriesOf(sessionId: number) {
  */
 attendanceRouter.get(
   "/sessions",
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const q = parse(
       pagination.extend({
         halaqaId: z.coerce.number().int().positive().optional(),
@@ -69,7 +70,7 @@ attendanceRouter.get(
     );
 
     const where: string[] = [];
-    const params: unknown[] = [];
+    const params: SqlParam[] = [];
     if (q.halaqaId) {
       where.push("a.halaqa_id = ?");
       params.push(q.halaqaId);
@@ -84,17 +85,22 @@ attendanceRouter.get(
     }
 
     // المدرّس لا يرى إلا جلسات حلقاته
-    applyScope(req.user!, "a.halaqa_id", where, params);
+    await applyScope(req.user!, "a.halaqa_id", where, params);
 
     const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
-    const sessions = db
-      .prepare(`${SELECT_SESSION} ${clause} ORDER BY a.date DESC, a.id DESC LIMIT ? OFFSET ?`)
-      .all(...params, q.limit, q.offset) as SessionRow[];
+    const sessions = await db().all<SessionRow>(
+      `${SELECT_SESSION} ${clause} ORDER BY a.date DESC, a.id DESC LIMIT ? OFFSET ?`,
+      [...params, q.limit, q.offset]
+    );
 
-    res.json({
-      data: sessions.map((s) => ({ ...s, students: entriesOf(s.id) })),
-    });
+    // الجلسات قليلة في الصفحة الواحدة، فالتسلسل هنا أوضح من التوازي
+    const data = [];
+    for (const session of sessions) {
+      data.push({ ...session, students: await entriesOf(session.id) });
+    }
+
+    res.json({ data });
   })
 );
 
@@ -104,36 +110,35 @@ attendanceRouter.get(
  */
 attendanceRouter.get(
   "/halaqat/:halaqaId",
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const halaqaId = parse(idParam, req.params.halaqaId);
-    assertHalaqaAccess(req.user!, halaqaId);
+    await assertHalaqaAccess(req.user!, halaqaId);
 
     const { date } = parse(z.object({ date: isoDate.default(() => today()) }), req.query);
 
-    const halaqa = db
-      .prepare(
-        `SELECT h.id, h.name, COALESCE(u.name, '') AS teacher
-         FROM halaqat h LEFT JOIN users u ON u.id = h.teacher_id
-         WHERE h.id = ?`
-      )
-      .get(halaqaId);
+    const halaqa = await db().get(
+      `SELECT h.id, h.name, COALESCE(u.name, '') AS teacher
+       FROM halaqat h LEFT JOIN users u ON u.id = h.teacher_id
+       WHERE h.id = ?`,
+      [halaqaId]
+    );
     if (!halaqa) throw ApiError.notFound("الحلقة غير موجودة");
 
-    const session = db
-      .prepare(`${SELECT_SESSION} WHERE a.halaqa_id = ? AND a.date = ?`)
-      .get(halaqaId, date) as SessionRow | undefined;
+    const session = await db().get<SessionRow>(
+      `${SELECT_SESSION} WHERE a.halaqa_id = ? AND a.date = ?`,
+      [halaqaId, date]
+    );
 
-    const students = db
-      .prepare(
-        `SELECT s.id, s.code, s.name, s.avatar_url AS avatarUrl,
-                COALESCE(e.status, 'absent') AS status
-         FROM students s
-         LEFT JOIN attendance_entries e
-           ON e.student_id = s.id AND e.session_id = ?
-         WHERE s.halaqa_id = ? AND s.is_active = 1
-         ORDER BY s.name`
-      )
-      .all(session?.id ?? -1, halaqaId);
+    const students = await db().all(
+      `SELECT s.id, s.code, s.name, s.avatar_url AS avatarUrl,
+              COALESCE(e.status, 'absent') AS status
+       FROM students s
+       LEFT JOIN attendance_entries e
+         ON e.student_id = s.id AND e.session_id = ?
+       WHERE s.halaqa_id = ? AND s.is_active = TRUE
+       ORDER BY s.name`,
+      [session?.id ?? -1, halaqaId]
+    );
 
     res.json({
       data: {
@@ -156,7 +161,7 @@ attendanceRouter.get(
  */
 attendanceRouter.post(
   "/",
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const body = parse(
       z.object({
         halaqaId: z.number().int().positive(),
@@ -175,55 +180,51 @@ attendanceRouter.post(
       req.body
     );
 
-    assertHalaqaAccess(req.user!, body.halaqaId);
+    await assertHalaqaAccess(req.user!, body.halaqaId);
 
-    const halaqa = db.prepare("SELECT id FROM halaqat WHERE id = ?").get(body.halaqaId);
+    const halaqa = await db().get("SELECT id FROM halaqat WHERE id = ?", [body.halaqaId]);
     if (!halaqa) throw ApiError.notFound("الحلقة غير موجودة");
 
-    const validIds = new Set(
-      (
-        db
-          .prepare("SELECT id FROM students WHERE halaqa_id = ? AND is_active = 1")
-          .all(body.halaqaId) as { id: number }[]
-      ).map((s) => s.id)
+    const rows = await db().all<{ id: number }>(
+      "SELECT id FROM students WHERE halaqa_id = ? AND is_active = TRUE",
+      [body.halaqaId]
     );
+    const validIds = new Set(rows.map((s) => s.id));
+
     const stranger = body.students.find((s) => !validIds.has(s.id));
     if (stranger) {
       throw ApiError.badRequest(`الطالب ${stranger.id} لا ينتمي إلى هذه الحلقة`);
     }
 
-    const sessionId = tx(() => {
-      db.prepare(
+    const sessionId = await tx(async () => {
+      await db().run(
         `INSERT INTO attendance_sessions (halaqa_id, date, teacher_status, notes, recorded_by)
-         VALUES (@halaqaId, @date, @teacherStatus, @notes, @recordedBy)
+         VALUES (?, ?, ?, ?, ?)
          ON CONFLICT (halaqa_id, date) DO UPDATE SET
            teacher_status = excluded.teacher_status,
            notes          = excluded.notes,
            recorded_by    = excluded.recorded_by,
-           updated_at     = datetime('now')`
-      ).run({
-        halaqaId: body.halaqaId,
-        date: body.date,
-        teacherStatus: body.teacherStatus,
-        notes: body.notes ?? null,
-        recordedBy: req.user!.id,
-      });
+           updated_at     = ${nowExpr()}`,
+        [body.halaqaId, body.date, body.teacherStatus, body.notes ?? null, req.user!.id]
+      );
 
-      const { id } = db
-        .prepare("SELECT id FROM attendance_sessions WHERE halaqa_id = ? AND date = ?")
-        .get(body.halaqaId, body.date) as { id: number };
+      const session = await db().get<{ id: number }>(
+        "SELECT id FROM attendance_sessions WHERE halaqa_id = ? AND date = ?",
+        [body.halaqaId, body.date]
+      );
+      const id = session!.id;
 
       // إعادة النقاط الممنوحة سابقاً لهذه الجلسة قبل إعادة الاحتساب
-      revertPointsFor("attendance", id);
-      db.prepare("DELETE FROM attendance_entries WHERE session_id = ?").run(id);
+      await revertPointsFor("attendance", id);
+      await db().run("DELETE FROM attendance_entries WHERE session_id = ?", [id]);
 
-      const insert = db.prepare(
-        "INSERT INTO attendance_entries (session_id, student_id, status) VALUES (?, ?, ?)"
-      );
       for (const student of body.students) {
-        insert.run(id, student.id, student.status);
+        await db().run(
+          "INSERT INTO attendance_entries (session_id, student_id, status) VALUES (?, ?, ?)",
+          [id, student.id, student.status]
+        );
         if (student.status === "present" || student.status === "late") {
-          addPoints({
+          await addPoints({
             studentId: student.id,
             delta: config.pointRules.attendancePresent,
             reason: `حضور ${body.date}`,
@@ -237,54 +238,55 @@ attendanceRouter.post(
       return id;
     });
 
-    const session = db.prepare(`${SELECT_SESSION} WHERE a.id = ?`).get(sessionId) as SessionRow;
-    res.status(201).json({ data: { ...session, students: entriesOf(sessionId) } });
+    const session = await db().get<SessionRow>(`${SELECT_SESSION} WHERE a.id = ?`, [sessionId]);
+    res.status(201).json({ data: { ...session, students: await entriesOf(sessionId) } });
   })
 );
 
 /** GET /api/attendance/sessions/:id */
 attendanceRouter.get(
   "/sessions/:id",
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
-    const session = db.prepare(`${SELECT_SESSION} WHERE a.id = ?`).get(id) as
-      | SessionRow
-      | undefined;
+    const session = await db().get<SessionRow>(`${SELECT_SESSION} WHERE a.id = ?`, [id]);
     if (!session) throw ApiError.notFound("الجلسة غير موجودة");
-    assertHalaqaAccess(req.user!, session.halaqaId);
-    res.json({ data: { ...session, students: entriesOf(id) } });
+    await assertHalaqaAccess(req.user!, session.halaqaId);
+    res.json({ data: { ...session, students: await entriesOf(id) } });
   })
 );
 
 /** PATCH /api/attendance/sessions/:sessionId/students/:studentId — تعديل حالة طالب واحد. */
 attendanceRouter.patch(
   "/sessions/:sessionId/students/:studentId",
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const sessionId = parse(idParam, req.params.sessionId);
     const studentId = parse(idParam, req.params.studentId);
     const { status } = parse(z.object({ status: attendanceStatus }), req.body);
 
-    const session = db
-      .prepare("SELECT id, date, halaqa_id AS halaqaId FROM attendance_sessions WHERE id = ?")
-      .get(sessionId) as { id: number; date: string; halaqaId: number } | undefined;
+    const session = await db().get<{ id: number; date: string; halaqaId: number }>(
+      "SELECT id, date, halaqa_id AS halaqaId FROM attendance_sessions WHERE id = ?",
+      [sessionId]
+    );
     if (!session) throw ApiError.notFound("الجلسة غير موجودة");
-    assertHalaqaAccess(req.user!, session.halaqaId);
+    await assertHalaqaAccess(req.user!, session.halaqaId);
 
-    tx(() => {
-      const previous = db
-        .prepare("SELECT status FROM attendance_entries WHERE session_id = ? AND student_id = ?")
-        .get(sessionId, studentId) as { status: string } | undefined;
+    await tx(async () => {
+      const previous = await db().get<{ status: string }>(
+        "SELECT status FROM attendance_entries WHERE session_id = ? AND student_id = ?",
+        [sessionId, studentId]
+      );
 
-      db.prepare(
+      await db().run(
         `INSERT INTO attendance_entries (session_id, student_id, status) VALUES (?, ?, ?)
-         ON CONFLICT (session_id, student_id) DO UPDATE SET status = excluded.status`
-      ).run(sessionId, studentId, status);
+         ON CONFLICT (session_id, student_id) DO UPDATE SET status = excluded.status`,
+        [sessionId, studentId, status]
+      );
 
       const wasPresent = previous ? ["present", "late"].includes(previous.status) : false;
       const isPresent = ["present", "late"].includes(status);
 
       if (wasPresent !== isPresent) {
-        addPoints({
+        await addPoints({
           studentId,
           delta: isPresent
             ? config.pointRules.attendancePresent
@@ -297,36 +299,36 @@ attendanceRouter.patch(
       }
     });
 
-    res.json({ data: entriesOf(sessionId) });
+    res.json({ data: await entriesOf(sessionId) });
   })
 );
 
 /** DELETE /api/attendance/sessions/:sessionId/students/:studentId */
 attendanceRouter.delete(
   "/sessions/:sessionId/students/:studentId",
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const sessionId = parse(idParam, req.params.sessionId);
     const studentId = parse(idParam, req.params.studentId);
-    assertSessionAccess(req.user!, sessionId);
+    await assertSessionAccess(req.user!, sessionId);
 
-    const info = tx(() => {
-      const result = db
-        .prepare("DELETE FROM attendance_entries WHERE session_id = ? AND student_id = ?")
-        .run(sessionId, studentId);
+    const info = await tx(async () => {
+      const result = await db().run(
+        "DELETE FROM attendance_entries WHERE session_id = ? AND student_id = ?",
+        [sessionId, studentId]
+      );
 
       if (result.changes > 0) {
-        const rows = db
-          .prepare(
-            `SELECT id, delta FROM point_transactions
-             WHERE kind = 'attendance' AND reference_id = ? AND student_id = ?`
-          )
-          .all(sessionId, studentId) as { id: number; delta: number }[];
+        const rows = await db().all<{ id: number; delta: number }>(
+          `SELECT id, delta FROM point_transactions
+           WHERE kind = 'attendance' AND reference_id = ? AND student_id = ?`,
+          [sessionId, studentId]
+        );
         for (const row of rows) {
-          db.prepare("UPDATE students SET points = points - ? WHERE id = ?").run(
+          await db().run("UPDATE students SET points = points - ? WHERE id = ?", [
             row.delta,
-            studentId
-          );
-          db.prepare("DELETE FROM point_transactions WHERE id = ?").run(row.id);
+            studentId,
+          ]);
+          await db().run("DELETE FROM point_transactions WHERE id = ?", [row.id]);
         }
       }
       return result;
@@ -340,13 +342,13 @@ attendanceRouter.delete(
 /** DELETE /api/attendance/sessions/:id — حذف الجلسة كاملة وإعادة نقاطها. */
 attendanceRouter.delete(
   "/sessions/:id",
-  asyncHandler((req, res) => {
+  asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
-    assertSessionAccess(req.user!, id);
+    await assertSessionAccess(req.user!, id);
 
-    const info = tx(() => {
-      revertPointsFor("attendance", id);
-      return db.prepare("DELETE FROM attendance_sessions WHERE id = ?").run(id);
+    const info = await tx(async () => {
+      await revertPointsFor("attendance", id);
+      return db().run("DELETE FROM attendance_sessions WHERE id = ?", [id]);
     });
 
     if (info.changes === 0) throw ApiError.notFound("الجلسة غير موجودة");
