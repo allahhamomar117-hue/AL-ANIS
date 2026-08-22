@@ -68,6 +68,48 @@ async function verifySchema(): Promise<void> {
     console.error("  شغّل: npm run db:migrate ثم npm run db:seed");
     process.exit(1);
   }
+
+  await verifyBooleanColumns();
+}
+
+/**
+ * الأعمدة المنطقية في Postgres يجب أن تكون boolean لا integer.
+ *
+ * قاعدة منقولة من SQLite بأداة ترحيل تُبقيها integer، فتسقط أول مقارنة
+ * (‏`is_active = TRUE`) بخطأ «operator does not exist: integer = boolean» —
+ * وهو خطأ يظهر عند تسجيل الدخول فيبدو وكأنه عطل في المصادقة لا في المخطط.
+ * الفحص هنا يكشفه عند الإقلاع ويصف الإصلاح بدل أن يُترك للتخمين.
+ */
+async function verifyBooleanColumns(): Promise<void> {
+  if (db().dialect !== "postgres") return;
+
+  const expected: [table: string, column: string][] = [
+    ["users", "is_active"],
+    ["students", "is_active"],
+    ["halaqat", "is_active"],
+    ["recitations", "page_completed"],
+  ];
+
+  const rows = await db().all<{ table_name: string; column_name: string; data_type: string }>(
+    `SELECT table_name, column_name, data_type
+     FROM information_schema.columns
+     WHERE table_schema = 'public'
+       AND column_name IN ('is_active', 'page_completed')`
+  );
+
+  const typeOf = new Map(rows.map((r) => [`${r.table_name}.${r.column_name}`, r.data_type]));
+  const wrong = expected
+    .map(([table, column]) => ({ key: `${table}.${column}`, type: typeOf.get(`${table}.${column}`) }))
+    .filter((c) => c.type !== undefined && c.type !== "boolean");
+
+  if (wrong.length === 0) return;
+
+  console.error("✖ أعمدة منطقية بنوع خاطئ في PostgreSQL:");
+  for (const c of wrong) console.error(`    ${c.key} — النوع الحالي: ${c.type}، المتوقَّع: boolean`);
+  console.error("");
+  console.error("  السبب: القاعدة نُقلت من SQLite فبقيت أعمدة 0/1 أعداداً.");
+  console.error("  الإصلاح: نفّذ server/scripts/fix-boolean-columns.sql في Supabase SQL Editor.");
+  process.exit(1);
 }
 
 async function main(): Promise<void> {
