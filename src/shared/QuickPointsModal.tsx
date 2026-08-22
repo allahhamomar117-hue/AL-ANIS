@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { FaMinus, FaPlus, FaStar } from "react-icons/fa";
@@ -40,7 +40,8 @@ export default function QuickPointsModal({
   const [studentId, setStudentId] = useState<number | "">(defaultStudentId ?? "");
   const [amount, setAmount] = useState<number | "">("");
   const [reason, setReason] = useState("");
-  const [done, setDone] = useState<string | null>(null);
+  /** رسالة النجاح ونبرتها — النبرة تُلتقط لحظة الحفظ لا وقت العرض. */
+  const [done, setDone] = useState<{ text: string; tone: Operation } | null>(null);
 
   // المدرّس لا يختار حلقة: الخادم يقصر /students على حلقاته أصلاً
   // (‏applyScope في services/scope.ts)، فترك المرشّح فارغاً يعطيه طلاب
@@ -66,6 +67,22 @@ export default function QuickPointsModal({
   const valid = studentId !== "" && positive && !tooMuch;
 
   /**
+   * إغلاق تلقائي بعد ظهور رسالة النجاح.
+   *
+   * المهلة تكفي لقراءة الرصيد الجديد ولا تُشعر بالبطء. المؤقّت يُلغى عند
+   * تفكيك المكوّن حتى لا يُستدعى onClose على نافذة أُغلقت يدوياً.
+   */
+  const AUTO_CLOSE_MS = 1600;
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+
+  useEffect(() => {
+    if (!done) return;
+    const timer = setTimeout(() => closeRef.current(), AUTO_CLOSE_MS);
+    return () => clearTimeout(timer);
+  }, [done]);
+
+  /**
    * تبديل نوع العملية. السبب المُختار من رقاقات العملية السابقة يُمسح،
    * وإلا بقي "إتقان التسميع" مكتوباً في خصم — وهو أسوأ من حقل فارغ.
    */
@@ -84,14 +101,15 @@ export default function QuickPointsModal({
       reason: reason.trim() || undefined,
     });
 
-    // نبقى في النافذة ونعرض النتيجة، ليتمكّن المدرّس من تسجيل طالب آخر فوراً
-    setDone(
-      t("quickPoints.done", {
+    // تُعرض النتيجة لحظةً ثم تُغلق النافذة تلقائياً (انظر AUTO_CLOSE_MS)
+    setDone({
+      tone: operation,
+      text: t("quickPoints.done", {
         name: selected.name,
         delta: result.data.delta > 0 ? `+${result.data.delta}` : result.data.delta,
         balance: result.data.balance,
-      })
-    );
+      }),
+    });
     setAmount("");
     setReason("");
     setStudentId("");
@@ -274,9 +292,17 @@ export default function QuickPointsModal({
           </div>
         </div>
 
+        {/* الرسالة تتبع لون العملية: أخضر للإضافة وأحمر للخصم */}
         {done && (
-          <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">
-            {done}
+          <p
+            role="status"
+            className={`rounded-xl px-4 py-3 text-sm font-bold ${
+              done.tone === "add"
+                ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400"
+                : "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400"
+            }`}
+          >
+            {done.text}
           </p>
         )}
 

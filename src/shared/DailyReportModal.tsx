@@ -227,10 +227,20 @@ export default function DailyReportModal({ onClose }: { onClose: () => void }) {
                             </span>
                           </td>
 
-                          <td className="border-b border-s border-gray-200 px-3 py-2 text-center font-bold text-gray-800">
-                            {student.participation > 0 ? (
-                              `+${student.participation}`
-                            ) : (
+                          {/*
+                            العمود يجمع حركات النقاط اليدوية لليوم، وهي
+                            مكافآت وحسومات معاً. الشرط `> 0` وحده كان يُخفي
+                            الحسم فيصل التقرير إلى الأهالي ناقصاً، فنعرض
+                            الإشارتين ونميّزهما باللون.
+                          */}
+                          <td className="border-b border-s border-gray-200 px-3 py-2 text-center font-bold">
+                            {student.participation > 0 && (
+                              <span className="text-emerald-700">+{student.participation}</span>
+                            )}
+                            {student.participation < 0 && (
+                              <span className="text-red-700">−{Math.abs(student.participation)}</span>
+                            )}
+                            {student.participation === 0 && (
                               <span className="font-normal text-gray-400">—</span>
                             )}
                           </td>

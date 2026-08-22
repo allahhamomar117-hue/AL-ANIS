@@ -544,7 +544,7 @@
   },
   "dailyReport": {
     "button": "Daily report",
-    "title": "Today's stats",
+    "title": "Daily report",
     "chooseHalaqa": "Choose a halaqa",
     "notRecorded": "Attendance for this halaqa has not been recorded today — the report shows recitation and points only.",
     "noStatus": "Not recorded",
@@ -552,17 +552,17 @@
     "page": "p. {{page}}",
     "pageRange": "pp. {{from}}–{{to}}",
     "surah": "Surah {{surah}}",
-    "share": "Share on WhatsApp",
-    "sheetTitle": "{{halaqa}} — daily follow-up",
+    "share": "Download image and share",
+    "sheetTitle": "{{halaqa}} — daily report",
     "columns": {
       "student": "Student",
       "attendance": "Attendance",
-      "participation": "Participation",
+      "participation": "Bonus & penalty",
       "recitation": "Recitation"
     },
     "downloadImage": "Download as image 📸",
     "preparing": "Preparing image…",
     "imageFailed": "Could not create the image",
-    "shareNotice": "After the image downloads, open WhatsApp and attach it manually. Text copying has been removed as requested."
+    "shareNotice": "The report is saved as an image on your device; attach it in the parents group on WhatsApp."
   }
 }
