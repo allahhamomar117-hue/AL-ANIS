@@ -32,7 +32,7 @@ function PopupLogIn({ open, setOpen }: PopupLogInProps) {
         <div className="flex gap-4 mt-6 w-full">
           <button
             onClick={() => navigate("/LogInEnter")}
-            className="flex-1 py-3 text-lg rounded-xl bg-green-500 text-white hover:bg-green-600 transition
+            className="flex-1 py-3 text-lg rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition
               flex items-center justify-center gap-3"
           >
             <FaSignInAlt className="text-xl" />

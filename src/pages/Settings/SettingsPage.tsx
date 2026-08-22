@@ -12,6 +12,7 @@ import {
 } from "react-icons/fa";
 import { useAuth } from "../../context/authContext";
 import { ErrorState, LoadingState } from "../../shared/QueryState";
+import ConfirmDialog from "../../shared/ConfirmDialog";
 
 /** صفحة الإعدادات: بطاقة الحساب (مع تسجيل الخروج) وبطاقة التفضيلات. */
 export default function SettingsPage() {
@@ -24,6 +25,7 @@ export default function SettingsPage() {
 
   const [darkMode, setDarkMode] = useState(localStorage.getItem("darkMode") === "true");
   const [loggingOut, setLoggingOut] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", darkMode);
@@ -101,7 +103,7 @@ export default function SettingsPage() {
             </div>
 
             <button
-              onClick={handleLogout}
+              onClick={() => setConfirmLogout(true)}
               disabled={loggingOut}
               className="flex items-center justify-center gap-2 rounded-xl bg-red-600 px-6 py-3 font-bold
                 text-white shadow-lg transition hover:bg-red-700 disabled:opacity-60"
@@ -236,6 +238,20 @@ export default function SettingsPage() {
           </div>
         </section>
       </div>
+
+      {confirmLogout && (
+        <ConfirmDialog
+          title={t("settingsPage.account.logoutConfirmTitle")}
+          message={t("settingsPage.account.logoutConfirmMessage")}
+          confirmLabel={t("settingsPage.account.logout")}
+          tone="danger"
+          onConfirm={() => {
+            setConfirmLogout(false);
+            handleLogout();
+          }}
+          onCancel={() => setConfirmLogout(false)}
+        />
+      )}
     </div>
   );
 }

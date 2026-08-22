@@ -27,3 +27,23 @@ body {
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
 }
+
+/*
+ * شريط تحميل يمسح من طرف إلى طرف (يستعمله LoadingState).
+ * يحترم تفضيل تقليل الحركة: من يضبطه في نظامه يرى شريطاً ساكناً.
+ */
+@keyframes loading-sweep {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-\[loading-sweep_1\.4s_ease-in-out_infinite\] {
+    animation: none;
+    width: 100%;
+  }
+}

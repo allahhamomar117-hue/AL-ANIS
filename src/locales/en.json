@@ -84,7 +84,6 @@
     "studentsList": "Students List",
     "save": "Save Attendance",
     "notice": "When saving, the attendance report will be sent to the administration automatically",
-    "saveAlert": "Attendance saved! Check the console for details.",
     "teacherLabel": "Teacher",
     "saved": "Attendance saved successfully",
     "saving": "Saving…",
@@ -106,7 +105,8 @@
     "yesterday": "Yesterday",
     "days_one": "{{count}} day",
     "days_other": "{{count}} days",
-    "backHome": "Back to home"
+    "backHome": "Back to home",
+    "confirm": "Confirm"
   },
   "attendanceRecord": {
     "title": "Mosque Attendance Records",
@@ -438,7 +438,7 @@
     "add": "Add",
     "deduct": "Deduct",
     "halaqa": "Halaqa",
-    "allHalaqat": "All my halaqat",
+    "allHalaqat": "All halaqat",
     "student": "Student",
     "selectStudent": "Select student",
     "noStudents": "No students in your scope",
@@ -454,7 +454,9 @@
     "subtitle": "Manage your account and app preferences.",
     "account": {
       "title": "Account settings",
-      "logout": "Sign out"
+      "logout": "Sign out",
+      "logoutConfirmTitle": "Confirm sign out",
+      "logoutConfirmMessage": "Are you sure you want to sign out? You will need to enter your username and password again."
     },
     "preferences": {
       "title": "Preferences",

@@ -41,10 +41,10 @@ export default function LoginPage() {
   };
 
   const fieldClass =
-    "w-full rounded-xl border border-gray-300 py-3 ps-11 pe-4 text-gray-800 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-400";
+    "w-full rounded-xl border border-gray-300 py-3 ps-11 pe-4 text-gray-800 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-400";
 
   return (
-    <div className="flex min-h-screen flex-col bg-green-400" dir="rtl">
+    <div className="flex min-h-screen flex-col bg-emerald-400" dir="rtl">
       <div className="flex flex-1 items-center justify-center p-4">
         <div className="w-full max-w-sm space-y-5 rounded-2xl bg-white p-6 shadow-xl">
           <h1 className="text-center text-2xl font-bold text-gray-800">{t("login.title")}</h1>
@@ -91,8 +91,8 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={pending}
-              className="flex w-full items-center justify-center rounded-xl bg-green-500 py-3 font-semibold
-                text-white transition hover:bg-green-600 disabled:opacity-60"
+              className="flex w-full items-center justify-center rounded-xl bg-emerald-500 py-3 font-semibold
+                text-white transition hover:bg-emerald-600 disabled:opacity-60"
             >
               {pending ? (
                 <span className="size-5 animate-spin rounded-full border-2 border-white border-t-transparent" />

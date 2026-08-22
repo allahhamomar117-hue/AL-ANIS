@@ -7,9 +7,16 @@ import { useAddPoints, useDeductPoints, useHalaqat, useStudents } from "../lib/a
 
 type Operation = "add" | "deduct";
 
-// أسباب جاهزة تُعبَّأ بنقرة واحدة. ثابتة في الكود لا عبر i18n، لأن
-// t مع returnObjects كان يعيد المفتاح كنص فلا تظهر الرقاقات إطلاقاً.
-const REASON_PRESETS = ["مكافأة بالدرس", "إتقان التسميع", "حسن الخلق"];
+/**
+ * أسباب جاهزة تُعبَّأ بنقرة واحدة، لكل عملية أسبابها.
+ *
+ * ثابتة في الكود لا عبر i18n، لأن t مع returnObjects كان يعيد المفتاح
+ * كنص فلا تظهر الرقاقات إطلاقاً.
+ */
+const REASON_PRESETS: Record<Operation, string[]> = {
+  add: ["مكافأة بالدرس", "إتقان التسميع", "حسن الخلق"],
+  deduct: ["خروج من الدرس", "مشاغبة", "كثرة الكلام"],
+};
 
 /**
  * نافذة النقاط السريعة: اختيار طالب من حلقات المستخدم ثم إضافة أو خصم نقاط
@@ -58,6 +65,15 @@ export default function QuickPointsModal({
     operation === "deduct" && positive && selected ? amount > selected.points : false;
   const valid = studentId !== "" && positive && !tooMuch;
 
+  /**
+   * تبديل نوع العملية. السبب المُختار من رقاقات العملية السابقة يُمسح،
+   * وإلا بقي "إتقان التسميع" مكتوباً في خصم — وهو أسوأ من حقل فارغ.
+   */
+  const switchOperation = (next: Operation) => {
+    setOperation(next);
+    if (REASON_PRESETS[operation].includes(reason)) setReason("");
+  };
+
   const submit = async () => {
     if (!valid || !selected) return;
 
@@ -103,7 +119,7 @@ export default function QuickPointsModal({
         {/* إضافة أو خصم */}
         <div className="grid grid-cols-2 gap-2 rounded-xl bg-gray-100 p-1 dark:bg-dark-light">
           <button
-            onClick={() => setOperation("add")}
+            onClick={() => switchOperation("add")}
             className={`flex items-center justify-center gap-2 rounded-lg py-2 font-bold transition ${
               operation === "add"
                 ? "bg-emerald-500 text-white shadow"
@@ -114,7 +130,7 @@ export default function QuickPointsModal({
             {t("quickPoints.add")}
           </button>
           <button
-            onClick={() => setOperation("deduct")}
+            onClick={() => switchOperation("deduct")}
             className={`flex items-center justify-center gap-2 rounded-lg py-2 font-bold transition ${
               operation === "deduct"
                 ? "bg-red-500 text-white shadow"
@@ -126,28 +142,36 @@ export default function QuickPointsModal({
           </button>
         </div>
 
-        {/* الحلقة — تُخفى كلياً عن المدرّس، فطلابه هم كل ما تعرضه القائمة */}
-        {!isTeacher && halaqat.length > 1 && (
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">
-              {t("quickPoints.halaqa")}
-            </label>
-            <select
-              value={halaqaId}
-              onChange={(e) => {
-                setHalaqaId(e.target.value === "" ? "" : Number(e.target.value));
-                setStudentId("");
-              }}
-              className={fieldClass}
-            >
-              <option value="">{t("quickPoints.allHalaqat")}</option>
-              {halaqat.map((h) => (
-                <option key={h.id} value={h.id}>
-                  {h.name}
-                </option>
-              ))}
-            </select>
-          </div>
+        {/*
+          الحلقة — للمدير والمشرف وحدهما.
+          الحارس `!isTeacher` خارجيّ ووحيد عمداً: أي شرط إضافي بجانبه يجعل
+          إخفاء الحقل عن المدرّس رهيناً بشرط آخر قد يتغيّر لاحقاً.
+        */}
+        {!isTeacher && (
+          <>
+            {halaqat.length > 1 && (
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  {t("quickPoints.halaqa")}
+                </label>
+                <select
+                  value={halaqaId}
+                  onChange={(e) => {
+                    setHalaqaId(e.target.value === "" ? "" : Number(e.target.value));
+                    setStudentId("");
+                  }}
+                  className={fieldClass}
+                >
+                  <option value="">{t("quickPoints.allHalaqat")}</option>
+                  {halaqat.map((h) => (
+                    <option key={h.id} value={h.id}>
+                      {h.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </>
         )}
 
         {/* الطالب */}
@@ -233,7 +257,7 @@ export default function QuickPointsModal({
 
           {/* اقتراحات سريعة تملأ الحقل بنقرة واحدة */}
           <div className="mt-2 flex flex-wrap gap-2">
-            {REASON_PRESETS.map((preset) => (
+            {REASON_PRESETS[operation].map((preset) => (
               <button
                 key={preset}
                 type="button"

@@ -72,23 +72,68 @@ function isoStamp(d: Date, hour: number, minute: number): string {
  */
 const DEMO_PASSWORD = "123456";
 
+/**
+ * الكادر: مدير ومشرف وعشرة أساتذة، أستاذ لكل حلقة.
+ *
+ * أسماء الدخول الثلاثة الأولى ثابتة (demo_admin / demo_supervisor /
+ * demo_teacher) لأنها المطبوعة على بطاقة العرض؛ ما بعدها مُولَّد بالترقيم.
+ */
+const TEACHER_NAMES = [
+  "الأستاذ التجريبي",
+  "أ. سامي نبيل",
+  "أ. كريم منصور",
+  "أ. بلال الخطيب",
+  "أ. ياسين محمود",
+  "أ. أنس الحمصي",
+  "أ. مهند القاسم",
+  "أ. وائل الشامي",
+  "أ. طارق الحلبي",
+  "أ. حازم الدرويش",
+];
+
 const staff = [
   { name: "المدير التجريبي", username: "demo_admin", phone: "900000001", role: "ADMIN" },
   { name: "المشرف التجريبي", username: "demo_supervisor", phone: "900000002", role: "SUPERVISOR" },
-  { name: "الأستاذ التجريبي", username: "demo_teacher", phone: "900000003", role: "TEACHER" },
-  { name: "أ. سامي نبيل", username: "demo_teacher2", phone: "900000004", role: "TEACHER" },
-  { name: "أ. كريم منصور", username: "demo_teacher3", phone: "900000005", role: "TEACHER" },
-] as const;
+  ...TEACHER_NAMES.map((name, i) => ({
+    name,
+    username: i === 0 ? "demo_teacher" : `demo_teacher${i + 1}`,
+    phone: `9000000${String(i + 3).padStart(2, "0")}`,
+    role: "TEACHER" as const,
+  })),
+];
 
 const ADMIN = 0;
-const TEACHER_DEMO = 2;
+/** فهرس أوّل أستاذ في staff — بعد المدير والمشرف. */
+const FIRST_TEACHER = 2;
+const TEACHER_DEMO = FIRST_TEACHER;
 
-/** teacher = فهرس الأستاذ في staff. */
-const halaqat = [
-  { name: "حلقة الفرقان", teacher: TEACHER_DEMO, stage: "primary", time: "16:00", location: "القاعة الأولى" },
-  { name: "حلقة النور", teacher: 3, stage: "preparatory", time: "17:30", location: "القاعة الثانية" },
-  { name: "حلقة الهدى", teacher: 4, stage: "secondary", time: "19:00", location: "المصلى الرئيسي" },
-] as const;
+/**
+ * عشر حلقات موزّعة على المراحل الثلاث، أستاذ لكل واحدة.
+ * teacher = فهرس الأستاذ في staff.
+ */
+const HALAQA_NAMES = [
+  { name: "حلقة الفرقان", stage: "primary", location: "القاعة الأولى" },
+  { name: "حلقة النور", stage: "primary", location: "القاعة الثانية" },
+  { name: "حلقة الهدى", stage: "primary", location: "القاعة الثالثة" },
+  { name: "حلقة البيان", stage: "preparatory", location: "القاعة الرابعة" },
+  { name: "حلقة التقوى", stage: "preparatory", location: "قاعة المكتبة" },
+  { name: "حلقة الإخلاص", stage: "preparatory", location: "القاعة الشرقية" },
+  { name: "حلقة الرحمن", stage: "secondary", location: "المصلى الرئيسي" },
+  { name: "حلقة المصابيح", stage: "secondary", location: "المصلى العلوي" },
+  { name: "حلقة السكينة", stage: "secondary", location: "القاعة الغربية" },
+  { name: "حلقة الميزان", stage: "secondary", location: "قاعة المحاضرات" },
+];
+
+/** أوقات دورية: ثلاث فترات تتناوب عليها الحلقات. */
+const HALAQA_TIMES = ["16:00", "17:30", "19:00"];
+
+const halaqat = HALAQA_NAMES.map((h, i) => ({
+  name: h.name,
+  teacher: FIRST_TEACHER + i,
+  stage: h.stage,
+  time: HALAQA_TIMES[i % HALAQA_TIMES.length],
+  location: h.location,
+}));
 
 /**
  * level يحدّد سلوك الطالب في التوليد:
@@ -97,28 +142,51 @@ const halaqat = [
  */
 type Level = "strong" | "mid" | "weak";
 
-const students: { name: string; halaqa: number; level: Level; birth: string }[] = [
-  // حلقة الفرقان — ابتدائي
-  { name: "محمد أحمد", halaqa: 0, level: "strong", birth: "2014-03-12" },
-  { name: "خالد عمر", halaqa: 0, level: "strong", birth: "2014-07-02" },
-  { name: "يوسف علي", halaqa: 0, level: "mid", birth: "2015-01-19" },
-  { name: "سعيد كمال", halaqa: 0, level: "mid", birth: "2014-11-05" },
-  { name: "بلال رياض", halaqa: 0, level: "weak", birth: "2015-05-23" },
-
-  // حلقة النور — إعدادي
-  { name: "أنس فادي", halaqa: 1, level: "strong", birth: "2011-04-14" },
-  { name: "عمر سليم", halaqa: 1, level: "mid", birth: "2011-08-08" },
-  { name: "زياد ماهر", halaqa: 1, level: "strong", birth: "2012-02-27" },
-  { name: "رامي سمير", halaqa: 1, level: "weak", birth: "2011-12-01" },
-  { name: "ليث جمال", halaqa: 1, level: "mid", birth: "2012-06-16" },
-
-  // حلقة الهدى — ثانوي
-  { name: "طه إبراهيم", halaqa: 2, level: "strong", birth: "2008-05-09" },
-  { name: "حسن وائل", halaqa: 2, level: "mid", birth: "2008-09-13" },
-  { name: "مروان عادل", halaqa: 2, level: "strong", birth: "2009-01-25" },
-  { name: "فارس نديم", halaqa: 2, level: "weak", birth: "2008-11-11" },
-  { name: "إياد شريف", halaqa: 2, level: "mid", birth: "2009-03-07" },
+/**
+ * خمسون طالباً: خمسة لكل حلقة.
+ *
+ * الأسماء تُركَّب من مجموعتَي الاسم واللقب بحسابٍ على الفهرس لا بعشوائية،
+ * فيبقى اسم الطالب رقم 17 هو نفسه في كل تشغيل حتى لو تغيّر ترتيب التوليد
+ * لاحقاً — وهذا ما يُبقي لقطات المعرض مطابقة.
+ */
+const FIRST_NAMES = [
+  "محمد", "أحمد", "خالد", "عمر", "يوسف", "سعيد", "بلال", "أنس", "زياد", "رامي",
+  "ليث", "طه", "حسن", "مروان", "فارس", "إياد", "كريم", "سامي", "نادر", "وسيم",
+  "عبد الله", "عبد الرحمن", "مصعب", "حمزة", "أسامة",
 ];
+const FAMILY_NAMES = [
+  "الحلبي", "الدمشقي", "الشامي", "القاسم", "النعيمي", "الحمصي", "الخطيب", "السبّاغ",
+  "الأنصاري", "الجابري",
+];
+
+/** المرحلة تحدّد سنة الميلاد التقريبية، فتبدو الأعمار متسقة مع حلقاتها. */
+const BIRTH_YEAR: Record<string, number> = {
+  primary: 2015,
+  preparatory: 2012,
+  secondary: 2009,
+};
+
+const LEVEL_CYCLE: Level[] = ["strong", "mid", "strong", "weak", "mid"];
+
+const students: { name: string; halaqa: number; level: Level; birth: string }[] = Array.from(
+  { length: halaqat.length * 5 },
+  (_, i) => {
+    const halaqa = Math.floor(i / 5);
+    const stage = halaqat[halaqa].stage;
+    const year = BIRTH_YEAR[stage] + (i % 2);
+    const month = (i % 12) + 1;
+    const day = ((i * 7) % 27) + 1;
+
+    return {
+      name: `${FIRST_NAMES[i % FIRST_NAMES.length]} ${
+        FAMILY_NAMES[(i * 3) % FAMILY_NAMES.length]
+      }`,
+      halaqa,
+      level: LEVEL_CYCLE[i % LEVEL_CYCLE.length],
+      birth: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+    };
+  }
+);
 
 /** احتمال الحضور، ونسبة التأخير، واحتمالات التقييم لكل مستوى. */
 const PROFILE: Record<Level, { attend: number; late: number; excellent: number; good: number }> = {

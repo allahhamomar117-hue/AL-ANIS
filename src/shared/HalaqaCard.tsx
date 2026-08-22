@@ -23,12 +23,12 @@ export default function HalaqaCard({ name, teacher, students, stage, onClick }: 
     >
       {/* الخط الجانبي */}
       <div
-        className="absolute right-0 top-0 h-full w-1.5 bg-gradient-to-b from-green-200 to-green-500 dark:from-green-700 dark:to-green-500 rounded-r-2xl"
+        className="absolute right-0 top-0 h-full w-1.5 bg-gradient-to-b from-emerald-200 to-emerald-500 dark:from-emerald-700 dark:to-emerald-500 rounded-r-2xl"
       />
 
       {/* خلفية خفيفة عند الهوفر */}
       <div
-        className="absolute inset-0 bg-gradient-to-l from-green-50 to-transparent dark:from-green-900/20 opacity-0 
+        className="absolute inset-0 bg-gradient-to-l from-emerald-50 to-transparent dark:from-emerald-900/20 opacity-0 
         group-hover:opacity-100 dark:group-hover:opacity-80 transition"
       />
 
@@ -46,13 +46,14 @@ export default function HalaqaCard({ name, teacher, students, stage, onClick }: 
         </p>
         <div className="flex items-center justify-between">
           <span
-            className="flex items-center gap-2 text-sm font-medium bg-green-100 dark:bg-green-900/30 text-green-500 dark:text-green-400 
+            /* 700 لا 500: النص الأفتح على خلفية 100 لا يبلغ حدّ التباين AA */
+            className="flex items-center gap-2 text-sm font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300
             px-4 py-1.5 rounded-full"
           >
             <UserGroupIcon className="w-4 h-4" /> {students} {t("halaqaCard.students")}
           </span>
           <ArrowLeftIcon
-            className="w-6 h-6 text-green-400 dark:text-green-300 transition-transform duration-300 group-hover:-translate-x-1"
+            className="w-6 h-6 text-emerald-400 dark:text-emerald-300 transition-transform duration-300 group-hover:-translate-x-1"
           />
         </div>
       </div>
