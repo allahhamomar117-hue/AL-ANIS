@@ -13,7 +13,8 @@
     "db:reset": "tsx src/db/reset.ts",
     "user:role": "tsx src/db/setRole.ts",
     "db:seed-demo": "tsx src/db/seed-demo.ts",
-    "db:seed-demo:prod": "node dist/db/seed-demo.js"
+    "db:seed-demo:prod": "node dist/db/seed-demo.js",
+    "user:password": "tsx src/db/setPassword.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
