@@ -102,7 +102,7 @@ async function main(): Promise<void> {
     }
 
     const studentRows = await db().all<{ id: number; halaqaId: number }>(
-      "SELECT id, halaqa_id AS halaqaId FROM students"
+      `SELECT id, halaqa_id AS "halaqaId" FROM students`
     );
 
     // حضور لآخر خمسة أيام

@@ -14,15 +14,15 @@ const SELECT_STUDENT = `
   SELECT s.id,
          s.code,
          s.name,
-         s.halaqa_id                AS halaqaId,
+         s.halaqa_id                AS "halaqaId",
          COALESCE(h.name, '')       AS halaqa,
-         s.birth_date               AS birthDate,
-         s.student_phone            AS studentPhone,
-         s.parent_phone             AS parentPhone,
-         s.avatar_url               AS avatarUrl,
+         s.birth_date               AS "birthDate",
+         s.student_phone            AS "studentPhone",
+         s.parent_phone             AS "parentPhone",
+         s.avatar_url               AS "avatarUrl",
          s.points,
-         s.is_active                AS isActive,
-         s.created_at               AS createdAt
+         s.is_active                AS "isActive",
+         s.created_at               AS "createdAt"
   FROM students s
   LEFT JOIN halaqat h ON h.id = s.halaqa_id
 `;
@@ -118,7 +118,7 @@ studentsRouter.get(
     }>(
       `SELECT COUNT(*) AS total,
               SUM(CASE WHEN rating = 'excellent' THEN 1 ELSE 0 END) AS excellent,
-              MAX(recited_at) AS lastDate
+              MAX(recited_at) AS "lastDate"
        FROM recitations WHERE student_id = ?`,
       [id]
     );
@@ -260,8 +260,8 @@ studentsRouter.get(
     if (!student) throw ApiError.notFound("الطالب غير موجود");
 
     const data = await db().all(
-      `SELECT p.id, p.delta, p.reason, p.kind, p.reference_id AS referenceId,
-              p.created_at AS createdAt, COALESCE(u.name, '') AS createdBy
+      `SELECT p.id, p.delta, p.reason, p.kind, p.reference_id AS "referenceId",
+              p.created_at AS "createdAt", COALESCE(u.name, '') AS "createdBy"
        FROM point_transactions p
        LEFT JOIN users u ON u.id = p.created_by
        WHERE p.student_id = ?

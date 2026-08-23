@@ -92,14 +92,14 @@ reportsRouter.get(
     let sql = `
       SELECT s.id,
              s.name,
-             s.avatar_url         AS avatarUrl,
+             s.avatar_url         AS "avatarUrl",
              COALESCE(h.name, '') AS "group",
              ${pointsExpr}        AS points,
              COALESCE(att.rate, 0)      AS attendance,
-             COALESCE(att.attended, 0)  AS attendedDays,
-             COALESCE(att.total, 0)     AS totalDays,
-             COALESCE(rec.pages, 0)     AS recitationPages,
-             COALESCE(rec.count, 0)     AS recitationCount
+             COALESCE(att.attended, 0)  AS "attendedDays",
+             COALESCE(att.total, 0)     AS "totalDays",
+             COALESCE(rec.pages, 0)     AS "recitationPages",
+             COALESCE(rec.count, 0)     AS "recitationCount"
       FROM students s
       LEFT JOIN halaqat h ON h.id = s.halaqa_id
     `;
@@ -161,13 +161,21 @@ reportsRouter.get(
       params.push(...scope.params);
     }
 
+    /*
+     * الاسم مقتبس هنا كما في SELECT.
+     *
+     * "recitationPages" مُعرَّف باقتباس فوق (وإلّا طواه Postgres إلى حروف
+     * صغيرة وضاع على الواجهة)، فالإشارة إليه بلا اقتباس تُطوى هي الأخرى
+     * فلا يجد المُحرّك عموداً بهذا الاسم. الاسمان الآخران بحروف صغيرة
+     * أصلاً، والاقتباس لا يضرّهما.
+     */
     const orderColumn =
       q.type === "points"
         ? "points"
         : q.type === "attendance"
           ? "attendance"
           : "recitationPages";
-    sql += ` ORDER BY ${orderColumn} DESC, s.name ASC LIMIT ?`;
+    sql += ` ORDER BY "${orderColumn}" DESC, s.name ASC LIMIT ?`;
     params.push(q.limit);
 
     const rows = await db().all<Record<string, unknown>>(sql, params);
@@ -238,12 +246,12 @@ reportsRouter.get(
       surahNumber: number | null;
     }>(
       `SELECT 'recitation' AS kind, s.name AS student, r.created_at AS at,
-              'صفحة ' || r.page_number AS detail, r.surah_number AS surahNumber
+              'صفحة ' || r.page_number AS detail, r.surah_number AS "surahNumber"
        FROM recitations r JOIN students s ON s.id = r.student_id
        WHERE 1 = 1${actRecScope.clause}
        UNION ALL
        SELECT 'attendance' AS kind, COALESCE(h.name, '') AS student, a.created_at AS at,
-              'تسجيل حضور ' || a.date AS detail, NULL AS surahNumber
+              'تسجيل حضور ' || a.date AS detail, NULL AS "surahNumber"
        FROM attendance_sessions a LEFT JOIN halaqat h ON h.id = a.halaqa_id
        WHERE 1 = 1${actAttScope.clause}
        ORDER BY at DESC LIMIT 10`,
@@ -328,8 +336,8 @@ reportsRouter.get(
     );
 
     const recitations = await db().all<{ studentId: number }>(
-      `SELECT r.student_id AS studentId, r.type, r.page_number AS pageNumber,
-              r.to_page AS toPage, r.surah_number AS surahNumber, r.rating
+      `SELECT r.student_id AS "studentId", r.type, r.page_number AS "pageNumber",
+              r.to_page AS "toPage", r.surah_number AS "surahNumber", r.rating
        FROM recitations r
        JOIN students s ON s.id = r.student_id
        WHERE s.halaqa_id = ? AND r.recited_at = ?
@@ -377,7 +385,7 @@ reportsRouter.get(
       `SELECT COUNT(DISTINCT a.id) AS sessions,
               COUNT(e.id) AS entries,
               SUM(CASE WHEN e.status IN ('present','late') THEN 1 ELSE 0 END) AS present,
-              SUM(CASE WHEN a.teacher_status = 'absent' THEN 1 ELSE 0 END) AS teacherAbsences
+              SUM(CASE WHEN a.teacher_status = 'absent' THEN 1 ELSE 0 END) AS "teacherAbsences"
        FROM attendance_sessions a
        LEFT JOIN attendance_entries e ON e.session_id = a.id
        WHERE ${att.where.join(" AND ")}`,
@@ -387,9 +395,9 @@ reportsRouter.get(
     const rec = rangeClause(q, "r.recited_at", "r.halaqa_id");
     const recitations = await db().get(
       `SELECT COUNT(*) AS total,
-              ROUND(AVG(${RATING_SCORE})) AS averageScore,
+              ROUND(AVG(${RATING_SCORE})) AS "averageScore",
               SUM(CASE WHEN r.rating = 'excellent' THEN 1 ELSE 0 END) AS excellent,
-              SUM(CASE WHEN r.rating = 'needs' THEN 1 ELSE 0 END) AS needsImprovement
+              SUM(CASE WHEN r.rating = 'needs' THEN 1 ELSE 0 END) AS "needsImprovement"
        FROM recitations r
        WHERE ${rec.where.join(" AND ")}`,
       rec.params
@@ -421,7 +429,7 @@ reportsRouter.get(
     const q = parse(rangeSchema.omit({ halaqaId: true }), req.query);
 
     const student = await db().get(
-      `SELECT s.id, s.code, s.name, s.avatar_url AS avatarUrl, s.points,
+      `SELECT s.id, s.code, s.name, s.avatar_url AS "avatarUrl", s.points,
               COALESCE(h.name,'') AS halaqa
        FROM students s LEFT JOIN halaqat h ON h.id = s.halaqa_id WHERE s.id = ?`,
       [id]
@@ -466,15 +474,15 @@ reportsRouter.get(
 
     const recitations = await db().get(
       `SELECT COUNT(*) AS total,
-              ROUND(AVG(${RATING_SCORE})) AS averageScore,
-              MAX(r.page_number) AS furthestPage,
-              MAX(r.recited_at) AS lastDate
+              ROUND(AVG(${RATING_SCORE})) AS "averageScore",
+              MAX(r.page_number) AS "furthestPage",
+              MAX(r.recited_at) AS "lastDate"
        FROM recitations r WHERE r.student_id = ?${recFilter}`,
       [id, ...recDates]
     );
 
     const timeline = await db().all(
-      `SELECT r.recited_at AS date, r.type, r.page_number AS pageNumber, r.rating
+      `SELECT r.recited_at AS date, r.type, r.page_number AS "pageNumber", r.rating
        FROM recitations r WHERE r.student_id = ?${recFilter}
        ORDER BY r.recited_at DESC LIMIT 30`,
       [id, ...recDates]

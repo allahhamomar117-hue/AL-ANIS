@@ -19,12 +19,12 @@ const boolParam = z.union([z.boolean(), z.enum(["true", "false", "1", "0"])]).tr
 const SELECT_HALAQA = `
   SELECT h.id,
          h.name,
-         h.teacher_id                       AS teacherId,
+         h.teacher_id                       AS "teacherId",
          COALESCE(u.name, '')               AS teacher,
-         h.schedule_time                    AS scheduleTime,
+         h.schedule_time                    AS "scheduleTime",
          h.location,
          h.stage,
-         h.is_active                        AS isActive,
+         h.is_active                        AS "isActive",
          (SELECT COUNT(*) FROM students s
            WHERE s.halaqa_id = h.id AND s.is_active = TRUE) AS students
   FROM halaqat h
@@ -111,13 +111,13 @@ halaqatRouter.get(
               s.code,
               s.name,
               s.points,
-              s.avatar_url AS avatarUrl,
+              s.avatar_url AS "avatarUrl",
               (SELECT r.recited_at FROM recitations r
                 WHERE r.student_id = s.id
-                ORDER BY r.recited_at DESC, r.id DESC LIMIT 1) AS lastRecitation,
+                ORDER BY r.recited_at DESC, r.id DESC LIMIT 1) AS "lastRecitation",
               (SELECT r.page_number FROM recitations r
                 WHERE r.student_id = s.id
-                ORDER BY r.recited_at DESC, r.id DESC LIMIT 1) AS lastPage
+                ORDER BY r.recited_at DESC, r.id DESC LIMIT 1) AS "lastPage"
        FROM students s
        WHERE s.halaqa_id = ? AND s.is_active = TRUE
        ORDER BY s.name`,

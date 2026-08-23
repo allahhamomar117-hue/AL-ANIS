@@ -11,22 +11,22 @@ export const recitationsRouter = Router();
 
 const SELECT_RECITATION = `
   SELECT r.id,
-         r.student_id            AS studentId,
-         s.name                  AS studentName,
-         s.avatar_url            AS studentAvatarUrl,
-         r.halaqa_id             AS halaqaId,
+         r.student_id            AS "studentId",
+         s.name                  AS "studentName",
+         s.avatar_url            AS "studentAvatarUrl",
+         r.halaqa_id             AS "halaqaId",
          COALESCE(h.name, '')    AS halaqa,
          r.type,
-         r.page_number           AS pageNumber,
-         r.to_page               AS toPage,
+         r.page_number           AS "pageNumber",
+         r.to_page               AS "toPage",
          r.verse,
-         r.page_completed        AS pageCompleted,
-         r.surah_number          AS surahNumber,
+         r.page_completed        AS "pageCompleted",
+         r.surah_number          AS "surahNumber",
          r.rating,
          r.notes,
-         r.recited_at            AS recitedAt,
-         COALESCE(u.name, '')    AS recordedBy,
-         r.created_at            AS createdAt
+         r.recited_at            AS "recitedAt",
+         COALESCE(u.name, '')    AS "recordedBy",
+         r.created_at            AS "createdAt"
   FROM recitations r
   JOIN students s ON s.id = r.student_id
   LEFT JOIN halaqat h ON h.id = r.halaqa_id
@@ -171,7 +171,7 @@ recitationsRouter.post(
     const body = parse(recitationBody, req.body);
 
     const student = await db().get<{ id: number; halaqaId: number | null }>(
-      "SELECT id, halaqa_id AS halaqaId FROM students WHERE id = ? AND is_active = TRUE",
+      `SELECT id, halaqa_id AS "halaqaId" FROM students WHERE id = ? AND is_active = TRUE`,
       [body.studentId]
     );
     if (!student) throw ApiError.notFound("الطالب غير موجود");
@@ -348,7 +348,7 @@ recitationsRouter.delete(
     const id = parse(idParam, req.params.id);
 
     const existing = await db().get<{ studentId: number }>(
-      "SELECT student_id AS studentId FROM recitations WHERE id = ?",
+      `SELECT student_id AS "studentId" FROM recitations WHERE id = ?`,
       [id]
     );
     if (!existing) throw ApiError.notFound("سجل التلاوة غير موجود");

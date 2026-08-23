@@ -22,10 +22,10 @@ interface SessionRow {
 
 const SELECT_SESSION = `
   SELECT a.id,
-         a.halaqa_id            AS halaqaId,
+         a.halaqa_id            AS "halaqaId",
          COALESCE(h.name, '')   AS halaqa,
          a.date,
-         a.teacher_status       AS teacherStatus,
+         a.teacher_status       AS "teacherStatus",
          a.notes
   FROM attendance_sessions a
   LEFT JOIN halaqat h ON h.id = a.halaqa_id
@@ -34,7 +34,7 @@ const SELECT_SESSION = `
 /** يتحقق أن الجلسة ضمن نطاق المستخدم (تُستخدم قبل تعديل أو حذف جلسة). */
 async function assertSessionAccess(user: AuthUser, sessionId: number): Promise<void> {
   const row = await db().get<{ halaqaId: number }>(
-    "SELECT halaqa_id AS halaqaId FROM attendance_sessions WHERE id = ?",
+    `SELECT halaqa_id AS "halaqaId" FROM attendance_sessions WHERE id = ?`,
     [sessionId]
   );
   if (!row) throw ApiError.notFound("الجلسة غير موجودة");
@@ -43,8 +43,8 @@ async function assertSessionAccess(user: AuthUser, sessionId: number): Promise<v
 
 function entriesOf(sessionId: number) {
   return db().all(
-    `SELECT e.id, e.student_id AS studentId, s.name, s.code,
-            s.avatar_url AS avatarUrl, e.status
+    `SELECT e.id, e.student_id AS "studentId", s.name, s.code,
+            s.avatar_url AS "avatarUrl", e.status
      FROM attendance_entries e
      JOIN students s ON s.id = e.student_id
      WHERE e.session_id = ?
@@ -130,7 +130,7 @@ attendanceRouter.get(
     );
 
     const students = await db().all(
-      `SELECT s.id, s.code, s.name, s.avatar_url AS avatarUrl,
+      `SELECT s.id, s.code, s.name, s.avatar_url AS "avatarUrl",
               COALESCE(e.status, 'absent') AS status
        FROM students s
        LEFT JOIN attendance_entries e
@@ -264,7 +264,7 @@ attendanceRouter.patch(
     const { status } = parse(z.object({ status: attendanceStatus }), req.body);
 
     const session = await db().get<{ id: number; date: string; halaqaId: number }>(
-      "SELECT id, date, halaqa_id AS halaqaId FROM attendance_sessions WHERE id = ?",
+      `SELECT id, date, halaqa_id AS "halaqaId" FROM attendance_sessions WHERE id = ?`,
       [sessionId]
     );
     if (!session) throw ApiError.notFound("الجلسة غير موجودة");

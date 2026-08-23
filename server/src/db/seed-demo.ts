@@ -304,7 +304,7 @@ export async function seedDemo(): Promise<void> {
     }
 
     const studentRows = await db().all<{ id: number; halaqaId: number }>(
-      "SELECT id, halaqa_id AS halaqaId FROM students ORDER BY id"
+      `SELECT id, halaqa_id AS "halaqaId" FROM students ORDER BY id`
     );
     const levelOf = new Map(studentRows.map((row, i) => [row.id, students[i].level]));
 
@@ -387,7 +387,7 @@ export async function seedDemo(): Promise<void> {
     let recitationCount = 0;
 
     const attended = await db().all<{ studentId: number; date: string; halaqaId: number }>(
-      `SELECT e.student_id AS studentId, a.date, a.halaqa_id AS halaqaId
+      `SELECT e.student_id AS "studentId", a.date, a.halaqa_id AS "halaqaId"
        FROM attendance_entries e
        JOIN attendance_sessions a ON a.id = e.session_id
        WHERE e.status IN ('present', 'late')

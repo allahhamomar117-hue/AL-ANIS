@@ -52,7 +52,7 @@ export async function revertPointsFor(
   referenceId: number
 ): Promise<void> {
   const rows = await db().all<{ studentId: number; delta: number }>(
-    "SELECT student_id AS studentId, delta FROM point_transactions WHERE kind = ? AND reference_id = ?",
+    `SELECT student_id AS "studentId", delta FROM point_transactions WHERE kind = ? AND reference_id = ?`,
     [kind, referenceId]
   );
 

@@ -63,7 +63,7 @@ export async function assertStudentAccess(
   if (isAdmin(user)) return;
 
   const student = await db().get<{ halaqaId: number | null }>(
-    "SELECT halaqa_id AS halaqaId FROM students WHERE id = ?",
+    `SELECT halaqa_id AS "halaqaId" FROM students WHERE id = ?`,
     [studentId]
   );
 

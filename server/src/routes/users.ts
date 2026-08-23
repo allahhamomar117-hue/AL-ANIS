@@ -23,21 +23,21 @@ usersRouter.use(requireUserManager);
  * (‏GROUP_CONCAT مقابل string_agg) واللهجة لا تُعرف إلا بعد فتح الاتصال.
  */
 const selectUser = (): string => `
-  SELECT u.id, u.name, u.username, u.role, u.is_active AS isActive,
-         u.created_at AS createdAt,
-         (u.password_hash IS NOT NULL) AS hasPassword,
+  SELECT u.id, u.name, u.username, u.role, u.is_active AS "isActive",
+         u.created_at AS "createdAt",
+         (u.password_hash IS NOT NULL) AS "hasPassword",
          (SELECT COUNT(*) FROM halaqat h
            WHERE h.is_active = TRUE
              AND (h.teacher_id = u.id
                   OR EXISTS (SELECT 1 FROM teacher_halaqat th
                               WHERE th.user_id = u.id AND th.halaqa_id = h.id))
-         ) AS halaqatCount,
+         ) AS "halaqatCount",
          (SELECT ${groupConcat("h.name", "، ")} FROM halaqat h
            WHERE h.is_active = TRUE
              AND (h.teacher_id = u.id
                   OR EXISTS (SELECT 1 FROM teacher_halaqat th
                               WHERE th.user_id = u.id AND th.halaqa_id = h.id))
-         ) AS halaqatNames
+         ) AS "halaqatNames"
   FROM users u
 `;
 
@@ -169,7 +169,7 @@ usersRouter.get(
     const id = parse(idParam, req.params.id);
 
     const data = await db().all(
-      `SELECT h.id, h.name, (h.teacher_id = ?) AS isPrimary
+      `SELECT h.id, h.name, (h.teacher_id = ?) AS "isPrimary"
        FROM halaqat h
        WHERE h.teacher_id = ?
           OR EXISTS (SELECT 1 FROM teacher_halaqat th
