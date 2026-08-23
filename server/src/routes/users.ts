@@ -284,6 +284,36 @@ usersRouter.patch(
   })
 );
 
+/**
+ * PUT /api/users/:id/password — تعيين كلمة مرور جديدة للحساب.
+ *
+ * مسار مستقل عن PATCH: تغيير كلمة المرور عملية حسّاسة بذاتها، وفصلها
+ * يمنع تمريرها ضمناً مع تعديل الاسم أو الدور، ويسمح بحدّ أدنى أشدّ
+ * (ثمانية أحرف) دون كسر الحسابات القديمة المُنشأة بأربعة.
+ *
+ * لا يُعاد أي أثر لكلمة المرور في الاستجابة — الخادم لا يعيد التجزئة أبداً.
+ */
+usersRouter.put(
+  "/:id/password",
+  asyncHandler(async (req, res) => {
+    const id = parse(idParam, req.params.id);
+    const { password } = parse(
+      z.object({ password: z.string().min(8, "كلمة المرور ثمانية أحرف على الأقل") }),
+      req.body
+    );
+
+    const current = await db().get<{ id: number }>("SELECT id FROM users WHERE id = ?", [id]);
+    if (!current) throw ApiError.notFound("المستخدم غير موجود");
+
+    await db().run("UPDATE users SET password_hash = ? WHERE id = ?", [
+      hashPassword(password),
+      id,
+    ]);
+
+    res.json({ data: await byId(id) });
+  })
+);
+
 /** DELETE /api/users/:id — تعطيل الحساب (لا حذف فعلي، حفاظاً على السجلات). */
 usersRouter.delete(
   "/:id",
