@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { FaEdit, FaUserCheck, FaUserPlus, FaUserSlash, FaUserTie } from "react-icons/fa";
+import { FaEdit, FaKey, FaUserCheck, FaUserPlus, FaUserSlash, FaUserTie } from "react-icons/fa";
 import { useDeactivateUser, useStaff, useUpdateUser } from "../../lib/api/hooks";
 import type { Role, StaffUser } from "../../lib/api/types";
 import { ErrorState, LoadingState } from "../../shared/QueryState";
 import { useToast } from "../../shared/toast/toastContext";
 import { useAuth } from "../../context/authContext";
+import PopupChangePassword from "./PopupChangePassword";
 import PopupStaffForm from "./PopupStaffForm";
 
 /**
@@ -21,6 +22,8 @@ export default function StaffPage() {
 
   const [form, setForm] = useState<{ role: Role; editing?: StaffUser } | null>(null);
   const [showInactive, setShowInactive] = useState(false);
+  /** الحساب المفتوحة نافذة تغيير كلمة مروره. */
+  const [passwordFor, setPasswordFor] = useState<StaffUser | null>(null);
 
   const staff = useStaff({ includeInactive: showInactive });
   const deactivate = useDeactivateUser();
@@ -153,6 +156,17 @@ export default function StaffPage() {
                     {t("staff.edit")}
                   </button>
 
+                  {/* تغيير كلمة المرور — للحسابات الفاعلة فقط */}
+                  {member.isActive === 1 && (
+                    <button
+                      onClick={() => setPasswordFor(member)}
+                      className="flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-sm font-bold text-amber-700 transition hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400"
+                    >
+                      <FaKey />
+                      {t("staff.changePassword")}
+                    </button>
+                  )}
+
                   {/* المدير لا يعطّل نفسه؛ الخادم يرفض ذلك أيضاً */}
                   {member.isActive === 1
                     ? member.id !== user?.id && (
@@ -188,6 +202,10 @@ export default function StaffPage() {
           editing={form.editing}
           onClose={() => setForm(null)}
         />
+      )}
+
+      {passwordFor && (
+        <PopupChangePassword member={passwordFor} onClose={() => setPasswordFor(null)} />
       )}
     </div>
   );

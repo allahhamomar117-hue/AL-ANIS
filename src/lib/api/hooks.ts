@@ -233,6 +233,16 @@ export function useUpdateUser() {
   });
 }
 
+/** تعيين كلمة مرور جديدة لحساب كادر (المدير وحده). */
+export function useSetUserPassword() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, password }: { id: number; password: string }) =>
+      usersApi.setPassword(id, password),
+    onSuccess: () => invalidateStaff(qc),
+  });
+}
+
 /** تعطيل حساب (بلا حذف). */
 export function useDeactivateUser() {
   const qc = useQueryClient();

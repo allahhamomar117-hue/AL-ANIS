@@ -506,7 +506,17 @@
     "passwordTooShort": "كلمة المرور أربعة أحرف على الأقل",
     "activate": "تفعيل",
     "activated": "تم تفعيل الحساب",
-    "halaqatSyncHint": "الحلقات المحددة هنا تصبح نطاق الأستاذ بالضبط بعد الحفظ؛ ما يُلغى تحديده يُفكّ إسناده."
+    "halaqatSyncHint": "الحلقات المحددة هنا تصبح نطاق الأستاذ بالضبط بعد الحفظ؛ ما يُلغى تحديده يُفكّ إسناده.",
+    "changePassword": "تغيير كلمة المرور",
+    "changePasswordTitle": "تغيير كلمة المرور",
+    "changePasswordFor": "تعيين كلمة مرور جديدة لحساب {{name}}.",
+    "newPassword": "كلمة المرور الجديدة",
+    "confirmPassword": "تأكيد كلمة المرور",
+    "passwordMinEight": "كلمة المرور ثمانية أحرف على الأقل",
+    "passwordMismatch": "كلمتا المرور غير متطابقتين",
+    "showPassword": "إظهار كلمة المرور",
+    "hidePassword": "إخفاء كلمة المرور",
+    "passwordChanged": "تم تغيير كلمة مرور {{name}}"
   },
   "halaqatAdmin": {
     "title": "إدارة الحلقات",

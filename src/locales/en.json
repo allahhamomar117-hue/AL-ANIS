@@ -504,7 +504,17 @@
     "passwordTooShort": "Password must be at least 4 characters",
     "activate": "Activate",
     "activated": "Account activated",
-    "halaqatSyncHint": "The selected halaqat become the teacher’s exact scope after saving; unchecked ones are unassigned."
+    "halaqatSyncHint": "The selected halaqat become the teacher’s exact scope after saving; unchecked ones are unassigned.",
+    "changePassword": "Change password",
+    "changePasswordTitle": "Change password",
+    "changePasswordFor": "Set a new password for {{name}}.",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm password",
+    "passwordMinEight": "Password must be at least 8 characters",
+    "passwordMismatch": "Passwords do not match",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "passwordChanged": "Password changed for {{name}}"
   },
   "halaqatAdmin": {
     "title": "Halaqat Management",

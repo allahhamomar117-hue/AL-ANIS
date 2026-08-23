@@ -280,6 +280,12 @@ export const usersApi = {
     }>
   ) => api.patch<{ data: StaffUser }>(`/users/${id}`, body),
 
+  /**
+   * تعيين كلمة مرور جديدة — مسار مستقل محصور بالمدير، حدّه الأدنى ثمانية أحرف.
+   */
+  setPassword: (id: number, password: string) =>
+    api.put<{ data: StaffUser }>(`/users/${id}/password`, { password }),
+
   /** تعطيل الحساب — لا حذف فعلي حفاظاً على السجلات المرتبطة. */
   deactivate: (id: number) => api.delete<{ data: StaffUser }>(`/users/${id}`),
 
