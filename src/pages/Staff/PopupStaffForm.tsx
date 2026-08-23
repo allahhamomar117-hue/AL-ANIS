@@ -9,8 +9,9 @@ import { useToast } from "../../shared/toast/toastContext";
 /**
  * نافذة إنشاء/تعديل حساب كادر.
  *
- * عند التعديل تُترك كلمة المرور فارغة للإبقاء عليها كما هي؛ الخادم لا يُعيد
- * التجزئة أبداً، فلا شيء نملأ به الحقل.
+ * كلمة المرور تظهر عند الإنشاء وحده لأن الخادم يشترطها لتفعيل الحساب فوراً؛
+ * تغييرها لاحقاً له نافذته المستقلة (PopupChangePassword) عبر مسار
+ * PUT /users/:id/password، فلا يُكرَّر الحقل هنا.
  */
 export default function PopupStaffForm({
   onClose,
@@ -60,7 +61,7 @@ export default function PopupStaffForm({
   const valid =
     name.trim().length >= 2 &&
     username.trim().length >= 3 &&
-    (isEdit ? password === "" || password.length >= 4 : password.length >= 4);
+    (isEdit || password.length >= 4);
 
   const toggleHalaqa = (id: number) => {
     setPicked((prev) => {
@@ -79,7 +80,6 @@ export default function PopupStaffForm({
           name: name.trim(),
           username: username.trim(),
           role,
-          ...(password ? { password } : {}),
           // الإرسال استبدال كامل، والقائمة محمّلة بالإسناد الحالي فلا يضيع منها شيء.
           // لا تُرسل قبل وصول الإسناد كي لا يُمحى بقائمة فارغة.
           ...(needsHalaqat && assigned.isSuccess ? { halaqaIds } : {}),
@@ -172,25 +172,26 @@ export default function PopupStaffForm({
           />
         </div>
 
-        {/* كلمة المرور */}
-        <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">
-            {t("staff.password")}
-          </label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="new-password"
-            placeholder={isEdit ? t("staff.passwordKeep") : ""}
-            className={fieldClass}
-          />
-          {password !== "" && password.length < 4 && (
-            <p className="mt-1 text-xs font-semibold text-red-600 dark:text-red-400">
-              {t("staff.passwordTooShort")}
-            </p>
-          )}
-        </div>
+        {/* كلمة المرور — عند الإنشاء فقط؛ تغييرها لاحقاً من زر «تغيير كلمة المرور» */}
+        {!isEdit && (
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">
+              {t("staff.password")}
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="new-password"
+              className={fieldClass}
+            />
+            {password !== "" && password.length < 4 && (
+              <p className="mt-1 text-xs font-semibold text-red-600 dark:text-red-400">
+                {t("staff.passwordTooShort")}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* الحلقات المخصّصة — للأستاذ فقط */}
         {needsHalaqat && (

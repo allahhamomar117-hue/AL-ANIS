@@ -487,7 +487,6 @@
     "name": "Name",
     "username": "Username",
     "password": "Password",
-    "passwordKeep": "Leave empty to keep current",
     "halaqat": "Assigned halaqat",
     "noHalaqat": "No halaqat yet",
     "noAssignedHalaqat": "No assigned halaqat",
