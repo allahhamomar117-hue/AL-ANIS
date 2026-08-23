@@ -45,9 +45,18 @@ export default function AllStudent() {
    */
   const canManageStudents = current.isAdmin;
   const halaqatQuery = useHalaqat();
-  // المدرّس مقيَّد بحلقته؛ المدير والمشرف يختاران من الشريط
+  /*
+   * المدرّس: بلا مرشّح حلقة إطلاقاً.
+   *
+   * تمرير حلقته الافتراضية وحدها كان يُخفي طلاب حلقاته الأخرى — الأستاذ
+   * المسند إلى حلقتين كان يرى نصف طلابه فقط. الخادم يقصر /students على
+   * نطاقه أصلاً (applyScope)، فترك المرشّح فارغاً يعطيه طلاب حلقاته كلها
+   * ولا شيء سواها.
+   *
+   * المدير والمشرف يختاران من الشريط.
+   */
   const effectiveHalaqaId = current.isTeacher
-    ? current.halaqaId
+    ? undefined
     : selectedHalaqa === "all"
       ? undefined
       : selectedHalaqa;

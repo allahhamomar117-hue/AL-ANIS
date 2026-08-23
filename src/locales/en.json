@@ -422,7 +422,10 @@
     "connecting": "Connecting to the server…",
     "serverHint": "Make sure the server is running: npm run api",
     "saving": "Saving…",
-    "deleting": "Deleting…"
+    "deleting": "Deleting…",
+    "forbiddenTitle": "Outside your scope",
+    "forbiddenHint": "This student is not in your halaqat. Pick a student from your own list.",
+    "goBack": "Go back"
   },
   "halaqaGroups": {
     "empty": "No halaqat yet"

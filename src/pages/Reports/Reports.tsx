@@ -23,10 +23,13 @@ const Reports: React.FC = () => {
    * الخادم يرجّع الأعمدة الثلاثة في كل طلب ويرتّب حسب `type`،
    * لذا تبديل التبويب لا يحتاج إلا إعادة الترتيب من الخادم.
    */
-  // المدرّس: القوائم والترتيب على طلاب حلقته فقط
+  /*
+   * المدرّس: بلا مرشّح حلقة — الخادم يقصر لوحة الصدارة على نطاقه أصلاً.
+   * تمرير حلقته الافتراضية وحدها كان يُسقط طلاب حلقاته الأخرى من الترتيب.
+   */
   const params = {
     type,
-    halaqaId: current.isTeacher ? current.halaqaId : halaqaId === "" ? undefined : halaqaId,
+    halaqaId: current.isTeacher ? undefined : halaqaId === "" ? undefined : halaqaId,
     limit: 50,
   };
 

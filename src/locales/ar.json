@@ -424,7 +424,10 @@
     "connecting": "جارٍ الاتصال بالخادم…",
     "serverHint": "تأكد من تشغيل الخادم: npm run api",
     "saving": "جارٍ الحفظ…",
-    "deleting": "جارٍ الحذف…"
+    "deleting": "جارٍ الحذف…",
+    "forbiddenTitle": "هذه الصفحة خارج نطاقك",
+    "forbiddenHint": "هذا الطالب لا ينتمي إلى حلقاتك. اختر طالباً من قائمة طلابك.",
+    "goBack": "رجوع"
   },
   "halaqaGroups": {
     "empty": "لا توجد حلقات بعد"

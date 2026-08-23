@@ -99,6 +99,32 @@ export function ErrorState({
   const { t } = useTranslation();
   const message = error instanceof Error ? error.message : t("state.error");
 
+  /*
+   * 403 ليس عطلاً بل حدّ صلاحيات: يقع حين يُفتح رابط لطالب خارج نطاق
+   * المدرّس (رابط محفوظ، أو طالب نُقل بعد آخر تحديث للقائمة). عرضه
+   * بمظهر الأعطال — ⚠ و"حدث خطأ" وزر إعادة محاولة لن تنجح أبداً — يُفزع
+   * المستخدم بلا سبب، فنفصله برسالة هادئة وطريق عودة.
+   */
+  const status = (error as { status?: number } | null)?.status;
+
+  if (status === 403) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+        <span className="text-4xl">🔒</span>
+        <p className="font-bold text-gray-800 dark:text-white">{t("state.forbiddenTitle")}</p>
+        <p className="max-w-md text-sm text-gray-600 dark:text-gray-300">
+          {t("state.forbiddenHint")}
+        </p>
+        <button
+          onClick={() => window.history.back()}
+          className="mt-2 rounded-xl bg-emerald-600 px-5 py-2 font-bold text-white transition hover:bg-emerald-700"
+        >
+          {t("state.goBack")}
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
       <span className="text-4xl">⚠️</span>

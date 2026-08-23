@@ -105,7 +105,6 @@ const staff = [
 const ADMIN = 0;
 /** فهرس أوّل أستاذ في staff — بعد المدير والمشرف. */
 const FIRST_TEACHER = 2;
-const TEACHER_DEMO = FIRST_TEACHER;
 
 /**
  * عشر حلقات موزّعة على المراحل الثلاث، أستاذ لكل واحدة.
@@ -277,10 +276,17 @@ export async function seedDemo(): Promise<void> {
         [userId, halaqaId]
       );
 
+    /*
+     * حلقة واحدة لكل أستاذ، بلا استثناء.
+     *
+     * كان حساب الأستاذ التجريبي يُسنَد إلى حلقة ثانية لإظهار حالة تعدّد
+     * الحلقات؛ أُلغي تبسيطاً لنسخة العرض حتى لا يظهر مبدّل الحلقات في
+     * الشريط. المشرف يبقى يرى الجميع بحكم دوره لا بالإسناد.
+     *
+     * halaqat[i].teacher فريد بالبناء (‏FIRST_TEACHER + i)، فالحلقة الواحدة
+     * لكل أستاذ مضمونة من هنا.
+     */
     for (const [i, h] of halaqat.entries()) await assign(userIds[h.teacher], halaqaIds[i]);
-    // المشرف يرى كل الحلقات بحكم دوره. نُسند حساب الأستاذ التجريبي إلى حلقة ثانية
-    // أيضاً ليُظهر العرض حالة الأستاذ متعدّد الحلقات وتبديل الحلقة في الشريط.
-    await assign(userIds[TEACHER_DEMO], halaqaIds[1]);
 
     for (const [i, s] of students.entries()) {
       await db().run(
