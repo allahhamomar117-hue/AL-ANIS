@@ -176,7 +176,18 @@ recitationsRouter.post(
     );
     if (!student) throw ApiError.notFound("الطالب غير موجود");
 
-    const halaqaId = body.halaqaId ?? student.halaqaId;
+    /*
+     * الحلقة تُشتقّ من الطالب لا من جسم الطلب.
+     *
+     * الواجهة ترسل halaqaId من رابط الصفحة (groupId)، وهو قد يتخلّف عن
+     * الواقع إن نُقل الطالب أو فُتحت الصفحة من سياق حلقة أخرى. تقديم قيمة
+     * العميل كان يُنتج عطبين: رفض 403 بحجّة "الحلقة خارج نطاقك" في وجه
+     * أستاذٍ يملك الطالب فعلاً، وقيدُ تسميعٍ تحت حلقة لا ينتمي إليها الطالب
+     * فتختلّ تقاريرها. حلقة الطالب هي المرجع، وقيمة العميل احتياط فقط حين
+     * لا يكون الطالب مسنَداً إلى حلقة.
+     */
+    const halaqaId = student.halaqaId ?? body.halaqaId ?? null;
+
     // الطالب والحلقة المستهدفة كلاهما يجب أن يكونا ضمن نطاق المستخدم
     await assertStudentAccess(req.user!, body.studentId);
     await assertHalaqaAccess(req.user!, halaqaId);
