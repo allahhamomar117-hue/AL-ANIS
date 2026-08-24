@@ -335,3 +335,47 @@ usersRouter.delete(
     res.json({ data: await byId(id) });
   })
 );
+
+/**
+ * DELETE /api/users/:id/permanent — حذف نهائي للحساب.
+ *
+ * الحذف الناعم (DELETE /:id) يبقى الخيار المعتاد؛ هذا المسار للمدير حين
+ * يريد إزالة الحساب من الجدول فعلاً. السجلات المرتبطة لا تضيع: المفاتيح
+ * الأجنبية إمّا ON DELETE SET NULL (أستاذ الحلقة، ومَن سجّل الحضور
+ * والتسميع والنقاط) أو CASCADE (صفوف إسناد الحلقات وحدها).
+ */
+usersRouter.delete(
+  "/:id/permanent",
+  asyncHandler(async (req, res) => {
+    const id = parse(idParam, req.params.id);
+
+    const current = await db().get<{ id: number; role: string; name: string }>(
+      "SELECT id, role, name FROM users WHERE id = ?",
+      [id]
+    );
+    if (!current) throw ApiError.notFound("المستخدم غير موجود");
+
+    if (req.user!.id === id) throw ApiError.badRequest("لا يمكنك حذف حسابك");
+    if (current.role === "ADMIN" && (await activeAdminCount()) <= 1) {
+      throw ApiError.badRequest("لا يمكن إزالة آخر حساب مدير");
+    }
+
+    // فكّ الارتباطات صراحةً لا اتكالاً على المفتاح الأجنبي: PRAGMA foreign_keys
+    // معطّل داخل معاملات SQLite، فلن يُطبَّق SET NULL/CASCADE من تلقائه.
+    await tx(async () => {
+      await db().run("UPDATE halaqat SET teacher_id = NULL WHERE teacher_id = ?", [id]);
+      await db().run("DELETE FROM teacher_halaqat WHERE user_id = ?", [id]);
+      await db().run(
+        "UPDATE attendance_sessions SET recorded_by = NULL WHERE recorded_by = ?",
+        [id]
+      );
+      await db().run("UPDATE recitations SET recorded_by = NULL WHERE recorded_by = ?", [id]);
+      await db().run("UPDATE point_transactions SET created_by = NULL WHERE created_by = ?", [
+        id,
+      ]);
+      await db().run("DELETE FROM users WHERE id = ?", [id]);
+    });
+
+    res.json({ data: { id, name: current.name } });
+  })
+);

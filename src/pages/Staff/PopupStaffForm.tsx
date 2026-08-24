@@ -1,9 +1,18 @@
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { FaEye, FaEyeSlash, FaTimes, FaUserPlus, FaUserTie } from "react-icons/fa";
+import {
+  FaExclamationTriangle,
+  FaEye,
+  FaEyeSlash,
+  FaTimes,
+  FaTrash,
+  FaUserPlus,
+  FaUserTie,
+} from "react-icons/fa";
 import {
   useCreateUser,
+  useDeleteUser,
   useHalaqat,
   useSetUserPassword,
   useUpdateUser,
@@ -49,6 +58,8 @@ export default function PopupStaffForm({
   const [isActive, setIsActive] = useState(editing ? editing.isActive === 1 : true);
   /** null = لم يلمس المستخدم الرقاقات بعد، فالمعروض هو الإسناد الحالي. */
   const [picked, setPicked] = useState<number[] | null>(null);
+  /** نافذة تأكيد الحذف النهائي — خطوة ثانية مقصودة، فالعملية لا رجعة فيها. */
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const { data: halaqat = [] } = useHalaqat();
 
@@ -69,13 +80,21 @@ export default function PopupStaffForm({
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
   const setUserPassword = useSetUserPassword();
-  const pending = createUser.isPending || updateUser.isPending || setUserPassword.isPending;
-  const error = createUser.error ?? updateUser.error ?? setUserPassword.error;
+  const deleteUser = useDeleteUser();
+  const pending =
+    createUser.isPending ||
+    updateUser.isPending ||
+    setUserPassword.isPending ||
+    deleteUser.isPending;
+  const error =
+    createUser.error ?? updateUser.error ?? setUserPassword.error ?? deleteUser.error;
 
   // المشرف يرى كل الحلقات بحكم دوره، فالإسناد يخصّ الأستاذ وحده
   const needsHalaqat = role === "TEACHER";
-  // المدير لا يعطّل نفسه؛ الخادم يرفض ذلك أيضاً
-  const canToggleActive = isEdit && editing?.id !== user?.id;
+  // المدير لا يعطّل حسابه ولا يحذفه؛ الخادم يرفض الأمرين أيضاً
+  const isSelf = editing?.id === user?.id;
+  const canToggleActive = isEdit && !isSelf;
+  const canDelete = isEdit && !isSelf;
 
   const minLength = isEdit ? MIN_RESET : MIN_CREATE;
   const tooShort = password !== "" && password.length < minLength;
@@ -127,6 +146,18 @@ export default function PopupStaffForm({
       onClose();
     } catch {
       // الرسالة تظهر من كائن الخطأ أسفل النموذج
+    }
+  };
+
+  const remove = async () => {
+    if (!editing || !canDelete || pending) return;
+    try {
+      await deleteUser.mutateAsync(editing.id);
+      notify(t("staff.deleted", { name: editing.name }));
+      onClose();
+    } catch {
+      // الرسالة تظهر من كائن الخطأ أسفل النموذج
+      setConfirmingDelete(false);
     }
   };
 
@@ -306,7 +337,20 @@ export default function PopupStaffForm({
           </p>
         )}
 
-        <div className="flex justify-end gap-3 pt-1">
+        <div className="flex flex-wrap items-center justify-end gap-3 pt-1">
+          {/* حذف نهائي — أقصى اليسار كي لا يُضغط بالخطأ مع الحفظ */}
+          {canDelete && (
+            <button
+              type="button"
+              onClick={() => setConfirmingDelete(true)}
+              disabled={pending}
+              className="me-auto flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 font-bold text-white transition hover:bg-red-700 disabled:opacity-50"
+            >
+              <FaTrash />
+              {t("staff.deleteAccount")}
+            </button>
+          )}
+
           <button
             type="button"
             onClick={onClose}
@@ -325,6 +369,55 @@ export default function PopupStaffForm({
           </button>
         </div>
       </div>
+
+      {/* تأكيد الحذف — فوق نافذة التعديل */}
+      {confirmingDelete && editing && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4"
+          onClick={(e) => {
+            // بلا إيقاف، يصعد النقر إلى خلفية نافذة التعديل فتُغلق هي أيضاً
+            e.stopPropagation();
+            setConfirmingDelete(false);
+          }}
+        >
+          <div
+            className="w-full max-w-md space-y-4 rounded-2xl border border-red-200 bg-white p-6 shadow-2xl dark:border-red-900/60 dark:bg-dark"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="flex items-center gap-2 text-lg font-bold text-red-700 dark:text-red-400">
+              <FaExclamationTriangle />
+              {t("staff.deleteTitle")}
+            </h3>
+
+            <p className="text-sm text-gray-700 dark:text-gray-300">
+              {t("staff.deleteConfirm", { name: editing.name })}
+            </p>
+            <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:bg-red-900/20 dark:text-red-400">
+              {t("staff.deleteWarning")}
+            </p>
+
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(false)}
+                disabled={deleteUser.isPending}
+                className="rounded-xl bg-gray-200 px-4 py-2 text-gray-800 transition hover:bg-gray-300 disabled:opacity-50 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={() => void remove()}
+                disabled={deleteUser.isPending}
+                className="flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2 font-bold text-white transition hover:bg-red-700 disabled:opacity-50"
+              >
+                <FaTrash />
+                {deleteUser.isPending ? t("staff.deleting") : t("staff.deleteAccount")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>,
     document.body
   );

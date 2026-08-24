@@ -500,7 +500,13 @@
     "passwordChanged": "Password changed for {{name}}",
     "newPasswordOptional": "New password (optional)",
     "passwordKeepHint": "Leave empty to keep the current password",
-    "accountActive": "Account active"
+    "accountActive": "Account active",
+    "deleteAccount": "Delete account",
+    "deleteTitle": "Permanently delete account",
+    "deleteConfirm": "The account of {{name}} will be permanently removed from the system.",
+    "deleteWarning": "This cannot be undone. Attendance, recitation and points records are kept but lose their recorder, and the halaqat lose their teacher.",
+    "deleting": "Deleting…",
+    "deleted": "{{name}} account permanently deleted"
   },
   "halaqatAdmin": {
     "title": "Halaqat Management",

@@ -289,6 +289,13 @@ export const usersApi = {
   /** تعطيل الحساب — لا حذف فعلي حفاظاً على السجلات المرتبطة. */
   deactivate: (id: number) => api.delete<{ data: StaffUser }>(`/users/${id}`),
 
+  /**
+   * حذف نهائي للحساب — لا رجعة فيه. السجلات المرتبطة تبقى بلا صاحب
+   * (الحضور والتسميع والنقاط) والحلقة تصبح بلا أستاذ.
+   */
+  remove: (id: number) =>
+    api.delete<{ data: { id: number; name: string } }>(`/users/${id}/permanent`),
+
   /** الحلقات المسندة إلى مستخدم. */
   halaqat: (id: number) =>
     api.get<{ data: { id: number; name: string; isPrimary: number }[] }>(`/users/${id}/halaqat`),

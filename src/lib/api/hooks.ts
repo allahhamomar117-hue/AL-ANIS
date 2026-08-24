@@ -252,6 +252,24 @@ export function useDeactivateUser() {
   });
 }
 
+/**
+ * حذف نهائي لحساب كادر — لا رجعة فيه.
+ *
+ * الحضور والتسميع والنقاط تبقى مسجّلة بلا صاحب، والحلقة تصبح بلا أستاذ،
+ * فتُبطَل ذواكر الطلاب والتقارير أيضاً لا الكادر وحده.
+ */
+export function useDeleteUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => usersApi.remove(id),
+    onSuccess: () => {
+      invalidateStaff(qc);
+      void qc.invalidateQueries({ queryKey: qk.attendance.all });
+      void qc.invalidateQueries({ queryKey: qk.reports.all });
+    },
+  });
+}
+
 /** إسناد حلقات إلى مستخدم. */
 export function useAssignHalaqat() {
   const qc = useQueryClient();

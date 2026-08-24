@@ -502,7 +502,13 @@
     "passwordChanged": "تم تغيير كلمة مرور {{name}}",
     "newPasswordOptional": "كلمة مرور جديدة (اختياري)",
     "passwordKeepHint": "اتركه فارغاً للإبقاء على كلمة المرور الحالية",
-    "accountActive": "الحساب مفعّل"
+    "accountActive": "الحساب مفعّل",
+    "deleteAccount": "حذف الحساب",
+    "deleteTitle": "حذف نهائي للحساب",
+    "deleteConfirm": "سيُحذف حساب {{name}} نهائياً من النظام.",
+    "deleteWarning": "لا يمكن التراجع عن هذه العملية. سجلات الحضور والتسميع والنقاط تبقى محفوظة لكن بلا اسم مسجِّل، وحلقاته تصبح بلا أستاذ.",
+    "deleting": "جارٍ الحذف…",
+    "deleted": "تم حذف حساب {{name}} نهائياً"
   },
   "halaqatAdmin": {
     "title": "إدارة الحلقات",
