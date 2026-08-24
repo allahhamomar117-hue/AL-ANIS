@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 type DeleteStudentPopupProps = {
   studentName: string;
   deleting?: boolean;
+  /** خطأ الحذف القادم من الخادم — يُعرض داخل النافذة بدل إغلاقها بصمت. */
+  error?: unknown;
   onDelete: () => void;
   onClose: () => void;
 };
@@ -10,6 +12,7 @@ type DeleteStudentPopupProps = {
 export function PopupDeleteStudent({
   studentName,
   deleting,
+  error,
   onDelete,
   onClose,
 }: DeleteStudentPopupProps) {
@@ -34,6 +37,17 @@ export function PopupDeleteStudent({
           {t("popupDeleteStudent.confirm")}{" "}
           <span className="font-semibold text-gray-900 dark:text-white">{studentName}</span>?
         </p>
+
+        {/* تنبيه: الحذف نهائي ويمسّ السجلات المرتبطة */}
+        <p className="mb-6 rounded-xl bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm font-bold text-red-700 dark:text-red-400">
+          {t("popupDeleteStudent.warning")}
+        </p>
+
+        {error != null && (
+          <p className="mb-4 text-center text-sm font-bold text-red-700 dark:text-red-400">
+            {error instanceof Error ? error.message : t("state.error")}
+          </p>
+        )}
 
         {/* BUTTONS */}
         <div className="flex justify-end gap-3">

@@ -230,7 +230,8 @@
     "points": "Points",
     "readOnlyBadge": "View only",
     "readOnlySubtitle": "Your halaqa's students — view only",
-    "editStudent": "Edit student"
+    "editStudent": "Edit student",
+    "deleteStudent": "Delete student"
   },
   "popupAddPoints": {
     "title": "Add Points",
@@ -281,7 +282,8 @@
     "confirm": "Are you sure you want to delete student",
     "cancel": "Cancel",
     "delete": "Delete",
-    "deleting": "Deleting…"
+    "deleting": "Deleting…",
+    "warning": "This cannot be undone from the interface: the student is removed from the lists and the halaqa, while their attendance and points records stay in the reports."
   },
   "popupEditStudent": {
     "title": "Edit Student",
