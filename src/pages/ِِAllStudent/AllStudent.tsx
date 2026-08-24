@@ -1,33 +1,21 @@
 import { useState } from "react";
-import { MdVisibility, MdEdit, MdDelete } from "react-icons/md";
+import { MdVisibility, MdEdit } from "react-icons/md";
 import { IoPersonAdd } from "react-icons/io5";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { PopupAddPoints } from "./PopupAddPoints";
-import { PopupDeductPoints } from "./PopupDeductPoints";
 import { PopupEditStudent } from "./PopupEditStudent";
-import { PopupDeleteStudent } from "./PopupDeleteStudent";
 import { PopupAddStudent } from "./PopupAddStudent";
-import {
-  useAddPoints,
-  useDeductPoints,
-  useDeleteStudent,
-  useHalaqat,
-  useStudents,
-} from "../../lib/api/hooks";
+import { useHalaqat, useStudents } from "../../lib/api/hooks";
 import type { Student } from "../../lib/api/types";
 import { EmptyState, ErrorState, LoadingState, Spinner } from "../../shared/QueryState";
 import { useCurrentHalaqa } from "../../lib/api/useCurrentHalaqa";
-import { useToast } from "../../shared/toast/toastContext";
 import Avatar from "../../shared/Avatar";
 
-type PopupKind = "add" | "deduct" | "edit" | "delete" | "addStudent";
+type PopupKind = "edit" | "addStudent";
 
 export default function AllStudent() {
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
-
-  const { notify } = useToast();
 
   const [activeStudent, setActiveStudent] = useState<Student | null>(null);
   const [popup, setPopup] = useState<PopupKind | null>(null);
@@ -67,44 +55,13 @@ export default function AllStudent() {
     limit: 200,
   });
 
-  const deleteStudent = useDeleteStudent();
-  const addPoints = useAddPoints();
-  const deductPoints = useDeductPoints();
-
   const students = studentsQuery.data?.data ?? [];
   const total = studentsQuery.data?.meta.total ?? 0;
   const halaqat = halaqatQuery.data ?? [];
 
-  const mutationError =
-    deleteStudent.error ?? addPoints.error ?? deductPoints.error ?? null;
-
   const handleClose = () => {
     setPopup(null);
     setActiveStudent(null);
-    deleteStudent.reset();
-    addPoints.reset();
-    deductPoints.reset();
-  };
-
-  const handleAddPoints = async (amount: number, reason: string) => {
-    if (!activeStudent) return;
-    await addPoints.mutateAsync({ id: activeStudent.id, amount, reason });
-    notify(t("toast.pointsAdded"));
-    handleClose();
-  };
-
-  const handleDeductPoints = async (amount: number, reason: string) => {
-    if (!activeStudent) return;
-    await deductPoints.mutateAsync({ id: activeStudent.id, amount, reason });
-    notify(t("toast.pointsDeducted"));
-    handleClose();
-  };
-
-  const handleDeleteStudent = async () => {
-    if (!activeStudent) return;
-    await deleteStudent.mutateAsync({ id: activeStudent.id });
-    notify(t("toast.studentDeleted"));
-    handleClose();
   };
 
   const openPopup = (kind: PopupKind, student?: Student) => {
@@ -299,45 +256,12 @@ export default function AllStudent() {
         </div>
         )}
 
-        {/* ===== خطأ في عملية تعديل ===== */}
-        {mutationError && (
-          <p className="rounded-xl bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm font-bold text-red-700 dark:text-red-400">
-            {mutationError instanceof Error ? mutationError.message : t("state.error")}
-          </p>
-        )}
-
         {renderBody()}
       </main>
 
       {/* ===== POPUPS ===== */}
-      {popup === "add" && activeStudent && (
-        <PopupAddPoints
-          studentName={activeStudent.name}
-          currentPoints={activeStudent.points}
-          saving={addPoints.isPending}
-          onSave={handleAddPoints}
-          onClose={handleClose}
-        />
-      )}
-      {popup === "deduct" && activeStudent && (
-        <PopupDeductPoints
-          studentName={activeStudent.name}
-          currentPoints={activeStudent.points}
-          saving={deductPoints.isPending}
-          onSave={handleDeductPoints}
-          onClose={handleClose}
-        />
-      )}
       {popup === "edit" && activeStudent && canManageStudents && (
         <PopupEditStudent student={activeStudent} onClose={handleClose} />
-      )}
-      {popup === "delete" && activeStudent && canManageStudents && (
-        <PopupDeleteStudent
-          studentName={activeStudent.name}
-          deleting={deleteStudent.isPending}
-          onDelete={handleDeleteStudent}
-          onClose={handleClose}
-        />
       )}
       {popup === "addStudent" && canManageStudents && <PopupAddStudent onClose={handleClose} />}
     </div>
@@ -353,7 +277,7 @@ function ActionButtons({
   small,
 }: {
   student: Student;
-  /** المدير والمشرف: تعديل وحذف. المدرّس يرى الاطّلاع ومنح النقاط. */
+  /** المدير والمشرف وحدهما يعدّلان؛ المدرّس للاطّلاع فقط. */
   canManage: boolean;
   onView: () => void;
   onPopup: (kind: PopupKind, student: Student) => void;
@@ -361,56 +285,27 @@ function ActionButtons({
 }) {
   const { t } = useTranslation();
   // 44px حدّ أدنى لكل هدف لمس على الجوال
-  const pointsSize = small
-    ? "min-h-[44px] px-4 text-sm font-bold flex-1"
-    : "min-h-[40px] px-4 text-sm font-bold";
   const iconSize = small ? "size-11" : "size-10";
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2">
-      <div className="flex gap-2">
+    <div className="flex flex-wrap items-center gap-2">
+      <button
+        onClick={onView}
+        aria-label={t("allStudents.actions")}
+        className={`${iconSize} rounded-xl bg-slate-100 dark:bg-gray-700 flex items-center justify-center active:scale-95 transition`}
+      >
+        <MdVisibility className="text-lg text-gray-800 dark:text-white" />
+      </button>
+
+      {canManage && (
         <button
-          onClick={onView}
-          aria-label={t("allStudents.actions")}
-          className={`${iconSize} rounded-xl bg-slate-100 dark:bg-gray-700 flex items-center justify-center active:scale-95 transition`}
+          onClick={() => onPopup("edit", student)}
+          aria-label={t("allStudents.editStudent")}
+          className={`${iconSize} rounded-xl bg-blue-100 dark:bg-blue-700 flex items-center justify-center active:scale-95 transition`}
         >
-          <MdVisibility className="text-lg text-gray-800 dark:text-white" />
+          <MdEdit className="text-lg text-blue-800 dark:text-white" />
         </button>
-
-        {canManage && (
-          <>
-            <button
-              onClick={() => onPopup("edit", student)}
-              className={`${iconSize} rounded-xl bg-blue-100 dark:bg-blue-700 flex items-center justify-center active:scale-95 transition`}
-            >
-              <MdEdit className="text-lg text-blue-800 dark:text-white" />
-            </button>
-
-            <button
-              onClick={() => onPopup("delete", student)}
-              className={`${iconSize} rounded-xl bg-red-100 dark:bg-red-700 flex items-center justify-center active:scale-95 transition`}
-            >
-              <MdDelete className="text-lg text-red-800 dark:text-white" />
-            </button>
-          </>
-        )}
-      </div>
-
-      <div className="flex flex-1 gap-2 sm:flex-none">
-        <button
-          onClick={() => onPopup("add", student)}
-          className={`rounded-xl bg-emerald-100 dark:bg-emerald-700 ${pointsSize} text-emerald-800 dark:text-white active:scale-95 transition`}
-        >
-          {t("allStudents.addPoints")}
-        </button>
-
-        <button
-          onClick={() => onPopup("deduct", student)}
-          className={`rounded-xl bg-fuchsia-100 dark:bg-fuchsia-700 ${pointsSize} text-fuchsia-800 dark:text-white active:scale-95 transition`}
-        >
-          {t("allStudents.deductPoints")}
-        </button>
-      </div>
+      )}
     </div>
   );
 }

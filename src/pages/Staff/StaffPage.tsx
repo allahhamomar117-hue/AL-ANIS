@@ -1,55 +1,28 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { FaEdit, FaKey, FaUserCheck, FaUserPlus, FaUserSlash, FaUserTie } from "react-icons/fa";
-import { useDeactivateUser, useStaff, useUpdateUser } from "../../lib/api/hooks";
+import { FaEdit, FaUserPlus, FaUserTie } from "react-icons/fa";
+import { useStaff } from "../../lib/api/hooks";
 import type { Role, StaffUser } from "../../lib/api/types";
 import { ErrorState, LoadingState } from "../../shared/QueryState";
-import { useToast } from "../../shared/toast/toastContext";
-import { useAuth } from "../../context/authContext";
-import PopupChangePassword from "./PopupChangePassword";
 import PopupStaffForm from "./PopupStaffForm";
 
 /**
  * صفحة إدارة الكادر — للمدير وحده (المسار محمي بـ RequireManager،
  * وكل مسارات /api/users محصورة بدور ADMIN على الخادم).
+ *
+ * لا عمود لحالة الحساب هنا: الحسابات مفعّلة افتراضياً، وتعطيلها
+ * وتفعيلها من داخل نافذة «تعديل» مع بقية بيانات الحساب.
  */
 export default function StaffPage() {
   const { t } = useTranslation();
   const { lang = "ar" } = useParams();
-  const { notify } = useToast();
-  const { user } = useAuth();
 
   const [form, setForm] = useState<{ role: Role; editing?: StaffUser } | null>(null);
-  const [showInactive, setShowInactive] = useState(false);
-  /** الحساب المفتوحة نافذة تغيير كلمة مروره. */
-  const [passwordFor, setPasswordFor] = useState<StaffUser | null>(null);
 
-  const staff = useStaff({ includeInactive: showInactive });
-  const deactivate = useDeactivateUser();
-  const updateUser = useUpdateUser();
+  const staff = useStaff({ includeInactive: true });
 
   const list = staff.data ?? [];
-
-  const remove = async (member: StaffUser) => {
-    if (!window.confirm(t("staff.confirmDeactivate", { name: member.name }))) return;
-    try {
-      await deactivate.mutateAsync(member.id);
-      notify(t("staff.deactivated"));
-    } catch (error) {
-      notify(error instanceof Error ? error.message : t("state.error"), "error");
-    }
-  };
-
-  /** إعادة التفعيل تمرّ من نفس مسار التعديل (is_active) لا من مسار التعطيل. */
-  const activate = async (member: StaffUser) => {
-    try {
-      await updateUser.mutateAsync({ id: member.id, is_active: true });
-      notify(t("staff.activated"));
-    } catch (error) {
-      notify(error instanceof Error ? error.message : t("state.error"), "error");
-    }
-  };
 
   const roleBadge = (role: Role) =>
     role === "ADMIN"
@@ -92,16 +65,6 @@ export default function StaffPage() {
           </div>
         </header>
 
-        <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-          <input
-            type="checkbox"
-            checked={showInactive}
-            onChange={(e) => setShowInactive(e.target.checked)}
-            className="size-4 accent-emerald-600"
-          />
-          {t("staff.showInactive")}
-        </label>
-
         {staff.isPending ? (
           <LoadingState />
         ) : staff.isError ? (
@@ -115,9 +78,7 @@ export default function StaffPage() {
             {list.map((member) => (
               <li
                 key={member.id}
-                className={`flex flex-col gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-dark sm:flex-row sm:items-center sm:justify-between ${
-                  member.isActive ? "" : "opacity-60"
-                }`}
+                className="flex flex-col gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-dark sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -129,11 +90,6 @@ export default function StaffPage() {
                     >
                       {t(`roles.${member.role}`)}
                     </span>
-                    {!member.isActive && (
-                      <span className="rounded-full bg-gray-200 px-2.5 py-0.5 text-xs font-bold text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                        {t("staff.inactive")}
-                      </span>
-                    )}
                   </div>
 
                   <p className="mt-1 truncate text-xs text-gray-500 dark:text-gray-400" dir="ltr">
@@ -148,6 +104,7 @@ export default function StaffPage() {
                 </div>
 
                 <div className="flex shrink-0 gap-2">
+                  {/* نافذة واحدة: البيانات والحلقات وكلمة المرور */}
                   <button
                     onClick={() => setForm({ role: member.role, editing: member })}
                     className="flex items-center gap-2 rounded-xl bg-gray-100 px-3 py-2 text-sm font-bold text-gray-700 transition hover:bg-gray-200 dark:bg-dark-light dark:text-gray-200 dark:hover:bg-gray-700"
@@ -155,40 +112,6 @@ export default function StaffPage() {
                     <FaEdit />
                     {t("staff.edit")}
                   </button>
-
-                  {/* تغيير كلمة المرور — للحسابات الفاعلة فقط */}
-                  {member.isActive === 1 && (
-                    <button
-                      onClick={() => setPasswordFor(member)}
-                      className="flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-sm font-bold text-amber-700 transition hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400"
-                    >
-                      <FaKey />
-                      {t("staff.changePassword")}
-                    </button>
-                  )}
-
-                  {/* المدير لا يعطّل نفسه؛ الخادم يرفض ذلك أيضاً */}
-                  {member.isActive === 1
-                    ? member.id !== user?.id && (
-                        <button
-                          onClick={() => void remove(member)}
-                          disabled={deactivate.isPending}
-                          className="flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm font-bold text-red-700 transition hover:bg-red-100 disabled:opacity-50 dark:bg-red-900/20 dark:text-red-400"
-                        >
-                          <FaUserSlash />
-                          {t("staff.deactivate")}
-                        </button>
-                      )
-                    : (
-                        <button
-                          onClick={() => void activate(member)}
-                          disabled={updateUser.isPending}
-                          className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50 dark:bg-emerald-900/20 dark:text-emerald-400"
-                        >
-                          <FaUserCheck />
-                          {t("staff.activate")}
-                        </button>
-                      )}
                 </div>
               </li>
             ))}
@@ -202,10 +125,6 @@ export default function StaffPage() {
           editing={form.editing}
           onClose={() => setForm(null)}
         />
-      )}
-
-      {passwordFor && (
-        <PopupChangePassword member={passwordFor} onClose={() => setPasswordFor(null)} />
       )}
     </div>
   );

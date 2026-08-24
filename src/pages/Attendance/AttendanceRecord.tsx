@@ -89,8 +89,6 @@ export default function AttendanceRecord() {
                   </p>
                   <p className="text-xs text-primary-dark/70 dark:text-primary/70">
                     {session.halaqa}
-                    {session.teacherStatus === "absent" &&
-                      ` · ${t("attendanceRecord.teacherAbsent")}`}
                   </p>
                 </div>
 

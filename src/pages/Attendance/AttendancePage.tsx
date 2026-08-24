@@ -126,7 +126,6 @@ function AttendanceSheetForm({
   const [statuses, setStatuses] = useState<Record<number, AttendanceStatus>>(() =>
     Object.fromEntries(sheet.students.map((s) => [s.id, s.status]))
   );
-  const [teacherStatus, setTeacherStatus] = useState<"present" | "absent">(sheet.teacherStatus);
   const [saved, setSaved] = useState(false);
 
   const save = useMutation({
@@ -134,7 +133,8 @@ function AttendanceSheetForm({
       attendanceApi.save({
         halaqaId,
         date,
-        teacherStatus,
+        // الأستاذ لا يُحضَّر: الحقل باقٍ في العقد على الخادم بقيمة ثابتة
+        teacherStatus: "present",
         students: Object.entries(statuses).map(([id, status]) => ({
           id: Number(id),
           status,
@@ -169,27 +169,6 @@ function AttendanceSheetForm({
 
   return (
     <>
-      {/* حالة الأستاذ */}
-      <div className="bg-white dark:bg-dark rounded-xl p-4 mb-6 flex items-center justify-between shadow transition-colors duration-300">
-        <div>
-          <p className="font-semibold text-gray-800 dark:text-white">
-            {t("attendancePage.teacherStatus")}
-          </p>
-          <p className="text-sm text-gray-500 dark:text-gray-300">
-            {t("attendancePage.teacherLabel")}: {sheet.halaqa.teacher || t("common.none")}
-          </p>
-        </div>
-
-        <StatusSwitch
-          present={teacherStatus === "present"}
-          textClass={switchTextClass}
-          onToggle={() => {
-            setTeacherStatus(teacherStatus === "present" ? "absent" : "present");
-            setSaved(false);
-          }}
-        />
-      </div>
-
       {/* الطلاب */}
       <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
         <h2 className="font-bold text-gray-800 dark:text-white">

@@ -1,17 +1,29 @@
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { FaTimes, FaUserPlus, FaUserTie } from "react-icons/fa";
-import { useCreateUser, useHalaqat, useUpdateUser, useUserHalaqat } from "../../lib/api/hooks";
+import { FaEye, FaEyeSlash, FaTimes, FaUserPlus, FaUserTie } from "react-icons/fa";
+import {
+  useCreateUser,
+  useHalaqat,
+  useSetUserPassword,
+  useUpdateUser,
+  useUserHalaqat,
+} from "../../lib/api/hooks";
 import type { Role, StaffUser } from "../../lib/api/types";
+import { useAuth } from "../../context/authContext";
 import { useToast } from "../../shared/toast/toastContext";
+
+/** الحدّ الأدنى عند الإنشاء (يفرضه الخادم على /users). */
+const MIN_CREATE = 4;
+/** الحدّ الأدنى عند تغيير كلمة المرور (يفرضه الخادم على /users/:id/password). */
+const MIN_RESET = 8;
 
 /**
  * نافذة إنشاء/تعديل حساب كادر.
  *
- * كلمة المرور تظهر عند الإنشاء وحده لأن الخادم يشترطها لتفعيل الحساب فوراً؛
- * تغييرها لاحقاً له نافذته المستقلة (PopupChangePassword) عبر مسار
- * PUT /users/:id/password، فلا يُكرَّر الحقل هنا.
+ * عند التعديل تحمل النافذة أيضاً حقل كلمة مرور اختياري: يُترك فارغاً
+ * للإبقاء على القديمة، وإن مُلئ أُرسل بعد حفظ البيانات عبر
+ * PUT /users/:id/password (الخادم لا يعيد التجزئة، فالحقل يبدأ فارغاً دوماً).
  */
 export default function PopupStaffForm({
   onClose,
@@ -25,12 +37,16 @@ export default function PopupStaffForm({
 }) {
   const { t } = useTranslation();
   const { notify } = useToast();
+  const { user } = useAuth();
 
   const isEdit = Boolean(editing);
   const [name, setName] = useState(editing?.name ?? "");
   const [username, setUsername] = useState(editing?.username ?? "");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [visible, setVisible] = useState(false);
   const [role, setRole] = useState<Role>(editing?.role ?? initialRole);
+  const [isActive, setIsActive] = useState(editing ? editing.isActive === 1 : true);
   /** null = لم يلمس المستخدم الرقاقات بعد، فالمعروض هو الإسناد الحالي. */
   const [picked, setPicked] = useState<number[] | null>(null);
 
@@ -52,16 +68,23 @@ export default function PopupStaffForm({
 
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
-  const pending = createUser.isPending || updateUser.isPending;
-  const error = createUser.error ?? updateUser.error;
+  const setUserPassword = useSetUserPassword();
+  const pending = createUser.isPending || updateUser.isPending || setUserPassword.isPending;
+  const error = createUser.error ?? updateUser.error ?? setUserPassword.error;
 
   // المشرف يرى كل الحلقات بحكم دوره، فالإسناد يخصّ الأستاذ وحده
   const needsHalaqat = role === "TEACHER";
+  // المدير لا يعطّل نفسه؛ الخادم يرفض ذلك أيضاً
+  const canToggleActive = isEdit && editing?.id !== user?.id;
 
-  const valid =
-    name.trim().length >= 2 &&
-    username.trim().length >= 3 &&
-    (isEdit || password.length >= 4);
+  const minLength = isEdit ? MIN_RESET : MIN_CREATE;
+  const tooShort = password !== "" && password.length < minLength;
+  const mismatch = isEdit && password !== "" && confirm !== password;
+  const passwordOk = isEdit
+    ? password === "" || (password.length >= MIN_RESET && confirm === password)
+    : password.length >= MIN_CREATE;
+
+  const valid = name.trim().length >= 2 && username.trim().length >= 3 && passwordOk;
 
   const toggleHalaqa = (id: number) => {
     setPicked((prev) => {
@@ -80,10 +103,16 @@ export default function PopupStaffForm({
           name: name.trim(),
           username: username.trim(),
           role,
+          ...(canToggleActive ? { is_active: isActive } : {}),
           // الإرسال استبدال كامل، والقائمة محمّلة بالإسناد الحالي فلا يضيع منها شيء.
           // لا تُرسل قبل وصول الإسناد كي لا يُمحى بقائمة فارغة.
           ...(needsHalaqat && assigned.isSuccess ? { halaqaIds } : {}),
         });
+        // كلمة المرور مسار مستقل على الخادم، فتُرسل بعد نجاح حفظ البيانات
+        if (password !== "") {
+          await setUserPassword.mutateAsync({ id: editing.id, password });
+          notify(t("staff.passwordChanged", { name: name.trim() }));
+        }
         notify(t("staff.updated"));
       } else {
         await createUser.mutateAsync({
@@ -172,22 +201,52 @@ export default function PopupStaffForm({
           />
         </div>
 
-        {/* كلمة المرور — عند الإنشاء فقط؛ تغييرها لاحقاً من زر «تغيير كلمة المرور» */}
-        {!isEdit && (
-          <div>
-            <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">
-              {t("staff.password")}
-            </label>
+        {/* كلمة المرور — مطلوبة عند الإنشاء، اختيارية عند التعديل */}
+        <div>
+          <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">
+            {isEdit ? t("staff.newPasswordOptional") : t("staff.password")}
+          </label>
+          <div className="relative">
             <input
-              type="password"
+              type={visible ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="new-password"
+              placeholder={isEdit ? t("staff.passwordKeepHint") : undefined}
               className={fieldClass}
             />
-            {password !== "" && password.length < 4 && (
+            <button
+              type="button"
+              onClick={() => setVisible((v) => !v)}
+              aria-label={t(visible ? "staff.hidePassword" : "staff.showPassword")}
+              className="absolute inset-y-0 end-3 flex items-center text-gray-400 transition hover:text-gray-600 dark:hover:text-gray-200"
+            >
+              {visible ? <FaEyeSlash /> : <FaEye />}
+            </button>
+          </div>
+          {tooShort && (
+            <p className="mt-1 text-xs font-semibold text-red-600 dark:text-red-400">
+              {isEdit ? t("staff.passwordMinEight") : t("staff.passwordTooShort")}
+            </p>
+          )}
+        </div>
+
+        {/* التأكيد — يظهر عند التعديل فور كتابة كلمة مرور جديدة */}
+        {isEdit && password !== "" && (
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">
+              {t("staff.confirmPassword")}
+            </label>
+            <input
+              type={visible ? "text" : "password"}
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              autoComplete="new-password"
+              className={fieldClass}
+            />
+            {mismatch && (
               <p className="mt-1 text-xs font-semibold text-red-600 dark:text-red-400">
-                {t("staff.passwordTooShort")}
+                {t("staff.passwordMismatch")}
               </p>
             )}
           </div>
@@ -228,6 +287,19 @@ export default function PopupStaffForm({
           </div>
         )}
 
+        {/* تفعيل/تعطيل الحساب */}
+        {canToggleActive && (
+          <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+            <input
+              type="checkbox"
+              checked={isActive}
+              onChange={(e) => setIsActive(e.target.checked)}
+              className="size-4 accent-emerald-600"
+            />
+            {t("staff.accountActive")}
+          </label>
+        )}
+
         {error && (
           <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:bg-red-900/20 dark:text-red-400">
             {error instanceof Error ? error.message : t("state.error")}
@@ -245,7 +317,7 @@ export default function PopupStaffForm({
           </button>
           <button
             type="button"
-            onClick={submit}
+            onClick={() => void submit()}
             disabled={!valid || pending}
             className="rounded-xl bg-emerald-600 px-5 py-2 font-bold text-white transition hover:bg-emerald-700 disabled:opacity-50"
           >
