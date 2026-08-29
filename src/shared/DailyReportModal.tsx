@@ -22,6 +22,8 @@ const A4_WIDTH = 794;
 const A4_HEIGHT = 1123;
 /** هامش الورقة من كل جهة. */
 const A4_PADDING = 32;
+/** عرض محتوى الورقة داخل الهوامش — ثابت بالبكسل لا بالنسبة. */
+const CONTENT_WIDTH = A4_WIDTH - A4_PADDING * 2;
 
 /**
  * تقرير اليوم لحلقة واحدة، جاهزاً للإرسال إلى مجموعة الأهالي.
@@ -88,13 +90,20 @@ export default function DailyReportModal({ onClose }: { onClose: () => void }) {
       return null;
     }
 
-    // التصغير يُطبَّق على العنصر مباشرةً لا عبر الحالة: الالتقاط يلي
-    // القياس فوراً، فلا ننتظر دورة رسم جديدة قد تلتقط قبل تطبيقها.
+    /*
+     * التصغير يُطبَّق على العنصر مباشرةً لا عبر الحالة: الالتقاط يلي
+     * القياس فوراً، فلا ننتظر دورة رسم جديدة قد تلتقط قبل تطبيقها.
+     *
+     * نقطة الأصل «أعلى اليسار» دائماً حتى في العربية: html-to-image يلتقط
+     * من (0,0) يساراً، والحاوية الخارجية dir="ltr" لهذا السبب. توسيع
+     * العرض بالبكسل لا بالنسبة المئوية، فيفيض المحتوى يميناً — داخل مدى
+     * الالتقاط — ثم يعيده التصغير إلى عرض الورقة بالضبط.
+     */
     const available = A4_HEIGHT - A4_PADDING * 2;
     const scale = Math.min(1, available / content.scrollHeight);
+    content.style.transformOrigin = "top left";
     content.style.transform = `scale(${scale})`;
-    content.style.transformOrigin = i18n.language === "ar" ? "top right" : "top left";
-    content.style.width = `${100 / scale}%`;
+    content.style.width = `${CONTENT_WIDTH / scale}px`;
 
     try {
       const dataUrl = await toPng(node, {
@@ -212,9 +221,14 @@ export default function DailyReportModal({ onClose }: { onClose: () => void }) {
             {exporting && (
               <div
                 aria-hidden
-                className="pointer-events-none fixed top-0 overflow-hidden bg-white"
+                // dir="ltr" مقصود: html-to-image يلتقط انطلاقاً من (0,0)
+                // يساراً، وحاوية RTL تزيح المحتوى يميناً فتخرج الصورة
+                // مقصوصة على آخر عمود. الاتجاه العربي يعود في الداخل.
+                dir="ltr"
+                className="pointer-events-none fixed overflow-hidden bg-white"
                 style={{
-                  insetInlineStart: 0,
+                  top: 0,
+                  left: 0,
                   // خلف بطاقة النافذة وأمام خلفيتها المعتمة: يُرسم فعلاً
                   // ولا يحجب ما يقرأه المستخدم أثناء التجهيز
                   zIndex: -1,
@@ -223,7 +237,15 @@ export default function DailyReportModal({ onClose }: { onClose: () => void }) {
                 }}
                 ref={exportRef}
               >
-                <div ref={contentRef} style={{ padding: `${A4_PADDING}px` }}>
+                <div
+                  ref={contentRef}
+                  dir={i18n.language === "ar" ? "rtl" : "ltr"}
+                  style={{
+                    width: `${CONTENT_WIDTH}px`,
+                    margin: `${A4_PADDING}px`,
+                    backgroundColor: "#ffffff",
+                  }}
+                >
                   <ReportSheet data={report.data} print />
                 </div>
               </div>
