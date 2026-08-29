@@ -53,8 +53,9 @@ export const config = {
   /**
    * نقاط تُمنح تلقائياً.
    *
-   * نقاط التسميع لكل صفحة كاملة؛ ما دونها أو فوقها يُضرب بعدد الصفحات
-   * (نصف صفحة = ×0.5، أكثر من صفحة = عدد الصفحات، السورة = وزنها في surahs).
+   * نقاط التسميع مقدّرة لصفحة كاملة، وتُضرب بحجم المُسمَّع بالصفحات:
+   * صفحة كاملة = ×1، أكثر من صفحة = عدد الصفحات، السورة = وزنها في
+   * `surahs.ts` (كسر للسور القصيرة).
    */
   pointRules: {
     attendancePresent: Number(process.env.POINTS_ATTENDANCE ?? 10),
@@ -64,7 +65,10 @@ export const config = {
       good: Number(process.env.POINTS_RECITATION_GOOD ?? 25),
       needs: Number(process.env.POINTS_RECITATION_NEEDS ?? 20),
     },
-    /** حدّ أدنى لأي تسميع مقبول مهما صغر المقدار (سور قصيرة جداً). */
-    recitationMin: Number(process.env.POINTS_RECITATION_MIN ?? 5),
+    /**
+     * حدّ أدنى لأي تسميع مقبول — يمنع الخروج بصفر بعد التقريب وحسب،
+     * فالنقاط تبقى متناسبة مع حجم السورة كما هو مطلوب.
+     */
+    recitationMin: Number(process.env.POINTS_RECITATION_MIN ?? 1),
   },
 };

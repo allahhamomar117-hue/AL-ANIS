@@ -51,7 +51,8 @@ const recitationBody = z
     toPage: z.number().int().min(1).max(604).nullable().optional(),
     verse: z.number().int().min(1).nullable().optional(),
     pageCompleted: z.boolean().default(false),
-    rating,
+    /** التقييم الافتراضي «ممتاز» حين لا يرسله العميل. */
+    rating: rating.default("excellent"),
     notes: z.string().max(1000).nullable().optional(),
     recitedAt: isoDate.default(() => today()),
   })

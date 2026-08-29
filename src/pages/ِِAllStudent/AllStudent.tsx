@@ -174,7 +174,8 @@ export default function AllStudent() {
                 </span>
               </div>
 
-              <div className="pt-4">
+              {/* الإجراءات مفصولة بخط خفيف كي لا تلتصق ببيانات البطاقة */}
+              <div className="mt-4 border-t pt-3 dark:border-gray-700">
                 <ActionButtons
                   student={s}
                   canManage={canManageStudents}
@@ -306,17 +307,29 @@ function ActionButtons({
   small?: boolean;
 }) {
   const { t } = useTranslation();
-  // 44px حدّ أدنى لكل هدف لمس على الجوال
-  const iconSize = small ? "size-11" : "size-10";
+
+  /*
+   * الجوال (small): الأزرار صف واحد متساوي العرض يتوسّط البطاقة، بارتفاع
+   * 44px — أدنى هدف لمس مريح — وبلا التفاف مهما ضاقت الشاشة.
+   * الجدول: أيقونات مربّعة متراصة في عمود الإجراءات.
+   */
+  const button = small
+    ? "h-11 flex-1 basis-0 min-w-0 max-w-[96px]"
+    : "size-10 shrink-0";
+  const row = small
+    ? "flex flex-row flex-nowrap items-center justify-center gap-3"
+    : "flex flex-row flex-nowrap items-center gap-2";
+  const base = "rounded-xl flex items-center justify-center active:scale-95 transition";
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className={row}>
       <button
         onClick={onView}
         aria-label={t("allStudents.actions")}
-        className={`${iconSize} rounded-xl bg-slate-100 dark:bg-gray-700 flex items-center justify-center active:scale-95 transition`}
+        title={t("allStudents.actions")}
+        className={`${button} ${base} bg-slate-100 dark:bg-gray-700`}
       >
-        <MdVisibility className="text-lg text-gray-800 dark:text-white" />
+        <MdVisibility className="text-xl text-gray-800 dark:text-white" />
       </button>
 
       {canManage && (
@@ -324,17 +337,19 @@ function ActionButtons({
           <button
             onClick={() => onPopup("edit", student)}
             aria-label={t("allStudents.editStudent")}
-            className={`${iconSize} rounded-xl bg-blue-100 dark:bg-blue-700 flex items-center justify-center active:scale-95 transition`}
+            title={t("allStudents.editStudent")}
+            className={`${button} ${base} bg-blue-100 dark:bg-blue-700`}
           >
-            <MdEdit className="text-lg text-blue-800 dark:text-white" />
+            <MdEdit className="text-xl text-blue-800 dark:text-white" />
           </button>
 
           <button
             onClick={() => onPopup("delete", student)}
             aria-label={t("allStudents.deleteStudent")}
-            className={`${iconSize} rounded-xl bg-red-100 dark:bg-red-700 flex items-center justify-center active:scale-95 transition`}
+            title={t("allStudents.deleteStudent")}
+            className={`${button} ${base} bg-red-100 dark:bg-red-700`}
           >
-            <MdDelete className="text-lg text-red-800 dark:text-white" />
+            <MdDelete className="text-xl text-red-800 dark:text-white" />
           </button>
         </>
       )}
