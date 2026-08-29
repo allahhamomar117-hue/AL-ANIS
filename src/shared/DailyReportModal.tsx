@@ -8,11 +8,20 @@ import { reportsApi } from "../lib/api";
 import { qk } from "../lib/api/queryKeys";
 import { useHalaqat } from "../lib/api/hooks";
 import { useCurrentHalaqa } from "../lib/api/useCurrentHalaqa";
-import type { DailyReportStudent } from "../lib/api/types";
+import type { DailyReport, DailyReportStudent } from "../lib/api/types";
 import { surahName } from "../lib/quran/surahs";
 import { formatDate, todayLocal } from "../lib/format/date";
 import { ErrorState, LoadingState } from "./QueryState";
 import { useToast } from "./toast/toastContext";
+
+/**
+ * أبعاد ورقة A4 بدقة 96dpi — مقاس الصورة المصدَّرة دائماً، مهما قلّ
+ * عدد الطلاب أو كثر، كي تخرج التقارير كلها بشكل واحد.
+ */
+const A4_WIDTH = 794;
+const A4_HEIGHT = 1123;
+/** هامش الورقة من كل جهة. */
+const A4_PADDING = 32;
 
 /**
  * تقرير اليوم لحلقة واحدة، جاهزاً للإرسال إلى مجموعة الأهالي.
@@ -38,18 +47,10 @@ export default function DailyReportModal({ onClose }: { onClose: () => void }) {
     enabled: halaqaId !== "",
   });
 
-  const describeRecitation = (student: DailyReportStudent) =>
-    student.recitations
-      .map((r) => {
-        const surah = surahName(r.surahNumber);
-        if (surah) return t("dailyReport.surah", { surah });
-        if (r.type === "more" && r.toPage)
-          return t("dailyReport.pageRange", { from: r.pageNumber, to: r.toPage });
-        return t("dailyReport.page", { page: r.pageNumber });
-      })
-      .join(" + ");
-
-  const sheetRef = useRef<HTMLDivElement>(null);
+  /** ورقة التصدير المخفية بمقاس A4 — هي وحدها ما يُلتقط. */
+  const exportRef = useRef<HTMLDivElement>(null);
+  /** محتوى الورقة داخلها — يُقاس ليُصغَّر إن تجاوز ارتفاع الصفحة. */
+  const contentRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
 
   /** اسم ملف آمن: يُبقي الحروف والأرقام والمسافات فقط، ويذكر الحلقة والتاريخ. */
@@ -59,17 +60,36 @@ export default function DailyReportModal({ onClose }: { onClose: () => void }) {
   /**
    * تصدير ورقة التقرير صورةً وتنزيلها.
    *
+   * تُلتقط الحاوية المخفية لا نافذة العرض: النافذة تمرّر عمودياً وأفقياً،
+   * فكان الالتقاط يخرج مقصوصاً بأشرطة تمرير وبعدد طلاب ناقص. الحاوية
+   * المخفية بمقاس A4 ثابت، بلا overflow ولا ارتفاع أقصى، فتضم الطلاب كلهم.
+   *
+   * إن طال الجدول عن الصفحة (حلقة كبيرة) يُصغَّر المحتوى بمعامل واحد
+   * محسوب من ارتفاعه الفعلي، فتبقى الورقة A4 ويبقى كل طالب ظاهراً.
+   *
    * html-to-image يرسم العنصر عبر foreignObject فيحترم CSS كما هو
    * (بما فيه ألوان Tailwind بصيغة oklch)، وpixelRatio 2 يعطي وضوحاً
    * كافياً للقراءة على الجوال.
    */
   const downloadImage = async (halaqa: string) => {
-    const node = sheetRef.current;
-    if (!node || exporting) return null;
+    const node = exportRef.current;
+    const content = contentRef.current;
+    if (!node || !content || exporting) return null;
 
     setExporting(true);
+
+    // التصغير يُطبَّق على العنصر مباشرةً لا عبر الحالة: الالتقاط يلي
+    // القياس فوراً، فلا ننتظر دورة رسم جديدة قد تلتقط قبل تطبيقها.
+    const available = A4_HEIGHT - A4_PADDING * 2;
+    const scale = Math.min(1, available / content.scrollHeight);
+    content.style.transform = `scale(${scale})`;
+    content.style.transformOrigin = i18n.language === "ar" ? "top right" : "top left";
+    content.style.width = `${100 / scale}%`;
+
     try {
       const dataUrl = await toPng(node, {
+        width: A4_WIDTH,
+        height: A4_HEIGHT,
         pixelRatio: 2,
         backgroundColor: "#ffffff",
         cacheBust: true,
@@ -85,6 +105,8 @@ export default function DailyReportModal({ onClose }: { onClose: () => void }) {
       notify(t("dailyReport.imageFailed"), "error");
       return null;
     } finally {
+      content.style.transform = "";
+      content.style.width = "";
       setExporting(false);
     }
   };
@@ -99,15 +121,6 @@ export default function DailyReportModal({ onClose }: { onClose: () => void }) {
 
     const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
     window.open(isMobile ? "whatsapp://send" : "https://web.whatsapp.com/", "_blank");
-  };
-
-  /** ألوان الحالة داخل الورقة — بلا dark: لأن خلفية الورقة بيضاء في الوضعين. */
-  const statusChip = (status: DailyReportStudent["status"]) => {
-    if (!status) return "bg-gray-100 text-gray-500";
-    if (status === "present") return "bg-emerald-100 text-emerald-800";
-    if (status === "late") return "bg-amber-100 text-amber-800";
-    if (status === "excused") return "bg-sky-100 text-sky-800";
-    return "bg-red-100 text-red-800";
   };
 
   return createPortal(
@@ -171,118 +184,27 @@ export default function DailyReportModal({ onClose }: { onClose: () => void }) {
               </p>
             )}
 
-            {/* ورقة المتابعة: خلفية بيضاء ثابتة في الوضعين، فهي تُقرأ كورقة رسمية */}
+            {/* المعاينة على الشاشة: تمرّر أفقياً على الجوال ولا تُلتقط */}
+            <div className="overflow-hidden rounded-xl border border-gray-300 bg-white shadow-sm">
+              <ReportSheet data={report.data} />
+            </div>
+
+            {/*
+              ورقة التصدير: خارج الشاشة لا مخفية بـ display:none — العنصر
+              المخفي بلا صندوق تخطيط فيخرج فارغاً من html-to-image.
+            */}
             <div
-              ref={sheetRef}
-              className="overflow-hidden rounded-xl border border-gray-300 bg-white shadow-sm"
+              aria-hidden
+              className="pointer-events-none fixed top-0 -z-10 overflow-hidden bg-white"
+              style={{
+                insetInlineStart: `-${A4_WIDTH * 2}px`,
+                width: `${A4_WIDTH}px`,
+                height: `${A4_HEIGHT}px`,
+              }}
+              ref={exportRef}
             >
-              <div className="border-b border-gray-300 px-4 py-3 text-center">
-                <p className="text-base font-bold text-gray-800">
-                  {t("dailyReport.sheetTitle", { halaqa: report.data.halaqa.name })}
-                </p>
-                <p className="mt-0.5 text-xs text-gray-500">
-                  {formatDate(report.data.date, i18n.language)}
-                  {report.data.halaqa.teacher ? ` · ${report.data.halaqa.teacher}` : ""}
-                </p>
-              </div>
-
-              {/* الجدول يمرّر أفقياً على الجوال بدل أن يكسر عرض النافذة */}
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[520px] border-collapse text-sm">
-                  <thead>
-                    <tr className="bg-gray-100 text-gray-700">
-                      <th className="border-b border-gray-300 px-3 py-2 text-start font-bold">
-                        {t("dailyReport.columns.student")}
-                      </th>
-                      <th className="border-b border-s border-gray-300 px-3 py-2 text-center font-bold">
-                        {t("dailyReport.columns.attendance")}
-                      </th>
-                      <th className="border-b border-s border-gray-300 px-3 py-2 text-center font-bold">
-                        {t("dailyReport.columns.participation")}
-                      </th>
-                      <th className="border-b border-s border-gray-300 px-3 py-2 text-start font-bold">
-                        {t("dailyReport.columns.recitation")}
-                      </th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {report.data.students.map((student, index) => {
-                      const recitation = describeRecitation(student);
-                      const ratings = [...new Set(student.recitations.map((r) => r.rating))];
-
-                      return (
-                        <tr key={student.id} className={index % 2 ? "bg-gray-50" : "bg-white"}>
-                          <td className="border-b border-gray-200 px-3 py-2 font-semibold text-gray-800">
-                            {student.name}
-                          </td>
-
-                          <td className="border-b border-s border-gray-200 px-3 py-2 text-center">
-                            <span
-                              className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-bold ${statusChip(student.status)}`}
-                            >
-                              {student.status
-                                ? t(`attendanceStatus.${student.status}`)
-                                : t("dailyReport.noStatus")}
-                            </span>
-                          </td>
-
-                          {/*
-                            العمود يجمع حركات النقاط اليدوية لليوم، وهي
-                            مكافآت وحسومات معاً. الشرط `> 0` وحده كان يُخفي
-                            الحسم فيصل التقرير إلى الأهالي ناقصاً، فنعرض
-                            الإشارتين ونميّزهما باللون.
-                          */}
-                          <td className="border-b border-s border-gray-200 px-3 py-2 text-center font-bold">
-                            {student.participation > 0 && (
-                              <span className="text-emerald-700">+{student.participation}</span>
-                            )}
-                            {student.participation < 0 && (
-                              <span className="text-red-700">−{Math.abs(student.participation)}</span>
-                            )}
-                            {student.participation === 0 && (
-                              <span className="font-normal text-gray-400">—</span>
-                            )}
-                          </td>
-
-                          <td className="border-b border-s border-gray-200 px-3 py-2 text-gray-700">
-                            {recitation ? (
-                              <span>
-                                {recitation}
-                                {ratings.length > 0 && (
-                                  <span className="text-xs text-gray-500">
-                                    {" · "}
-                                    {ratings
-                                      .map((rating) =>
-                                        t(
-                                          `recitationRegistration.ratings.${rating === "needs" ? "average" : rating}`
-                                        )
-                                      )
-                                      .join(" / ")}
-                                  </span>
-                                )}
-                              </span>
-                            ) : (
-                              <span className="text-gray-400">{t("dailyReport.noRecitation")}</span>
-                            )}
-                          </td>
-
-                        </tr>
-                      );
-                    })}
-
-                    {report.data.students.length === 0 && (
-                      <tr>
-                        <td
-                          colSpan={4}
-                          className="px-3 py-10 text-center text-sm text-gray-400"
-                        >
-                          {t("allStudents.noStudents")}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+              <div ref={contentRef} style={{ padding: `${A4_PADDING}px` }}>
+                <ReportSheet data={report.data} print />
               </div>
             </div>
 
@@ -315,5 +237,149 @@ export default function DailyReportModal({ onClose }: { onClose: () => void }) {
       </div>
     </div>,
     document.body
+  );
+}
+
+/* ================= ورقة المتابعة ================= */
+
+/**
+ * جدول التقرير — بخلفية بيضاء ثابتة في الوضعين، فهو يُقرأ كورقة رسمية.
+ *
+ * `print`: نسخة التصدير — بلا تمرير أفقي ولا عرض أدنى يفرض القص،
+ * وبعدّاد الطلاب في الترويسة كي يتأكد قارئ الصورة أنّها كاملة.
+ */
+function ReportSheet({ data, print }: { data: DailyReport; print?: boolean }) {
+  const { t, i18n } = useTranslation();
+
+  const describeRecitation = (student: DailyReportStudent) =>
+    student.recitations
+      .map((r) => {
+        const surah = surahName(r.surahNumber);
+        if (surah) return t("dailyReport.surah", { surah });
+        if (r.type === "more" && r.toPage)
+          return t("dailyReport.pageRange", { from: r.pageNumber, to: r.toPage });
+        return t("dailyReport.page", { page: r.pageNumber });
+      })
+      .join(" + ");
+
+  /** ألوان الحالة داخل الورقة — بلا dark: لأن خلفية الورقة بيضاء في الوضعين. */
+  const statusChip = (status: DailyReportStudent["status"]) => {
+    if (!status) return "bg-gray-100 text-gray-500";
+    if (status === "present") return "bg-emerald-100 text-emerald-800";
+    if (status === "late") return "bg-amber-100 text-amber-800";
+    if (status === "excused") return "bg-sky-100 text-sky-800";
+    return "bg-red-100 text-red-800";
+  };
+
+  return (
+    <div className={print ? "w-full bg-white" : ""} dir={i18n.language === "ar" ? "rtl" : "ltr"}>
+      <div className="border-b border-gray-300 px-4 py-3 text-center">
+        <p className="text-base font-bold text-gray-800">
+          {t("dailyReport.sheetTitle", { halaqa: data.halaqa.name })}
+        </p>
+        <p className="mt-0.5 text-xs text-gray-500">
+          {formatDate(data.date, i18n.language)}
+          {data.halaqa.teacher ? ` · ${data.halaqa.teacher}` : ""}
+          {print ? ` · ${t("dailyReport.studentCount", { count: data.students.length })}` : ""}
+        </p>
+      </div>
+
+      {/* على الشاشة يمرّر الجدول أفقياً؛ في التصدير لا تمرير ولا عرض أدنى */}
+      <div className={print ? "" : "overflow-x-auto"}>
+        <table
+          className={`w-full border-collapse text-sm ${print ? "table-fixed" : "min-w-[520px]"}`}
+        >
+          <thead>
+            <tr className="bg-gray-100 text-gray-700">
+              <th className="border-b border-gray-300 px-3 py-2 text-start font-bold">
+                {t("dailyReport.columns.student")}
+              </th>
+              <th className="border-b border-s border-gray-300 px-3 py-2 text-center font-bold">
+                {t("dailyReport.columns.attendance")}
+              </th>
+              <th className="border-b border-s border-gray-300 px-3 py-2 text-center font-bold">
+                {t("dailyReport.columns.participation")}
+              </th>
+              <th className="border-b border-s border-gray-300 px-3 py-2 text-start font-bold">
+                {t("dailyReport.columns.recitation")}
+              </th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {data.students.map((student, index) => {
+              const recitation = describeRecitation(student);
+              const ratings = [...new Set(student.recitations.map((r) => r.rating))];
+
+              return (
+                <tr key={student.id} className={index % 2 ? "bg-gray-50" : "bg-white"}>
+                  <td className="border-b border-gray-200 px-3 py-2 font-semibold text-gray-800">
+                    {student.name}
+                  </td>
+
+                  <td className="border-b border-s border-gray-200 px-3 py-2 text-center">
+                    <span
+                      className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-bold ${statusChip(student.status)}`}
+                    >
+                      {student.status
+                        ? t(`attendanceStatus.${student.status}`)
+                        : t("dailyReport.noStatus")}
+                    </span>
+                  </td>
+
+                  {/*
+                    العمود يجمع حركات النقاط اليدوية لليوم، وهي
+                    مكافآت وحسومات معاً. الشرط `> 0` وحده كان يُخفي
+                    الحسم فيصل التقرير إلى الأهالي ناقصاً، فنعرض
+                    الإشارتين ونميّزهما باللون.
+                  */}
+                  <td className="border-b border-s border-gray-200 px-3 py-2 text-center font-bold">
+                    {student.participation > 0 && (
+                      <span className="text-emerald-700">+{student.participation}</span>
+                    )}
+                    {student.participation < 0 && (
+                      <span className="text-red-700">−{Math.abs(student.participation)}</span>
+                    )}
+                    {student.participation === 0 && (
+                      <span className="font-normal text-gray-400">—</span>
+                    )}
+                  </td>
+
+                  <td className="border-b border-s border-gray-200 px-3 py-2 text-gray-700">
+                    {recitation ? (
+                      <span>
+                        {recitation}
+                        {ratings.length > 0 && (
+                          <span className="text-xs text-gray-500">
+                            {" · "}
+                            {ratings
+                              .map((rating) =>
+                                t(
+                                  `recitationRegistration.ratings.${rating === "needs" ? "average" : rating}`
+                                )
+                              )
+                              .join(" / ")}
+                          </span>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">{t("dailyReport.noRecitation")}</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+
+            {data.students.length === 0 && (
+              <tr>
+                <td colSpan={4} className="px-3 py-10 text-center text-sm text-gray-400">
+                  {t("allStudents.noStudents")}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }

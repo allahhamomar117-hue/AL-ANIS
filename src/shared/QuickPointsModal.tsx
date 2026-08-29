@@ -241,22 +241,21 @@ export default function QuickPointsModal({
 
         {/* المقدار */}
         <div>
-          <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">
-            {t("quickPoints.amount")}
-          </label>
-          {/* الخصم: الحقل للعرض فقط — القيمة تأتي من الأزرار وحدها */}
-          <input
-            type="number"
-            min={1}
-            value={amount}
-            onChange={(e) => setAmount(e.target.value === "" ? "" : Number(e.target.value))}
-            readOnly={amountLocked}
-            aria-readonly={amountLocked}
-            title={amountLocked ? t("quickPoints.deductLocked") : undefined}
-            className={`${fieldClass} ${
-              amountLocked ? "cursor-not-allowed bg-gray-100 dark:bg-gray-700" : ""
-            }`}
-          />
+          {/* الخصم: لا حقل إدخال — القيمة تأتي من الأزرار وحدها */}
+          {!amountLocked && (
+            <>
+              <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                {t("quickPoints.amount")}
+              </label>
+              <input
+                type="number"
+                min={1}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value === "" ? "" : Number(e.target.value))}
+                className={fieldClass}
+              />
+            </>
+          )}
 
           {/* اختصارات شائعة تختصر الكتابة اليومية */}
           <div className="mt-2 flex gap-2">

@@ -562,6 +562,7 @@
     "downloadImage": "Download as image 📸",
     "preparing": "Preparing image…",
     "imageFailed": "Could not create the image",
-    "shareNotice": "The report is saved as an image on your device; attach it in the parents group on WhatsApp."
+    "shareNotice": "The report is saved as an image on your device; attach it in the parents group on WhatsApp.",
+    "studentCount": "Students: {{count}}"
   }
 }
