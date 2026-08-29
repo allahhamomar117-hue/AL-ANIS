@@ -176,6 +176,8 @@ export interface DailyReportStudent {
   points: number;
   /** نقاط المشاركة اليدوية الممنوحة اليوم (من "نقاط سريعة"). */
   participation: number;
+  /** حركات تلك النقاط بأسبابها، لتُعرض مع المجموع لا مجرّدةً منه. */
+  participationEntries: { studentId: number; delta: number; reason: string | null }[];
   recitations: {
     studentId: number;
     type: RecitationType;

@@ -326,6 +326,25 @@ function ReportSheet({ data, print }: { data: DailyReport; print?: boolean }) {
       })
       .join(" + ");
 
+  /**
+   * أسباب حركات النقاط اليدوية لليوم، مدموجة بفاصل واحد.
+   *
+   * الحركة بلا سبب تُتجاهَل لا تُعرض فارغة، والسبب المكرَّر يُذكر مرة
+   * واحدة (مكافأتان بالسبب نفسه لا تعنيان سطرين). ومع أكثر من حركة
+   * تُذكر قيمة كل واحدة قبل سببها كي يُعرف مصدر المجموع.
+   */
+  const describeReasons = (student: DailyReportStudent) => {
+    const entries = (student.participationEntries ?? []).filter((e) => e.reason?.trim());
+    if (entries.length === 0) return "";
+
+    const parts = entries.map((entry) =>
+      entries.length > 1
+        ? `${entry.delta > 0 ? "+" : "−"}${Math.abs(entry.delta)} ${entry.reason!.trim()}`
+        : entry.reason!.trim()
+    );
+    return [...new Set(parts)].join(" · ");
+  };
+
   /** ألوان الحالة داخل الورقة — بلا dark: لأن خلفية الورقة بيضاء في الوضعين. */
   const statusChip = (status: DailyReportStudent["status"]) => {
     if (!status) return "bg-gray-100 text-gray-500";
@@ -379,6 +398,7 @@ function ReportSheet({ data, print }: { data: DailyReport; print?: boolean }) {
             {data.students.map((student, index) => {
               const recitation = describeRecitation(student);
               const ratings = [...new Set(student.recitations.map((r) => r.rating))];
+              const reasons = describeReasons(student);
 
               return (
                 <tr
@@ -423,6 +443,13 @@ function ReportSheet({ data, print }: { data: DailyReport; print?: boolean }) {
                     )}
                     {student.participation === 0 && (
                       <span className="font-normal text-gray-400">—</span>
+                    )}
+
+                    {/* الأسباب أسفل الرقم: أصغر وأبهت كي لا يزدحم العمود */}
+                    {reasons && (
+                      <span className="mt-0.5 block text-[10px] font-normal leading-snug text-gray-500">
+                        {reasons}
+                      </span>
                     )}
                   </td>
 

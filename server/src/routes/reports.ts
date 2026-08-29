@@ -345,6 +345,22 @@ reportsRouter.get(
       [id, date]
     );
 
+    // حركات النقاط اليدوية بأسبابها: المجموع وحده كان يصل إلى الأهالي
+    // رقماً بلا تفسير، و"‏+10" بلا سبب لا يقول شيئاً لوليّ الأمر.
+    const manualPoints = await db().all<{
+      studentId: number;
+      delta: number;
+      reason: string | null;
+    }>(
+      `SELECT pt.student_id AS "studentId", pt.delta, pt.reason
+       FROM point_transactions pt
+       JOIN students s ON s.id = pt.student_id
+       WHERE s.halaqa_id = ? AND pt.kind = 'manual'
+         AND ${dateOf("pt.created_at")} = ?
+       ORDER BY pt.id`,
+      [id, date]
+    );
+
     res.json({
       data: {
         halaqa,
@@ -353,6 +369,7 @@ reportsRouter.get(
         students: students.map((student) => ({
           ...student,
           recitations: recitations.filter((r) => r.studentId === student.id),
+          participationEntries: manualPoints.filter((p) => p.studentId === student.id),
         })),
       },
     });
