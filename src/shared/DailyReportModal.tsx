@@ -72,11 +72,21 @@ export default function DailyReportModal({ onClose }: { onClose: () => void }) {
    * كافياً للقراءة على الجوال.
    */
   const downloadImage = async (halaqa: string) => {
+    if (exporting) return null;
+
+    // الورقة تُركَّب الآن: التركيب يسبق القياس والالتقاط، فننتظر دورة
+    // رسم كاملة ثم مهلة قصيرة ليكتمل بناء العنصر وتحميل خطوطه.
+    setExporting(true);
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    await document.fonts?.ready;
+
     const node = exportRef.current;
     const content = contentRef.current;
-    if (!node || !content || exporting) return null;
-
-    setExporting(true);
+    if (!node || !content) {
+      setExporting(false);
+      return null;
+    }
 
     // التصغير يُطبَّق على العنصر مباشرةً لا عبر الحالة: الالتقاط يلي
     // القياس فوراً، فلا ننتظر دورة رسم جديدة قد تلتقط قبل تطبيقها.
@@ -184,29 +194,40 @@ export default function DailyReportModal({ onClose }: { onClose: () => void }) {
               </p>
             )}
 
-            {/* المعاينة على الشاشة: تمرّر أفقياً على الجوال ولا تُلتقط */}
-            <div className="overflow-hidden rounded-xl border border-gray-300 bg-white shadow-sm">
+            {/*
+              المعاينة على الشاشة: تمرّر عمودياً لتُقرأ قائمة الطلاب كاملة
+              قبل الحفظ، وأفقياً على الجوال. التمرير هنا وحده — نسخة
+              التصدير أدناه بلا أي تمرير كي تخرج الصورة كاملة.
+            */}
+            <div className="max-h-[45vh] overflow-y-auto rounded-xl border border-gray-300 bg-white shadow-sm">
               <ReportSheet data={report.data} />
             </div>
 
             {/*
-              ورقة التصدير: خارج الشاشة لا مخفية بـ display:none — العنصر
-              المخفي بلا صندوق تخطيط فيخرج فارغاً من html-to-image.
+              ورقة التصدير: تُركَّب لحظة التصدير فقط، وداخل الشاشة لا خارجها.
+              إبعادها آلاف البكسلات جعل المتصفح يتخطّى رسمها توفيراً للأداء،
+              فكانت الصورة تخرج بيضاء. هنا تقع أعلى يمين الشاشة خلف طبقة
+              النافذة المعتمة (z أدنى منها)، فتُرسم فعلاً ولا تُربك المستخدم.
             */}
-            <div
-              aria-hidden
-              className="pointer-events-none fixed top-0 -z-10 overflow-hidden bg-white"
-              style={{
-                insetInlineStart: `-${A4_WIDTH * 2}px`,
-                width: `${A4_WIDTH}px`,
-                height: `${A4_HEIGHT}px`,
-              }}
-              ref={exportRef}
-            >
-              <div ref={contentRef} style={{ padding: `${A4_PADDING}px` }}>
-                <ReportSheet data={report.data} print />
+            {exporting && (
+              <div
+                aria-hidden
+                className="pointer-events-none fixed top-0 overflow-hidden bg-white"
+                style={{
+                  insetInlineStart: 0,
+                  // خلف بطاقة النافذة وأمام خلفيتها المعتمة: يُرسم فعلاً
+                  // ولا يحجب ما يقرأه المستخدم أثناء التجهيز
+                  zIndex: -1,
+                  width: `${A4_WIDTH}px`,
+                  height: `${A4_HEIGHT}px`,
+                }}
+                ref={exportRef}
+              >
+                <div ref={contentRef} style={{ padding: `${A4_PADDING}px` }}>
+                  <ReportSheet data={report.data} print />
+                </div>
               </div>
-            </div>
+            )}
 
             <p className="rounded-xl bg-gray-50 px-4 py-3 text-xs font-semibold text-gray-600 dark:bg-dark-light dark:text-gray-300">
               {t("dailyReport.shareNotice")}
@@ -217,18 +238,18 @@ export default function DailyReportModal({ onClose }: { onClose: () => void }) {
                 type="button"
                 onClick={() => void downloadImage(report.data.halaqa.name)}
                 disabled={exporting}
-                className="flex items-center gap-2 rounded-xl border border-gray-300 px-5 py-2.5 font-bold text-gray-700 transition hover:bg-gray-100 disabled:opacity-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-dark-light"
+                className="flex items-center gap-2 rounded-xl border border-gray-300 px-5 py-2.5 font-bold text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-dark-light"
               >
-                <FaDownload />
-                {t("dailyReport.downloadImage")}
+                {exporting ? <Spinner /> : <FaDownload />}
+                {exporting ? t("dailyReport.preparing") : t("dailyReport.downloadImage")}
               </button>
               <button
                 type="button"
                 onClick={() => void shareOnWhatsApp(report.data.halaqa.name)}
                 disabled={exporting}
-                className="flex items-center gap-2 rounded-xl bg-[#25D366] px-6 py-2.5 font-bold text-white shadow transition hover:brightness-95 disabled:opacity-50"
+                className="flex items-center gap-2 rounded-xl bg-[#25D366] px-6 py-2.5 font-bold text-white shadow transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <FaWhatsapp className="text-lg" />
+                {exporting ? <Spinner /> : <FaWhatsapp className="text-lg" />}
                 {exporting ? t("dailyReport.preparing") : t("dailyReport.share")}
               </button>
             </div>
@@ -237,6 +258,16 @@ export default function DailyReportModal({ onClose }: { onClose: () => void }) {
       </div>
     </div>,
     document.body
+  );
+}
+
+/** دوّارة صغيرة تُظهر أن التقاط الصورة جارٍ. */
+function Spinner() {
+  return (
+    <span
+      aria-hidden
+      className="size-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent"
+    />
   );
 }
 
