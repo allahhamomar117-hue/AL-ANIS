@@ -106,7 +106,6 @@ export default function AllStudent() {
             <thead>
               <tr className="bg-emerald-50 dark:bg-dark-light text-emerald-700 dark:text-white text-sm border-b dark:border-gray-600">
                 <th className="px-6 py-4 font-bold">{t("allStudents.studentName")}</th>
-                <th className="px-6 py-4 font-bold">{t("allStudents.halaqa")}</th>
                 <th className="px-6 py-4 font-bold">{t("allStudents.points")}</th>
                 <th className="px-6 py-4 font-bold text-left">{t("allStudents.actions")}</th>
               </tr>
@@ -125,11 +124,6 @@ export default function AllStudent() {
                         </div>
                       </div>
                     </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="px-3 py-1 rounded-md text-xs bg-emerald-100 dark:bg-gray-700 font-bold text-emerald-700 dark:text-white">
-                      {s.halaqa || t("common.none")}
-                    </span>
                   </td>
                   <td className="px-6 py-4 font-bold text-emerald-700 dark:text-emerald-400">
                     {s.points}
@@ -168,14 +162,8 @@ export default function AllStudent() {
                 </div>
               </div>
 
+              {/* خط الرأس أعلاه يفصلها وحده — بلا حدّ ثانٍ يزدحم به الكرت */}
               <div className="pt-3">
-                <span className="px-3 py-1 rounded-lg bg-emerald-100 dark:bg-gray-700 text-xs font-bold text-emerald-700 dark:text-white">
-                  {s.halaqa || t("common.none")}
-                </span>
-              </div>
-
-              {/* الإجراءات مفصولة بخط خفيف كي لا تلتصق ببيانات البطاقة */}
-              <div className="mt-4 border-t pt-3 dark:border-gray-700">
                 <ActionButtons
                   student={s}
                   canManage={canManageStudents}
@@ -200,17 +188,9 @@ export default function AllStudent() {
         {/* ===== HEADER ===== */}
         <div className="flex flex-col md:flex-row justify-between gap-4 items-start md:items-center">
           <div>
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl md:text-4xl font-bold text-gray-800 dark:text-white">
-                {t("allStudents.title")}
-              </h1>
-              {/* المدرّس يطّلع فقط — نوضّح ذلك بدل ترك الأزرار المفقودة بلا تفسير */}
-              {!canManageStudents && (
-                <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
-                  {t("allStudents.readOnlyBadge")}
-                </span>
-              )}
-            </div>
+            <h1 className="mb-2 text-2xl font-bold text-gray-800 dark:text-white md:text-4xl">
+              {t("allStudents.title")}
+            </h1>
             <p className="text-gray-600 dark:text-gray-300 text-sm md:text-base">
               {canManageStudents
                 ? t("allStudents.subtitle")
