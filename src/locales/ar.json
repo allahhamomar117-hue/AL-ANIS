@@ -440,7 +440,8 @@
     "reasonPlaceholder": "اختياري — مثل: إتقان التسميع",
     "save": "حفظ",
     "close": "إغلاق",
-    "done": "تم: {{name}} ({{delta}}) — الرصيد الآن {{balance}}"
+    "done": "تم: {{name}} ({{delta}}) — الرصيد الآن {{balance}}",
+    "deductLocked": "الخصم من الأزرار فقط: 5 أو 10 نقاط."
   },
   "settingsPage": {
     "title": "الإعدادات",

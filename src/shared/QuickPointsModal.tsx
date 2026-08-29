@@ -19,6 +19,17 @@ const REASON_PRESETS: Record<Operation, string[]> = {
 };
 
 /**
+ * المقادير الجاهزة لكل عملية.
+ *
+ * الخصم مقصور على هذه القيم: الحقل يصبح للقراءة فقط في وضع الخصم،
+ * فلا سبيل إلى مقدار آخر إلا من هذه الأزرار.
+ */
+const AMOUNT_PRESETS: Record<Operation, number[]> = {
+  add: [5, 10, 20, 25],
+  deduct: [5, 10],
+};
+
+/**
  * نافذة النقاط السريعة: اختيار طالب من حلقات المستخدم ثم إضافة أو خصم نقاط
  * دون مغادرة الصفحة الحالية. الخادم يقصر قائمة الطلاب على نطاق المستخدم،
  * فالمدرّس لا يرى إلا طلاب حلقاته.
@@ -61,10 +72,16 @@ export default function QuickPointsModal({
   const list = Array.isArray(students.data?.data) ? students.data.data : [];
   const selected = list.find((s) => s.id === studentId);
 
+  /** الخصم لا يقبل الكتابة اليدوية، فمقداره لا يكون إلا أحد الأزرار. */
+  const amountLocked = operation === "deduct";
+  const presets = AMOUNT_PRESETS[operation];
+
   const positive = typeof amount === "number" && amount > 0;
+  const allowedAmount =
+    positive && (!amountLocked || presets.includes(amount as number));
   const tooMuch =
     operation === "deduct" && positive && selected ? amount > selected.points : false;
-  const valid = studentId !== "" && positive && !tooMuch;
+  const valid = studentId !== "" && allowedAmount && !tooMuch;
 
   /**
    * إغلاق تلقائي بعد ظهور رسالة النجاح.
@@ -89,6 +106,10 @@ export default function QuickPointsModal({
   const switchOperation = (next: Operation) => {
     setOperation(next);
     if (REASON_PRESETS[operation].includes(reason)) setReason("");
+    // مقدار كُتب يدوياً في الإضافة لا يجوز أن يتسلّل إلى الخصم المقيَّد
+    if (typeof amount === "number" && !AMOUNT_PRESETS[next].includes(amount)) {
+      setAmount(next === "deduct" ? "" : amount);
+    }
   };
 
   const submit = async () => {
@@ -223,26 +244,45 @@ export default function QuickPointsModal({
           <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">
             {t("quickPoints.amount")}
           </label>
+          {/* الخصم: الحقل للعرض فقط — القيمة تأتي من الأزرار وحدها */}
           <input
             type="number"
             min={1}
             value={amount}
             onChange={(e) => setAmount(e.target.value === "" ? "" : Number(e.target.value))}
-            className={fieldClass}
+            readOnly={amountLocked}
+            aria-readonly={amountLocked}
+            title={amountLocked ? t("quickPoints.deductLocked") : undefined}
+            className={`${fieldClass} ${
+              amountLocked ? "cursor-not-allowed bg-gray-100 dark:bg-gray-700" : ""
+            }`}
           />
 
           {/* اختصارات شائعة تختصر الكتابة اليومية */}
           <div className="mt-2 flex gap-2">
-            {[5, 10, 20, 50].map((preset) => (
+            {presets.map((preset) => (
               <button
                 key={preset}
+                type="button"
                 onClick={() => setAmount(preset)}
-                className="flex-1 rounded-lg bg-gray-100 py-1.5 text-sm font-bold text-gray-700 transition hover:bg-emerald-100 dark:bg-dark-light dark:text-gray-200 dark:hover:bg-emerald-900/40"
+                className={`flex-1 rounded-lg py-1.5 text-sm font-bold transition ${
+                  amount === preset
+                    ? operation === "add"
+                      ? "bg-emerald-500 text-white shadow"
+                      : "bg-red-500 text-white shadow"
+                    : "bg-gray-100 text-gray-700 hover:bg-emerald-100 dark:bg-dark-light dark:text-gray-200 dark:hover:bg-emerald-900/40"
+                }`}
               >
                 {preset}
               </button>
             ))}
           </div>
+
+          {amountLocked && (
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              {t("quickPoints.deductLocked")}
+            </p>
+          )}
 
           {tooMuch && (
             <p className="mt-2 text-xs font-bold text-red-600 dark:text-red-400">
@@ -250,7 +290,7 @@ export default function QuickPointsModal({
             </p>
           )}
 
-          {selected && positive && !tooMuch && (
+          {selected && allowedAmount && !tooMuch && (
             <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
               {selected.points} {operation === "add" ? "+" : "−"} {amount} ={" "}
               <span className="font-bold text-emerald-700 dark:text-emerald-400">

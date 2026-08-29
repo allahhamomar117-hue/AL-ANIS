@@ -438,7 +438,8 @@
     "reasonPlaceholder": "Optional — e.g. excellent recitation",
     "save": "Save",
     "close": "Close",
-    "done": "Done: {{name}} ({{delta}}) — balance is now {{balance}}"
+    "done": "Done: {{name}} ({{delta}}) — balance is now {{balance}}",
+    "deductLocked": "Deductions come from the buttons only: 5 or 10 points."
   },
   "settingsPage": {
     "title": "Settings",
