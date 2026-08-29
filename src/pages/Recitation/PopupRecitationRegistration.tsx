@@ -6,7 +6,7 @@ import { qk } from "../../lib/api/queryKeys";
 import { useHalaqaStudents, useHalaqat } from "../../lib/api/hooks";
 import { todayLocal } from "../../lib/format/date";
 
-type RecitationType = "full" | "half" | "more";
+type RecitationType = "full" | "more";
 type Rating = "excellent" | "good" | "needs";
 
 interface Props {
@@ -25,8 +25,6 @@ export default function PopupRecitationRegistration({ onClose }: Props) {
   const [recitationType, setRecitationType] = useState<RecitationType>("full");
   const [rating, setRating] = useState<Rating>("good");
   const [pageNumber, setPageNumber] = useState<number | "">("");
-  const [verse, setVerse] = useState<number | "">("");
-  const [pageCompleted, setPageCompleted] = useState(false);
   const [toPage, setToPage] = useState<number | "">("");
   const [recitedAt, setRecitedAt] = useState(todayLocal());
 
@@ -38,8 +36,8 @@ export default function PopupRecitationRegistration({ onClose }: Props) {
         type: recitationType,
         pageNumber: Number(pageNumber),
         toPage: recitationType === "more" ? Number(toPage) : null,
-        verse: recitationType === "half" ? Number(verse) : null,
-        pageCompleted: recitationType === "half" ? pageCompleted : true,
+        verse: null,
+        pageCompleted: true,
         rating,
         recitedAt,
       }),
@@ -56,7 +54,6 @@ export default function PopupRecitationRegistration({ onClose }: Props) {
     studentId !== "" &&
     typeof pageNumber === "number" &&
     pageNumber > 0 &&
-    (recitationType !== "half" || (typeof verse === "number" && verse > 0)) &&
     (recitationType !== "more" || (typeof toPage === "number" && toPage >= pageNumber));
 
   const fieldClass =
@@ -142,9 +139,6 @@ export default function PopupRecitationRegistration({ onClose }: Props) {
             <Button active={recitationType === "full"} onClick={() => setRecitationType("full")}>
               {t("popupRecitation.types.full")}
             </Button>
-            <Button active={recitationType === "half"} onClick={() => setRecitationType("half")}>
-              {t("popupRecitation.types.half")}
-            </Button>
             <Button active={recitationType === "more"} onClick={() => setRecitationType("more")}>
               {t("popupRecitation.types.more")}
             </Button>
@@ -169,35 +163,6 @@ export default function PopupRecitationRegistration({ onClose }: Props) {
           />
         </div>
 
-        {/* نصف صفحة */}
-        {recitationType === "half" && (
-          <div className="mb-4 space-y-2">
-            <div>
-              <label className="block mb-1 font-medium text-gray-700 dark:text-gray-300">
-                {t("popupRecitation.verse")}
-              </label>
-              <input
-                type="number"
-                min={1}
-                value={verse}
-                onChange={(e) => setVerse(numeric(e.target.value))}
-                placeholder={t("popupRecitation.versePlaceholder")}
-                className={fieldClass}
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={pageCompleted}
-                onChange={(e) => setPageCompleted(e.target.checked)}
-                className="w-5 h-5 accent-primary"
-              />
-              <label className="font-medium text-gray-700 dark:text-gray-300">
-                {t("popupRecitation.pageCompleted")}
-              </label>
-            </div>
-          </div>
-        )}
 
         {/* أكثر من صفحة */}
         {recitationType === "more" && (
@@ -230,7 +195,7 @@ export default function PopupRecitationRegistration({ onClose }: Props) {
               {t("recitationRegistration.ratings.good")}
             </Button>
             <Button active={rating === "needs"} onClick={() => setRating("needs")}>
-              {t("recitationRegistration.ratings.needsImprovement")}
+              {t("recitationRegistration.ratings.average")}
             </Button>
           </div>
         </div>

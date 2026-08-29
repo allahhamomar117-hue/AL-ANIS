@@ -93,7 +93,7 @@ INSERT INTO students (id, code, name, halaqa_id, birth_date, student_phone, pare
 -- الأنواع الأربعة كلها ممثَّلة ليُظهر العرض كل مسارات الشاشة:
 --   full  = صفحة كاملة        half  = نصف صفحة (يتطلب رقم آية)
 --   more  = عدّة صفحات (to_page)  surah = سورة من جزء عمّ (surah_number)
--- سور جزء عمّ وصفحاتها مطابقة لـ lib/juzAmma.ts.
+-- سور جزء عمّ وصفحاتها مطابقة لـ lib/surahs.ts.
 INSERT INTO recitations (id, student_id, halaqa_id, type, page_number, to_page, verse, page_completed, surah_number, rating, notes, recited_at, recorded_by, created_at) VALUES
  ( 1,  1, 1, 'full',  582, NULL, NULL, 1, NULL,  'excellent', 'حفظ متقن وأداء واثق',                '2026-08-10', 3, '2026-08-10 16:20:00'),
  ( 2,  1, 1, 'surah', 604, NULL, NULL, 1, 114,   'excellent', NULL,                                  '2026-08-12', 3, '2026-08-12 16:35:00'),

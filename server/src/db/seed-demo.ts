@@ -21,7 +21,7 @@ import { config } from "../config.js";
 import { db, migrate, tx } from "./index.js";
 import { hashPassword } from "../lib/password.js";
 import { recitationPoints } from "../services/points.js";
-import { JUZ_AMMA } from "../lib/juzAmma.js";
+import { JUZ_AMMA } from "../lib/surahs.js";
 
 
 // ── مولّد عشوائي ببذرة ثابتة (mulberry32) ─────────────────────────────

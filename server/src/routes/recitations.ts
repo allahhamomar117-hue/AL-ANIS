@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { db, tx, type SqlParam } from "../db/index.js";
 import { ApiError, asyncHandler, parse } from "../lib/http.js";
-import { JUZ_AMMA_FIRST, JUZ_AMMA_LAST, surahByNumber } from "../lib/juzAmma.js";
+import { SURAH_FIRST, SURAH_LAST, surahByNumber } from "../lib/surahs.js";
 import { idParam, isoDate, pagination, rating, recitationType, today } from "../lib/schemas.js";
 import { addPoints, recitationPoints, revertPointsFor } from "../services/points.js";
 import { applyScope, assertHalaqaAccess, assertStudentAccess } from "../services/scope.js";
@@ -46,7 +46,7 @@ const recitationBody = z
      * رقم السورة عند التسميع بالسور (جزء عمّ). عند إرساله تُشتَقّ الصفحات
      * منه ويصبح pageNumber اختيارياً، فالعميل لا يحتاج جدول صفحات المصحف.
      */
-    surahNumber: z.number().int().min(JUZ_AMMA_FIRST).max(JUZ_AMMA_LAST).nullable().optional(),
+    surahNumber: z.number().int().min(SURAH_FIRST).max(SURAH_LAST).nullable().optional(),
     pageNumber: z.number().int().min(1).max(604).optional(),
     toPage: z.number().int().min(1).max(604).nullable().optional(),
     verse: z.number().int().min(1).nullable().optional(),

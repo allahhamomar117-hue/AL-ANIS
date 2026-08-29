@@ -157,20 +157,17 @@
     "recitationType": "Recitation Type",
     "types": {
       "full": "Full Page",
-      "half": "Half Page",
       "more": "More than a Page",
       "surah": "Surah {{surah}}"
     },
     "pageNumber": "Page Number",
     "fromPage": "From Page",
     "toPage": "To Page",
-    "verse": "Verse Number",
-    "pageCompleted": "Page Completed",
     "studentRating": "Student Rating",
     "ratings": {
       "excellent": "Excellent",
       "good": "Good",
-      "needsImprovement": "Needs Improvement"
+      "average": "Average"
     },
     "teacherNotes": "Teacher Notes",
     "notesPlaceholder": "Write your notes...",
@@ -185,7 +182,7 @@
       "byPage": "By page",
       "bySurah": "By surah"
     },
-    "surah": "Surah (Juz Amma)",
+    "surah": "Surah",
     "chooseSurah": "Choose a surah…"
   },
   "popupRecitation": {
@@ -195,16 +192,12 @@
     "recitationType": "Recitation Type",
     "types": {
       "full": "Full Page",
-      "half": "Half Page",
       "more": "More than a Page"
     },
     "pageNumber": "Page Number",
     "fromPage": "From Page",
     "toPage": "To Page",
     "pagePlaceholder": "Enter page number...",
-    "verse": "Verse Number",
-    "versePlaceholder": "Enter verse number...",
-    "pageCompleted": "Page Completed?",
     "toPagePlaceholder": "Enter last page number...",
     "save": "Save",
     "cancel": "Cancel",

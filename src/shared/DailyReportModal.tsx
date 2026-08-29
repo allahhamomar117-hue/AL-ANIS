@@ -9,7 +9,7 @@ import { qk } from "../lib/api/queryKeys";
 import { useHalaqat } from "../lib/api/hooks";
 import { useCurrentHalaqa } from "../lib/api/useCurrentHalaqa";
 import type { DailyReportStudent } from "../lib/api/types";
-import { surahName } from "../lib/quran/juzAmma";
+import { surahName } from "../lib/quran/surahs";
 import { formatDate, todayLocal } from "../lib/format/date";
 import { ErrorState, LoadingState } from "./QueryState";
 import { useToast } from "./toast/toastContext";
@@ -255,7 +255,7 @@ export default function DailyReportModal({ onClose }: { onClose: () => void }) {
                                     {ratings
                                       .map((rating) =>
                                         t(
-                                          `recitationRegistration.ratings.${rating === "needs" ? "needsImprovement" : rating}`
+                                          `recitationRegistration.ratings.${rating === "needs" ? "average" : rating}`
                                         )
                                       )
                                       .join(" / ")}

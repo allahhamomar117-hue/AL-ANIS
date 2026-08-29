@@ -5,7 +5,7 @@ import { dateOf, greatest } from "../db/sqlfn.js";
 import { ApiError, asyncHandler, parse } from "../lib/http.js";
 import { idParam, isoDate, today } from "../lib/schemas.js";
 import { assertHalaqaAccess, assertStudentAccess, halaqaFilter } from "../services/scope.js";
-import { JUZ_AMMA, surahByNumber } from "../lib/juzAmma.js";
+import { JUZ_AMMA, surahByNumber } from "../lib/surahs.js";
 
 export const reportsRouter = Router();
 

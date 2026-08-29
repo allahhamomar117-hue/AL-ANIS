@@ -8,14 +8,14 @@ import { qk } from "../../lib/api/queryKeys";
 import { useStudent } from "../../lib/api/hooks";
 import Avatar from "../../shared/Avatar";
 import { ErrorState, LoadingState } from "../../shared/QueryState";
-import { JUZ_AMMA } from "../../lib/quran/juzAmma";
+import { SURAHS } from "../../lib/quran/surahs";
 import { formatDate, todayLocal } from "../../lib/format/date";
 import { useToast } from "../../shared/toast/toastContext";
 
 /* ================= TYPES ================= */
-type RecitationType = "full" | "half" | "more" | "surah";
+type RecitationType = "full" | "more" | "surah";
 type Rating = "excellent" | "good" | "needs";
-/** طريقة تحديد المُسمَّع: بالصفحة (كل المصحف) أو بالسورة (جزء عمّ). */
+/** طريقة تحديد المُسمَّع: بالصفحة أو بالسورة — وكلاهما يغطي المصحف كله. */
 type InputMode = "page" | "surah";
 
 /* ================= MAIN ================= */
@@ -44,8 +44,6 @@ export default function RecitationRegistration() {
   const [notes, setNotes] = useState("");
 
   const [pageNumber, setPageNumber] = useState<number | "">("");
-  const [verse, setVerse] = useState<number | "">("");
-  const [pageCompleted, setPageCompleted] = useState(false);
   const [toPage, setToPage] = useState<number | "">("");
 
   const student = useStudent(studentId);
@@ -63,8 +61,8 @@ export default function RecitationRegistration() {
               type: recitationType,
               pageNumber: Number(pageNumber),
               toPage: recitationType === "more" ? Number(toPage) : null,
-              verse: recitationType === "half" ? Number(verse) : null,
-              pageCompleted: recitationType === "half" ? pageCompleted : true,
+              verse: null,
+              pageCompleted: true,
             }),
         rating,
         notes: notes.trim() || null,
@@ -83,13 +81,11 @@ export default function RecitationRegistration() {
     },
   });
 
-  // نفس شروط الخادم: بالسورة يكفي اختيارها؛ بالصفحة نصف صفحة يتطلب الآية،
-  // وأكثر من صفحة يتطلب نهاية صحيحة
+  // نفس شروط الخادم: بالسورة يكفي اختيارها، و«أكثر من صفحة» يتطلب نهاية صحيحة
   const valid = isSurahMode
     ? typeof surahNumber === "number"
     : typeof pageNumber === "number" &&
       pageNumber > 0 &&
-      (recitationType !== "half" || (typeof verse === "number" && verse > 0)) &&
       (recitationType !== "more" || (typeof toPage === "number" && toPage >= pageNumber));
 
   if (student.isPending) {
@@ -137,7 +133,7 @@ export default function RecitationRegistration() {
 
         {/* ---------- بطاقة الإدخال ---------- */}
         <div className="space-y-3 rounded-xl bg-white p-3 shadow-sm dark:bg-dark">
-          {/* طريقة التحديد: بالصفحة أو بالسورة (جزء عمّ) */}
+          {/* طريقة التحديد: بالصفحة أو بالسورة */}
           <section>
             <p className={`${labelClass} flex items-center gap-1.5`}>
               <BookOpen size={13} />
@@ -160,7 +156,6 @@ export default function RecitationRegistration() {
               <Segmented
                 options={[
                   { value: "full", label: t("recitationRegistration.types.full") },
-                  { value: "half", label: t("recitationRegistration.types.half") },
                   { value: "more", label: t("recitationRegistration.types.more") },
                 ]}
                 value={recitationType}
@@ -169,7 +164,7 @@ export default function RecitationRegistration() {
             </section>
           )}
 
-          {/* اختيار السورة — قائمة منسدلة للبحث السريع وشرائح للأكثر استعمالاً */}
+          {/* اختيار السورة — القائمة المنسدلة وحدها، بكل سور المصحف */}
           {isSurahMode && (
             <section>
               <label className={labelClass}>{t("recitationRegistration.surah")}</label>
@@ -179,32 +174,12 @@ export default function RecitationRegistration() {
                 className={inputClass}
               >
                 <option value="">{t("recitationRegistration.chooseSurah")}</option>
-                {JUZ_AMMA.map((surah) => (
+                {SURAHS.map((surah) => (
                   <option key={surah.number} value={surah.number}>
                     {surah.number} · {surah.name}
                   </option>
                 ))}
               </select>
-
-              {/* شرائح: اختيار بنقرة واحدة دون فتح القائمة */}
-              <div className="mt-2 flex flex-wrap gap-1">
-                {JUZ_AMMA.map((surah) => {
-                  const active = surahNumber === surah.number;
-                  return (
-                    <button
-                      key={surah.number}
-                      onClick={() => setSurahNumber(surah.number)}
-                      className={`min-h-[30px] rounded-lg px-2 text-[11px] font-bold transition active:scale-95 ${
-                        active
-                          ? "bg-emerald-500 text-white shadow-sm"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-dark-light dark:text-gray-300"
-                      }`}
-                    >
-                      {surah.name}
-                    </button>
-                  );
-                })}
-              </div>
             </section>
           )}
 
@@ -242,34 +217,6 @@ export default function RecitationRegistration() {
               </div>
             )}
 
-            {recitationType === "half" && (
-              <>
-                <div>
-                  <label className={labelClass}>{t("recitationRegistration.verse")}</label>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min={1}
-                    value={verse}
-                    onChange={(e) => setVerse(numeric(e.target.value))}
-                    className={inputClass}
-                  />
-                </div>
-
-                <label
-                  className="col-span-2 flex min-h-[44px] cursor-pointer items-center gap-2 rounded-xl
-                    border border-gray-300 px-3 text-sm text-gray-800 dark:border-gray-600 dark:text-white"
-                >
-                  <input
-                    type="checkbox"
-                    checked={pageCompleted}
-                    onChange={(e) => setPageCompleted(e.target.checked)}
-                    className="size-4 accent-emerald-500"
-                  />
-                  <span className="truncate">{t("recitationRegistration.pageCompleted")}</span>
-                </label>
-              </>
-            )}
           </section>
 
           {/* التقييم — شريط أفقي بثلاثة خيارات */}
@@ -289,7 +236,7 @@ export default function RecitationRegistration() {
                 },
                 {
                   value: "needs",
-                  label: t("recitationRegistration.ratings.needsImprovement"),
+                  label: t("recitationRegistration.ratings.average"),
                   icon: <AlertCircle size={13} />,
                 },
               ]}

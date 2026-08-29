@@ -1,6 +1,6 @@
 import { config } from "../config.js";
 import { db } from "../db/index.js";
-import { surahByNumber } from "../lib/juzAmma.js";
+import { surahByNumber } from "../lib/surahs.js";
 import type { RecitationType, Rating } from "../lib/schemas.js";
 
 export type PointKind = "manual" | "attendance" | "recitation" | "adjustment";

@@ -160,20 +160,17 @@
     "recitationType": "نوع التسميع",
     "types": {
       "full": "صفحة كاملة",
-      "half": "نصف صفحة",
       "more": "أكثر من صفحة",
       "surah": "سورة {{surah}}"
     },
     "pageNumber": "رقم الصفحة",
     "fromPage": "من الصفحة",
     "toPage": "إلى الصفحة",
-    "verse": "رقم الآية",
-    "pageCompleted": "اكتملت الصفحة",
     "studentRating": "تقييم الطالب",
     "ratings": {
       "excellent": "ممتاز",
       "good": "جيد",
-      "needsImprovement": "يحتاج تحسين"
+      "average": "وسط"
     },
     "teacherNotes": "ملاحظات المعلم",
     "notesPlaceholder": "اكتب ملاحظاتك...",
@@ -188,7 +185,7 @@
       "byPage": "حسب الصفحة",
       "bySurah": "حسب السورة"
     },
-    "surah": "السورة (جزء عمّ)",
+    "surah": "السورة",
     "chooseSurah": "اختر السورة…"
   },
   "popupRecitation": {
@@ -198,16 +195,12 @@
     "recitationType": "نوع التسميع",
     "types": {
       "full": "صفحة كاملة",
-      "half": "نصف صفحة",
       "more": "أكثر من صفحة"
     },
     "pageNumber": "رقم الصفحة",
     "fromPage": "من الصفحة",
     "toPage": "إلى الصفحة",
     "pagePlaceholder": "أدخل رقم الصفحة...",
-    "verse": "رقم الآية",
-    "versePlaceholder": "أدخل رقم الآية...",
-    "pageCompleted": "هل اكتملت الصفحة؟",
     "toPagePlaceholder": "أدخل رقم الصفحة الأخيرة...",
     "save": "حفظ",
     "cancel": "إلغاء",

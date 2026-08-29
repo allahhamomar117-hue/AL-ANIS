@@ -8,7 +8,7 @@ import Avatar from "../../shared/Avatar";
 import { attendanceApi, recitationsApi } from "../../lib/api";
 import { qk } from "../../lib/api/queryKeys";
 import type { PointTransaction, Recitation } from "../../lib/api/types";
-import { surahName } from "../../lib/quran/juzAmma";
+import { surahName } from "../../lib/quran/surahs";
 import { EmptyState, ErrorState, LoadingState } from "../../shared/QueryState";
 import { formatDate, formatShortDate } from "../../lib/format/date";
 
@@ -251,7 +251,7 @@ function RecitationTab({ studentId }: { studentId: number }) {
               {t("studentProfile.recitation.grade")}:
             </span>
             <span className="font-bold text-emerald-600 dark:text-emerald-300">
-              {t(`recitationRegistration.ratings.${row.rating === "needs" ? "needsImprovement" : row.rating}`)}
+              {t(`recitationRegistration.ratings.${row.rating === "needs" ? "average" : row.rating}`)}
             </span>
           </div>
           {row.notes && (

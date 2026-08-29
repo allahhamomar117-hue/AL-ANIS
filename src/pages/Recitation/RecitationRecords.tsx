@@ -7,7 +7,7 @@ import { qk } from "../../lib/api/queryKeys";
 import { useHalaqat } from "../../lib/api/hooks";
 import { useCurrentHalaqa } from "../../lib/api/useCurrentHalaqa";
 import type { Recitation } from "../../lib/api/types";
-import { surahName } from "../../lib/quran/juzAmma";
+import { surahName } from "../../lib/quran/surahs";
 import Avatar from "../../shared/Avatar";
 import { formatRelativeDay } from "../../lib/format/date";
 import { EmptyState, ErrorState, LoadingState } from "../../shared/QueryState";
@@ -70,7 +70,7 @@ export default function RecitationRecords() {
   };
 
   const ratingLabel = (rating: Recitation["rating"]) =>
-    t(`recitationRegistration.ratings.${rating === "needs" ? "needsImprovement" : rating}`);
+    t(`recitationRegistration.ratings.${rating === "needs" ? "average" : rating}`);
 
   return (
     <div className="min-h-screen bg-white dark:bg-dark p-4 pt-20 md:pt-24 transition-colors duration-300">
