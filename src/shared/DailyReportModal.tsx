@@ -15,14 +15,16 @@ import { ErrorState, LoadingState } from "./QueryState";
 import { useToast } from "./toast/toastContext";
 
 /**
- * أبعاد ورقة A4 بدقة 96dpi — مقاس الصورة المصدَّرة دائماً، مهما قلّ
- * عدد الطلاب أو كثر، كي تخرج التقارير كلها بشكل واحد.
+ * عرض ورقة A4 بدقة 96dpi — عرض الصورة المصدَّرة دائماً.
+ *
+ * العرض وحده ثابت؛ الارتفاع يتبع المحتوى بحدّ أدنى ارتفاع A4، فالحلقة
+ * الصغيرة تخرج بورقة كاملة والكبيرة تطول بدل أن تُقصّ أو يصغر خطها.
  */
 const A4_WIDTH = 794;
-const A4_HEIGHT = 1123;
+const A4_MIN_HEIGHT = 1123;
 /** هامش الورقة من كل جهة. */
 const A4_PADDING = 32;
-/** عرض محتوى الورقة داخل الهوامش — ثابت بالبكسل لا بالنسبة. */
+/** عرض محتوى الورقة داخل الهوامش. */
 const CONTENT_WIDTH = A4_WIDTH - A4_PADDING * 2;
 
 /**
@@ -49,10 +51,8 @@ export default function DailyReportModal({ onClose }: { onClose: () => void }) {
     enabled: halaqaId !== "",
   });
 
-  /** ورقة التصدير المخفية بمقاس A4 — هي وحدها ما يُلتقط. */
+  /** ورقة التصدير المخفية — هي وحدها ما يُلتقط. */
   const exportRef = useRef<HTMLDivElement>(null);
-  /** محتوى الورقة داخلها — يُقاس ليُصغَّر إن تجاوز ارتفاع الصفحة. */
-  const contentRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
 
   /** اسم ملف آمن: يُبقي الحروف والأرقام والمسافات فقط، ويذكر الحلقة والتاريخ. */
@@ -64,10 +64,12 @@ export default function DailyReportModal({ onClose }: { onClose: () => void }) {
    *
    * تُلتقط الحاوية المخفية لا نافذة العرض: النافذة تمرّر عمودياً وأفقياً،
    * فكان الالتقاط يخرج مقصوصاً بأشرطة تمرير وبعدد طلاب ناقص. الحاوية
-   * المخفية بمقاس A4 ثابت، بلا overflow ولا ارتفاع أقصى، فتضم الطلاب كلهم.
+   * المخفية بلا overflow ولا ارتفاع أقصى، فتضم الطلاب كلهم.
    *
-   * إن طال الجدول عن الصفحة (حلقة كبيرة) يُصغَّر المحتوى بمعامل واحد
-   * محسوب من ارتفاعه الفعلي، فتبقى الورقة A4 ويبقى كل طالب ظاهراً.
+   * بلا `transform: scale` إطلاقاً: التحجيم مع محتوى RTL يفسد إحداثيات
+   * getBoundingClientRect التي تبني عليها المكتبة، فتخرج الصورة مقصوصة
+   * أفقياً. بدلاً منه عرض ثابت وارتفاع حرّ يتبع المحتوى (لقطة طويلة)،
+   * فلا حاجة إلى تصغير أصلاً ولا يصغر الخط عن حدّ القراءة.
    *
    * html-to-image يرسم العنصر عبر foreignObject فيحترم CSS كما هو
    * (بما فيه ألوان Tailwind بصيغة oklch)، وpixelRatio 2 يعطي وضوحاً
@@ -76,39 +78,23 @@ export default function DailyReportModal({ onClose }: { onClose: () => void }) {
   const downloadImage = async (halaqa: string) => {
     if (exporting) return null;
 
-    // الورقة تُركَّب الآن: التركيب يسبق القياس والالتقاط، فننتظر دورة
-    // رسم كاملة ثم مهلة قصيرة ليكتمل بناء العنصر وتحميل خطوطه.
+    // الورقة تُركَّب الآن: التركيب يسبق الالتقاط، فننتظر دورة رسم كاملة
+    // ثم مهلة قصيرة ليكتمل بناء العنصر وتحميل خطوطه.
     setExporting(true);
     await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
     await new Promise((resolve) => setTimeout(resolve, 120));
     await document.fonts?.ready;
 
     const node = exportRef.current;
-    const content = contentRef.current;
-    if (!node || !content) {
+    if (!node) {
       setExporting(false);
       return null;
     }
 
-    /*
-     * التصغير يُطبَّق على العنصر مباشرةً لا عبر الحالة: الالتقاط يلي
-     * القياس فوراً، فلا ننتظر دورة رسم جديدة قد تلتقط قبل تطبيقها.
-     *
-     * نقطة الأصل «أعلى اليسار» دائماً حتى في العربية: html-to-image يلتقط
-     * من (0,0) يساراً، والحاوية الخارجية dir="ltr" لهذا السبب. توسيع
-     * العرض بالبكسل لا بالنسبة المئوية، فيفيض المحتوى يميناً — داخل مدى
-     * الالتقاط — ثم يعيده التصغير إلى عرض الورقة بالضبط.
-     */
-    const available = A4_HEIGHT - A4_PADDING * 2;
-    const scale = Math.min(1, available / content.scrollHeight);
-    content.style.transformOrigin = "top left";
-    content.style.transform = `scale(${scale})`;
-    content.style.width = `${CONTENT_WIDTH / scale}px`;
-
     try {
+      // العرض وحده يُمرَّر؛ الارتفاع يأخذه العنصر من محتواه الفعلي
       const dataUrl = await toPng(node, {
         width: A4_WIDTH,
-        height: A4_HEIGHT,
         pixelRatio: 2,
         backgroundColor: "#ffffff",
         cacheBust: true,
@@ -124,8 +110,6 @@ export default function DailyReportModal({ onClose }: { onClose: () => void }) {
       notify(t("dailyReport.imageFailed"), "error");
       return null;
     } finally {
-      content.style.transform = "";
-      content.style.width = "";
       setExporting(false);
     }
   };
@@ -225,7 +209,7 @@ export default function DailyReportModal({ onClose }: { onClose: () => void }) {
                 // يساراً، وحاوية RTL تزيح المحتوى يميناً فتخرج الصورة
                 // مقصوصة على آخر عمود. الاتجاه العربي يعود في الداخل.
                 dir="ltr"
-                className="pointer-events-none fixed overflow-hidden bg-white"
+                className="pointer-events-none fixed bg-white"
                 style={{
                   top: 0,
                   left: 0,
@@ -233,18 +217,16 @@ export default function DailyReportModal({ onClose }: { onClose: () => void }) {
                   // ولا يحجب ما يقرأه المستخدم أثناء التجهيز
                   zIndex: -1,
                   width: `${A4_WIDTH}px`,
-                  height: `${A4_HEIGHT}px`,
+                  // الارتفاع حرّ: ورقة كاملة للحلقة الصغيرة، وأطول للكبيرة
+                  minHeight: `${A4_MIN_HEIGHT}px`,
+                  height: "auto",
+                  padding: `${A4_PADDING}px`,
                 }}
                 ref={exportRef}
               >
                 <div
-                  ref={contentRef}
                   dir={i18n.language === "ar" ? "rtl" : "ltr"}
-                  style={{
-                    width: `${CONTENT_WIDTH}px`,
-                    margin: `${A4_PADDING}px`,
-                    backgroundColor: "#ffffff",
-                  }}
+                  style={{ width: `${CONTENT_WIDTH}px`, backgroundColor: "#ffffff" }}
                 >
                   <ReportSheet data={report.data} print />
                 </div>
@@ -324,9 +306,14 @@ function ReportSheet({ data, print }: { data: DailyReport; print?: boolean }) {
     return "bg-red-100 text-red-800";
   };
 
+  // نسخة التصدير أضيق حشواً وأصغر خطاً: تقصّر الورقة طبيعياً بلا تحجيم
+  const cell = print ? "px-2 py-1.5 text-xs" : "px-3 py-2";
+
   return (
     <div className={print ? "w-full bg-white" : ""} dir={i18n.language === "ar" ? "rtl" : "ltr"}>
-      <div className="border-b border-gray-300 px-4 py-3 text-center">
+      <div
+        className={`border-b border-gray-300 text-center ${print ? "px-3 py-2" : "px-4 py-3"}`}
+      >
         <p className="text-base font-bold text-gray-800">
           {t("dailyReport.sheetTitle", { halaqa: data.halaqa.name })}
         </p>
@@ -344,16 +331,16 @@ function ReportSheet({ data, print }: { data: DailyReport; print?: boolean }) {
         >
           <thead>
             <tr className="bg-gray-100 text-gray-700">
-              <th className="border-b border-gray-300 px-3 py-2 text-start font-bold">
+              <th className={`border-b border-gray-300 text-start font-bold ${cell}`}>
                 {t("dailyReport.columns.student")}
               </th>
-              <th className="border-b border-s border-gray-300 px-3 py-2 text-center font-bold">
+              <th className={`border-b border-s border-gray-300 text-center font-bold ${cell}`}>
                 {t("dailyReport.columns.attendance")}
               </th>
-              <th className="border-b border-s border-gray-300 px-3 py-2 text-center font-bold">
+              <th className={`border-b border-s border-gray-300 text-center font-bold ${cell}`}>
                 {t("dailyReport.columns.participation")}
               </th>
-              <th className="border-b border-s border-gray-300 px-3 py-2 text-start font-bold">
+              <th className={`border-b border-s border-gray-300 text-start font-bold ${cell}`}>
                 {t("dailyReport.columns.recitation")}
               </th>
             </tr>
@@ -366,11 +353,11 @@ function ReportSheet({ data, print }: { data: DailyReport; print?: boolean }) {
 
               return (
                 <tr key={student.id} className={index % 2 ? "bg-gray-50" : "bg-white"}>
-                  <td className="border-b border-gray-200 px-3 py-2 font-semibold text-gray-800">
+                  <td className={`border-b border-gray-200 font-semibold text-gray-800 ${cell}`}>
                     {student.name}
                   </td>
 
-                  <td className="border-b border-s border-gray-200 px-3 py-2 text-center">
+                  <td className={`border-b border-s border-gray-200 text-center ${cell}`}>
                     <span
                       className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-bold ${statusChip(student.status)}`}
                     >
@@ -386,7 +373,7 @@ function ReportSheet({ data, print }: { data: DailyReport; print?: boolean }) {
                     الحسم فيصل التقرير إلى الأهالي ناقصاً، فنعرض
                     الإشارتين ونميّزهما باللون.
                   */}
-                  <td className="border-b border-s border-gray-200 px-3 py-2 text-center font-bold">
+                  <td className={`border-b border-s border-gray-200 text-center font-bold ${cell}`}>
                     {student.participation > 0 && (
                       <span className="text-emerald-700">+{student.participation}</span>
                     )}
@@ -398,7 +385,7 @@ function ReportSheet({ data, print }: { data: DailyReport; print?: boolean }) {
                     )}
                   </td>
 
-                  <td className="border-b border-s border-gray-200 px-3 py-2 text-gray-700">
+                  <td className={`border-b border-s border-gray-200 text-gray-700 ${cell}`}>
                     {recitation ? (
                       <span>
                         {recitation}
