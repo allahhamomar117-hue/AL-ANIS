@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { FaTimes, FaWhatsapp, FaDownload } from "react-icons/fa";
 import { toPng } from "html-to-image";
+import logo from "/logo.png";
 import { reportsApi } from "../lib/api";
 import { qk } from "../lib/api/queryKeys";
 import { useHalaqat } from "../lib/api/hooks";
@@ -13,6 +14,20 @@ import { surahName } from "../lib/quran/surahs";
 import { formatDate, todayLocal } from "../lib/format/date";
 import { ErrorState, LoadingState } from "./QueryState";
 import { useToast } from "./toast/toastContext";
+
+/**
+ * الشعار مُحمَّل سلفاً: الالتقاط لا ينتظر الشبكة، فصورة لم تكتمل
+ * تخرج علامةً مائية فارغة.
+ */
+const logoReady = (async () => {
+  const image = new Image();
+  image.src = logo;
+  try {
+    await image.decode();
+  } catch {
+    // الشعار زينة لا أكثر — فشل تحميله لا يمنع التصدير
+  }
+})();
 
 /**
  * عرض ورقة A4 بدقة 96dpi — عرض الصورة المصدَّرة دائماً.
@@ -84,6 +99,7 @@ export default function DailyReportModal({ onClose }: { onClose: () => void }) {
     await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
     await new Promise((resolve) => setTimeout(resolve, 120));
     await document.fonts?.ready;
+    await logoReady;
 
     const node = exportRef.current;
     if (!node) {
@@ -209,7 +225,7 @@ export default function DailyReportModal({ onClose }: { onClose: () => void }) {
                 // يساراً، وحاوية RTL تزيح المحتوى يميناً فتخرج الصورة
                 // مقصوصة على آخر عمود. الاتجاه العربي يعود في الداخل.
                 dir="ltr"
-                className="pointer-events-none fixed bg-white"
+                className="pointer-events-none fixed"
                 style={{
                   top: 0,
                   left: 0,
@@ -221,12 +237,25 @@ export default function DailyReportModal({ onClose }: { onClose: () => void }) {
                   minHeight: `${A4_MIN_HEIGHT}px`,
                   height: "auto",
                   padding: `${A4_PADDING}px`,
+                  // تدرّج مكتوب صراحةً لا بفئات Tailwind: تدرّجات v4 تُبنى
+                  // بمتغيّرات CSS قد لا تنتقل سليمة إلى نسخة foreignObject
+                  backgroundColor: "#ffffff",
+                  backgroundImage:
+                    "linear-gradient(to bottom, rgba(209, 250, 229, 0.45) 0%, rgba(255, 255, 255, 1) 55%)",
                 }}
                 ref={exportRef}
               >
+                {/* العلامة المائية: خلف المحتوى تماماً وبشفافية لا تعيق القراءة */}
+                <div
+                  className="absolute inset-0 flex items-center justify-center"
+                  style={{ zIndex: 0, opacity: 0.06 }}
+                >
+                  <img src={logo} alt="" style={{ width: "420px", maxWidth: "70%" }} />
+                </div>
+
                 <div
                   dir={i18n.language === "ar" ? "rtl" : "ltr"}
-                  style={{ width: `${CONTENT_WIDTH}px`, backgroundColor: "#ffffff" }}
+                  style={{ width: `${CONTENT_WIDTH}px`, position: "relative", zIndex: 10 }}
                 >
                   <ReportSheet data={report.data} print />
                 </div>
@@ -310,7 +339,7 @@ function ReportSheet({ data, print }: { data: DailyReport; print?: boolean }) {
   const cell = print ? "px-2 py-1.5 text-xs" : "px-3 py-2";
 
   return (
-    <div className={print ? "w-full bg-white" : ""} dir={i18n.language === "ar" ? "rtl" : "ltr"}>
+    <div className={print ? "w-full" : ""} dir={i18n.language === "ar" ? "rtl" : "ltr"}>
       <div
         className={`border-b border-gray-300 text-center ${print ? "px-3 py-2" : "px-4 py-3"}`}
       >
@@ -330,7 +359,7 @@ function ReportSheet({ data, print }: { data: DailyReport; print?: boolean }) {
           className={`w-full border-collapse text-sm ${print ? "table-fixed" : "min-w-[520px]"}`}
         >
           <thead>
-            <tr className="bg-gray-100 text-gray-700">
+            <tr className={`text-gray-700 ${print ? "bg-gray-100/80" : "bg-gray-100"}`}>
               <th className={`border-b border-gray-300 text-start font-bold ${cell}`}>
                 {t("dailyReport.columns.student")}
               </th>
@@ -352,7 +381,19 @@ function ReportSheet({ data, print }: { data: DailyReport; print?: boolean }) {
               const ratings = [...new Set(student.recitations.map((r) => r.rating))];
 
               return (
-                <tr key={student.id} className={index % 2 ? "bg-gray-50" : "bg-white"}>
+                <tr
+                  key={student.id}
+                  // في التصدير خلفيات نصف شفافة كي تظهر العلامة المائية تحتها
+                  className={
+                    print
+                      ? index % 2
+                        ? "bg-gray-50/70"
+                        : "bg-white/60"
+                      : index % 2
+                        ? "bg-gray-50"
+                        : "bg-white"
+                  }
+                >
                   <td className={`border-b border-gray-200 font-semibold text-gray-800 ${cell}`}>
                     {student.name}
                   </td>
