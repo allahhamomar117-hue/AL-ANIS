@@ -21,6 +21,13 @@ export const config = {
   databaseUrl: process.env.DATABASE_URL?.trim() || null,
   /** مخطط Postgres — نسخة من schema.sql بأنواع Postgres. */
   schemaFilePg: path.join(here, "db", "schema.pg.sql"),
+  /**
+   * تصحيحات مخطط Postgres — تُطبَّق بعد المخطّط في كل إقلاع.
+   *
+   * ملفّ المخطّط كلّه `CREATE TABLE IF NOT EXISTS` فلا يلمس جدولاً قائماً،
+   * فالقاعدة المُنشأة من إصدار أقدم تبقى على أنواعه. هنا تُصحَّح.
+   */
+  fixupsFilePg: path.join(here, "db", "fixups.pg.sql"),
   /** Supabase يفرض TLS. عطّله فقط لـ Postgres محلي بلا شهادة. */
   databaseSsl: process.env.DATABASE_SSL !== "false",
   /** حدّ اتصالات المجمّع. أبقِه صغيراً مع pooler الخاص بـ Supabase. */

@@ -68,13 +68,22 @@ export function nowPlusMinutes(minutes: number): string {
 /**
  * الشهر من تاريخ بصيغة 'YYYY-MM' — للتجميع الشهري في الإحصاءات.
  *   SQLite   : strftime('%Y-%m', expr) — التواريخ نصوص
- *   Postgres : to_char(expr, 'YYYY-MM') — العمود من نوع date
+ *   Postgres : to_char(expr::date, 'YYYY-MM')
  *
- * لا يصلح substr() هنا: يعمل في SQLite وحده، ويحتاج في Postgres تحويلاً
- * صريحاً إلى نصّ فيسقط الاستعلام على العمود التاريخي.
+ * التحويل الصريح إلى date ليس زينة: to_char لا تملك صيغةً تقبل نصّاً
+ * معاملاً أوّل، فإن كان العمود text سقط الاستعلام بـ
+ * "function to_char(text, unknown) does not exist" — وهو ما حدث فعلاً على
+ * قاعدة الإنتاج، إذ جاء recited_at فيها نصّاً لا date كما يصفه
+ * schema.pg.sql (انحراف في قاعدة أُنشئت قبل الملف الحالي).
+ *
+ * التحويل يعمل في الحالتين: نصّ 'YYYY-MM-DD' يُحوَّل إلى date، وعمود date
+ * يمرّ بلا أثر — فلا يعود الاستعلام رهيناً بنوع العمود في كل قاعدة.
+ *
+ * ويُعاد استعمال dateOf لا يُكتب تحويل ثانٍ، ليبقى شكل التحويل في موضع
+ * واحد إن تغيّر يوماً.
  */
 export function monthOf(expr: string): string {
   return db().dialect === "postgres"
-    ? `to_char(${expr}, 'YYYY-MM')`
+    ? `to_char(${dateOf(expr)}, 'YYYY-MM')`
     : `strftime('%Y-%m', ${expr})`;
 }

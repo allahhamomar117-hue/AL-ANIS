@@ -4,14 +4,21 @@
  * SQLite يحتفظ بآلية الترقيات الكاملة (user_version + migrations/) لأن
  * نسخ العرض والتطوير قد تحمل قواعد قائمة من إصدارات سابقة.
  *
- * Postgres يبدأ من schema.pg.sql مباشرة: قاعدة Supabase تُنشأ جديدة،
- * والترقيات السبع كانت تُصلح مخطط SQLite قديماً فنتيجتها النهائية هي
- * ما يحمله ملف المخطط أصلاً.
+ * Postgres يطبّق schema.pg.sql ثم fixups.pg.sql — لا يمرّ بـ migrations/‎
+ * لأن تلك الترقيات مكتوبة بلهجة SQLite وتُدار بـ user_version الذي لا
+ * وجود له هنا.
+ *
+ * كان يُفترض أن قاعدة Postgres تُنشأ جديدة فيكفيها ملفّ المخطّط وحده.
+ * وقد كذّب الواقع هذا الافتراض: قاعدة الإنتاج جاءت بأعمدة تاريخ نصّية
+ * لا date، لأن `CREATE TABLE IF NOT EXISTS` ينشئ الناقص ولا يصحّح
+ * القائم — فقاعدة أُنشئت من إصدار أقدم تبقى على أنواعه مهما أُعيد
+ * تطبيق الملف. fixups.pg.sql هو ما يسدّ هذه الثغرة.
  */
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { config } from "../config.js";
+import { logSqlError } from "../lib/http.js";
 import { db, initDb } from "./driver.js";
 
 export { db, initDb, closeDb } from "./driver.js";
@@ -45,6 +52,28 @@ export async function migrate(): Promise<void> {
   if (driver.dialect === "postgres") {
     await driver.exec(fs.readFileSync(config.schemaFilePg, "utf8"));
     console.log("✔ طُبِّق مخطط PostgreSQL");
+
+    /*
+     * المخطّط ينشئ الناقص ولا يصحّح القائم (‏IF NOT EXISTS)، فالقاعدة
+     * المُنشأة من إصدار أقدم تبقى على أنواعه — وهذا مصدر انحراف أنواع
+     * أعمدة التاريخ. ملفّ التصحيحات يعالج ذلك، وكل تصحيح فيه محروس
+     * بفحص information_schema فلا يفعل شيئاً على قاعدة سليمة.
+     *
+     * فشلُه لا يمنع الإقلاع، خلافاً للمخطّط أعلاه.
+     *
+     * المخطّط شرطٌ للعمل: بلا جداول لا خدمة. أمّا التصحيحات فتحسينٌ
+     * للاتّساق — والكود يحتمل النوعين أصلاً (sqlfn.monthOf تحوّل صراحةً).
+     * فلو أسقط خطأٌ فيها الإقلاعَ لكانت النتيجة خدمةً متوقّفة تماماً بدل
+     * خدمة تعمل على قاعدة منحرفة: ثمنٌ أفدح من العلّة نفسها. يُسجَّل
+     * الخطأ كاملاً ويمضي الإقلاع.
+     */
+    try {
+      await driver.exec(fs.readFileSync(config.fixupsFilePg, "utf8"));
+      console.log("✔ فُحصت تصحيحات مخطط PostgreSQL");
+    } catch (error) {
+      logSqlError("تصحيحات مخطط PostgreSQL", error);
+      console.warn("⚠ تُخطّيت التصحيحات — الخدمة تعمل، والقاعدة ما تزال على حالها");
+    }
     return;
   }
 

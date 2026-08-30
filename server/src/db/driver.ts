@@ -224,6 +224,20 @@ async function createPostgresDriver(connectionString: string): Promise<DbDriver>
     max: config.databasePoolMax,
   });
 
+  /**
+   * رسائل RAISE NOTICE / WARNING القادمة من الخادم.
+   *
+   * node-postgres يبتلعها افتراضياً: تصل كحدث 'notice' على العميل ولا
+   * تُطبع أبداً. بلا هذا المستمع تمرّ تنبيهات ملفّ التصحيحات
+   * (fixups.pg.sql) صامتة — وهي الإشارة الوحيدة إلى أن تصحيحاً تُخطّي
+   * بسبب بيانات معطوبة، فيبدو الإقلاع سليماً والقاعدة ما تزال منحرفة.
+   */
+  pool.on("connect", (client) => {
+    client.on("notice", (msg) => {
+      console.log(`[pg] ${msg.severity ?? "NOTICE"}: ${msg.message ?? ""}`);
+    });
+  });
+
   type Executor = { query(text: string, values?: unknown[]): Promise<{ rows: Row[]; rowCount: number | null }> };
 
   /** يبني سائقاً فوق مُنفِّذ واحد (المجمّع أو عميل معاملة). */
