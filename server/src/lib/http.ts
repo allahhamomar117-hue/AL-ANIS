@@ -57,6 +57,28 @@ function flattenZod(error: ZodError) {
   return error.issues.map((i) => ({ path: i.path.join("."), message: i.message }));
 }
 
+/**
+ * يطبع خطأ قاعدة بيانات بكامل حقوله التشخيصية.
+ *
+ * رسالة pg وحدها ("syntax error at or near …") لا تكفي لتحديد الاستعلام
+ * في سجلّ Railway: الحقول code (SQLSTATE) و detail و position هي ما يدلّ
+ * على الموضع بالضبط، وهي خارج Error.message فلا يطبعها console.error
+ * الاعتيادي — فتضيع في «خطأ داخلي في الخادم» بلا أثر.
+ */
+export function logSqlError(where: string, error: unknown): void {
+  const e = error as {
+    message?: string; code?: string; detail?: string; hint?: string;
+    position?: string; table?: string; column?: string;
+    routine?: string; stack?: string;
+  };
+  console.error("[" + where + "] خطأ:", e?.message ?? String(error));
+  console.error("  SQLSTATE:", e?.code ?? "—", "| position:", e?.position ?? "—");
+  console.error("  detail:", e?.detail ?? "—", "| hint:", e?.hint ?? "—");
+  console.error("  table:", e?.table ?? "—", "| column:", e?.column ?? "—");
+  console.error("  routine:", e?.routine ?? "—");
+  if (e?.stack) console.error(e.stack);
+}
+
 /** معالج الأخطاء العام — يُسجَّل آخر شيء في التطبيق. */
 export function errorHandler(
   err: unknown,
@@ -96,8 +118,7 @@ export function errorHandler(
   }
 
   // خطأ غير متوقع: نطبع كل ما يلزم لتشخيصه من الطرفية
-  console.error(`[${where}] 500 خطأ غير متوقع:`, message);
-  if (err instanceof Error && err.stack) console.error(err.stack);
+  logSqlError(`${where} 500`, err);
 
   res.status(500).json({
     error: "خطأ داخلي في الخادم",

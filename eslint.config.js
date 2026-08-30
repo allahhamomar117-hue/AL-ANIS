@@ -19,5 +19,24 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      /*
+       * الشرطة السفلية إعلانٌ صريح أن الوسيط مُهمَل عمداً — وهو عُرف قائم
+       * في المشروع (_req و_res و_next).
+       *
+       * القاعدة الافتراضية (args: "after-used") لا تشكو إلا من الأخير، وهو
+       * ما كان يوقع معالج أخطاء Express: توقيعه يجب أن يعلن أربعة وسائط
+       * ليعرفه إطار العمل معالجَ أخطاء، فلو حُذف `_next` إرضاءً للمُدقّق
+       * لعُومل الدالةُ وسيطاً عادياً ولم تصل إليها الأخطاء أصلاً.
+       */
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
+    },
   },
 ])

@@ -90,8 +90,21 @@ export default function QuickPointsModal({
    * تفكيك المكوّن حتى لا يُستدعى onClose على نافذة أُغلقت يدوياً.
    */
   const AUTO_CLOSE_MS = 1600;
+
+  /*
+   * المرجع يحمل أحدث onClose ليقرأه المؤقّت عند انطلاقه، فيبقى تأثير
+   * المؤقّت معتمداً على `done` وحده: لو أُدرج onClose في اعتماداته لأعاد
+   * الأب — الذي يمرّره دالةً جديدة كل عرض — تشغيل المؤقّت من الصفر مع كل
+   * إعادة عرض، فلا تُغلق النافذة أبداً.
+   *
+   * التحديث داخل تأثير لا أثناء العرض: الكتابة في مرجع أثناء العرض تجعل
+   * العرض غير نقيّ، وقد يطرح React الثمرة في العرض المتزامن (concurrent)
+   * فيبقى المرجع حاملاً قيمة عرضٍ لم يُثبَّت.
+   */
   const closeRef = useRef(onClose);
-  closeRef.current = onClose;
+  useEffect(() => {
+    closeRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!done) return;

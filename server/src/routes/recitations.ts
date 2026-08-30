@@ -3,11 +3,44 @@ import { z } from "zod";
 import { db, tx, type SqlParam } from "../db/index.js";
 import { ApiError, asyncHandler, parse } from "../lib/http.js";
 import { SURAH_FIRST, SURAH_LAST, surahByNumber } from "../lib/surahs.js";
-import { idParam, isoDate, pagination, rating, recitationType, today } from "../lib/schemas.js";
+import {
+  idParam,
+  isoDate,
+  pagination,
+  rating,
+  recitationType,
+  today,
+  type Rating,
+  type RecitationType,
+} from "../lib/schemas.js";
 import { addPoints, recitationPoints, revertPointsFor } from "../services/points.js";
 import { applyScope, assertHalaqaAccess, assertStudentAccess } from "../services/scope.js";
 
 export const recitationsRouter = Router();
+
+/**
+ * صفّ جدول recitations بأسماء أعمدته الخام — لقراءات `SELECT *`.
+ *
+ * الردود المُرسَلة إلى الواجهة تُسمّى بأسلوب camelCase عبر SELECT_RECITATION،
+ * أمّا هذا فصورة الصفّ كما هو في القاعدة، يُستعمل داخلياً عند التعديل.
+ *
+ * page_completed عدد لا منطقيّ: السائق يعيد المنطقيات 0/1 حفاظاً على
+ * العقد القائم مع الواجهة، فيُحوَّل صراحةً عند الحاجة.
+ */
+interface RecitationRow {
+  id: number;
+  student_id: number;
+  halaqa_id: number | null;
+  type: RecitationType;
+  page_number: number;
+  to_page: number | null;
+  verse: number | null;
+  page_completed: number;
+  surah_number: number | null;
+  rating: Rating;
+  notes: string | null;
+  recited_at: string;
+}
 
 const SELECT_RECITATION = `
   SELECT r.id,
@@ -262,7 +295,7 @@ recitationsRouter.patch(
   "/:id",
   asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
-    const current = await db().get<Record<string, any>>(
+    const current = await db().get<RecitationRow>(
       "SELECT * FROM recitations WHERE id = ?",
       [id]
     );
@@ -308,7 +341,7 @@ recitationsRouter.patch(
       );
 
       // النقاط تتبع التقييم والمقدار معاً، فأي تغيّر في أيّهما يوجب إعادة الاحتساب
-      const next = await db().get<Record<string, any>>(
+      const next = await db().get<RecitationRow>(
         "SELECT * FROM recitations WHERE id = ?",
         [id]
       );
