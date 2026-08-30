@@ -590,13 +590,15 @@
     "filterMonth": "الشهر:",
     "empty": "لا توجد سجلّات سبر بعد",
     "created": "تم ترشيح الطالب",
-    "statusUpdated": "تم تحديث الحالة",
+    "statusUpdated": "تم حفظ حالة {{name}}: {{status}}",
     "deleted": "تم حذف السجل",
     "markPassed": "تعليم الطالب ناجحاً",
     "markFailed": "تعليم الطالب غير ناجح",
     "markNominated": "إعادته إلى مرشّح",
     "deleteTitle": "حذف سجل {{name}}؟",
-    "deleteHint": "يُحذف الترشيح نهائياً. بيانات الطالب ونقاطه لا تتأثر."
+    "deleteHint": "يُحذف الترشيح نهائياً. بيانات الطالب ونقاطه لا تتأثر.",
+    "saveFailed": "تعذّر حفظ حالة {{name}} — {{reason}}",
+    "deleteFailed": "تعذّر حذف سجل {{name}} — {{reason}}"
   },
   "awqafStatuses": {
     "nominated": "مرشّح",

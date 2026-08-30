@@ -62,12 +62,32 @@ export default function AwqafExams() {
    */
   const months = records.data?.meta.months ?? [];
 
+  /**
+   * الأزرار السريعة تحفظ فوراً بلا زرّ "حفظ نهائي"، فالإشعار هو الدليل
+   * الوحيد على وصول التعديل إلى الخادم — ولذلك يسمّي الطالب وحالته
+   * الجديدة لا "تم التحديث" وحدها: الجدول يحتمل نقرات متتابعة على صفوف
+   * مختلفة، ورسالةٌ مجرّدة لا تقول أيُّها حُفظ.
+   *
+   * ويُنتظر mutateAsync قبل الإشعار، فلا يُبشَّر بحفظٍ لم يُؤكّده الخادم.
+   */
   const setStatusOf = async (record: AwqafRecord, next: AwqafStatus) => {
     try {
       await update.mutateAsync({ id: record.id, status: next });
-      notify(t("awqaf.statusUpdated"));
+      notify(
+        t("awqaf.statusUpdated", {
+          name: record.studentName,
+          status: t(`awqafStatuses.${next}`),
+        })
+      );
     } catch (error) {
-      notify(error instanceof Error ? error.message : t("state.error"), "error");
+      // رسالة الخادم وحدها لا تقول أيُّ عملية فشلت ولا على أيّ طالب
+      notify(
+        t("awqaf.saveFailed", {
+          name: record.studentName,
+          reason: error instanceof Error ? error.message : t("state.error"),
+        }),
+        "error"
+      );
     }
   };
 
@@ -77,7 +97,13 @@ export default function AwqafExams() {
       notify(t("awqaf.deleted"));
       setDeleting(null);
     } catch (error) {
-      notify(error instanceof Error ? error.message : t("state.error"), "error");
+      notify(
+        t("awqaf.deleteFailed", {
+          name: record.studentName,
+          reason: error instanceof Error ? error.message : t("state.error"),
+        }),
+        "error"
+      );
     }
   };
 

@@ -588,13 +588,15 @@
     "filterMonth": "Month:",
     "empty": "No exam records yet",
     "created": "Student nominated",
-    "statusUpdated": "Status updated",
+    "statusUpdated": "Saved {{name}}: {{status}}",
     "deleted": "Record deleted",
     "markPassed": "Mark as passed",
     "markFailed": "Mark as failed",
     "markNominated": "Move back to nominated",
     "deleteTitle": "Delete the record for {{name}}?",
-    "deleteHint": "The nomination is permanently removed. Student data and points are unaffected."
+    "deleteHint": "The nomination is permanently removed. Student data and points are unaffected.",
+    "saveFailed": "Could not save {{name}} — {{reason}}",
+    "deleteFailed": "Could not delete {{name}} — {{reason}}"
   },
   "awqafStatuses": {
     "nominated": "Nominated",
