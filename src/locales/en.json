@@ -564,5 +564,73 @@
     "imageFailed": "Could not create the image",
     "shareNotice": "The report is saved as an image on your device; attach it in the parents group on WhatsApp.",
     "studentCount": "Students: {{count}}"
+  },
+  "awqaf": {
+    "navTitle": "Awqaf Certificates",
+    "title": "Awqaf Exams & Certificates",
+    "subtitle": "Nominate students for the Ministry of Awqaf exams and track their results",
+    "add": "Add nominee",
+    "addTitle": "Nominate a student",
+    "student": "Student",
+    "searchStudent": "Search by student name…",
+    "noStudents": "No student matches that name",
+    "selected": "Selected: {{name}}",
+    "halaqa": "Halaqa",
+    "month": "Exam month",
+    "status": "Status",
+    "notes": "Notes",
+    "notesPlaceholder": "Optional — e.g. Juz Amma exam",
+    "actions": "Actions",
+    "save": "Save nomination",
+    "all": "All",
+    "allMonths": "All months",
+    "filterStatus": "Status:",
+    "filterMonth": "Month:",
+    "empty": "No exam records yet",
+    "created": "Student nominated",
+    "statusUpdated": "Status updated",
+    "deleted": "Record deleted",
+    "markPassed": "Mark as passed",
+    "markFailed": "Mark as failed",
+    "markNominated": "Move back to nominated",
+    "deleteTitle": "Delete the record for {{name}}?",
+    "deleteHint": "The nomination is permanently removed. Student data and points are unaffected."
+  },
+  "awqafStatuses": {
+    "nominated": "Nominated",
+    "passed": "Passed",
+    "failed": "Failed"
+  },
+  "statistics": {
+    "navTitle": "Statistics",
+    "title": "Overall Statistics",
+    "subtitle": "Center-wide numbers since launch: recitation, attendance, and Awqaf certificates",
+    "cards": {
+      "pages": "Pages recited",
+      "pagesHint": "across {{count}} recorded recitations",
+      "days": "Attendance days",
+      "daysHint": "covering {{count}} sessions",
+      "awqaf": "Awqaf passes",
+      "awqafHint": "out of {{count}} nominees",
+      "students": "Active students",
+      "studentsHint": "across {{count}} halaqat"
+    },
+    "recitationChart": {
+      "title": "Monthly recitation rate",
+      "subtitle": "Total pages recited each month",
+      "pages": "Pages",
+      "count": "Recitations"
+    },
+    "awqafChart": {
+      "title": "Awqaf exam passes",
+      "subtitle": "Passes per session — hover for the full breakdown",
+      "total": "Total nominees"
+    },
+    "grain": {
+      "month": "Monthly",
+      "year": "Yearly"
+    },
+    "noRecitations": "No recitations recorded yet",
+    "noAwqaf": "No exam records yet"
   }
 }

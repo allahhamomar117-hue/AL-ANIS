@@ -33,6 +33,15 @@ export const qk = {
     dailyHalaqa: (halaqaId: number, date: string) =>
       ["reports", "daily", halaqaId, date] as const,
   },
+  statistics: {
+    all: ["statistics"] as const,
+    dashboard: ["statistics", "dashboard"] as const,
+  },
+  awqaf: {
+    all: ["awqaf"] as const,
+    list: (params?: unknown) => ["awqaf", "list", params ?? null] as const,
+    detail: (id: number) => ["awqaf", "detail", id] as const,
+  },
   users: {
     all: ["users"] as const,
     list: (params?: unknown) => ["users", "list", params ?? null] as const,

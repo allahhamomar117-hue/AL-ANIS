@@ -59,10 +59,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       halaqaId: user?.halaqa_id ?? null,
       halaqaName: user?.halaqa_name ?? null,
       halaqat: user?.halaqat ?? [],
-      // المشرف يرى كل البيانات كالمدير؛ الفرق الوحيد إدارة الحسابات
+      // المشرف يرى كل البيانات كالمدير (نطاق القراءة)؛ لكنه لا يدير
+      // حسابات الكادر ولا سجلّات الطلاب — دوره تشغيلي يومي
       isAdmin: user?.role === "ADMIN" || user?.role === "SUPERVISOR",
       isTeacher: user?.role === "TEACHER",
       isSupervisor: user?.role === "SUPERVISOR",
+      canManageStudents: user?.role === "ADMIN",
       canManageUsers: user?.role === "ADMIN",
       isLoading: Boolean(token) && isPending,
       error: token ? (isError ? error : null) : new ApiError(401, "يجب تسجيل الدخول"),

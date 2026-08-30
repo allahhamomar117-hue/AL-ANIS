@@ -7,11 +7,18 @@ import { reportsApi } from "../../lib/api";
 import { qk } from "../../lib/api/queryKeys";
 import { ErrorState, LoadingState } from "../../shared/QueryState";
 import { formatDayAndTime } from "../../lib/format/date";
+import { useAuth } from "../../context/authContext";
 
 const ACTIVITIES_STEP = 5;
 
 export default function Dashboard() {
   const { t, i18n } = useTranslation();
+  /*
+   * المشرف: دوره المتابعة اليومية (تسميع وحضور ونقاط وتقارير الحلقات)،
+   * فتُخفى عنه بطاقات الإحصاء العامة. الخادم لا يرسل أرقامها له أصلاً،
+   * وتبقى له قائمة آخر النشاطات.
+   */
+  const { isSupervisor } = useAuth();
   const [visibleCount, setVisibleCount] = useState(ACTIVITIES_STEP);
 
   const { data, isPending, isError, error, refetch } = useQuery({
@@ -22,8 +29,8 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-dark-light px-4 pb-6 md:p-6 rtl transition-colors duration-300 pt-20 md:pt-24">
-      {/* ===== Top Stats ===== */}
-      {isPending ? (
+      {/* ===== Top Stats — تُحجب عن المشرف ===== */}
+      {isSupervisor ? null : isPending ? (
         <LoadingState />
       ) : isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
@@ -31,25 +38,25 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6">
           <StatCard
             title={t("dashboard.stats.halaqas.title")}
-            value={`${data.halaqat} ${t("dashboard.stats.halaqas.unit")}`}
+            value={`${data.halaqat ?? 0} ${t("dashboard.stats.halaqas.unit")}`}
             note={t("dashboard.stats.halaqas.note")}
             icon={<FaBookOpen size={24} />}
           />
           <StatCard
             title={t("dashboard.stats.attendance.title")}
-            value={`${data.attendanceRate}%`}
-            note={`${data.presentToday} ${t("dashboard.stats.attendance.unit")}`}
+            value={`${data.attendanceRate ?? 0}%`}
+            note={`${data.presentToday ?? 0} ${t("dashboard.stats.attendance.unit")}`}
             icon={<FaClipboardCheck size={24} />}
           />
           <StatCard
             title={t("dashboard.stats.students.title")}
-            value={`${data.students} ${t("dashboard.stats.students.unit")}`}
+            value={`${data.students ?? 0} ${t("dashboard.stats.students.unit")}`}
             note={t("dashboard.stats.students.note")}
             icon={<FaUsers size={24} />}
           />
           <StatCard
             title={t("dashboard.stats.recitations.title")}
-            value={`${data.recitationsToday} ${t("dashboard.stats.recitations.unit")}`}
+            value={`${data.recitationsToday ?? 0} ${t("dashboard.stats.recitations.unit")}`}
             note={t("dashboard.stats.recitations.note")}
             icon={<FaStar size={24} />}
           />

@@ -135,3 +135,20 @@ CREATE TABLE IF NOT EXISTS point_transactions (
   created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_points_student ON point_transactions (student_id, created_at);
+
+-- سجلّات شهادات وسبر الأوقاف: ترشيح الطالب لدورة سبر (شهر) ونتيجته فيها.
+-- سجلّ واحد لكل طالب في كل شهر — الترشيح المكرّر يُنتج حالتين متضاربتين.
+CREATE TABLE IF NOT EXISTS awqaf_records (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  student_id    INTEGER NOT NULL REFERENCES students (id) ON DELETE CASCADE,
+  exam_month    TEXT    NOT NULL,                -- شهر السبر بصيغة YYYY-MM
+  status        TEXT    NOT NULL DEFAULT 'nominated'
+                        CHECK (status IN ('nominated', 'passed', 'failed')),
+  notes         TEXT,
+  created_by    INTEGER REFERENCES users (id) ON DELETE SET NULL,
+  created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+  updated_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (student_id, exam_month)
+);
+CREATE INDEX IF NOT EXISTS idx_awqaf_month ON awqaf_records (exam_month);
+CREATE INDEX IF NOT EXISTS idx_awqaf_student ON awqaf_records (student_id);

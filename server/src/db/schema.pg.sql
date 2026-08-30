@@ -136,3 +136,19 @@ CREATE TABLE IF NOT EXISTS point_transactions (
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_points_student ON point_transactions (student_id, created_at);
+
+-- سجلّات شهادات وسبر الأوقاف
+CREATE TABLE IF NOT EXISTS awqaf_records (
+  id         INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  student_id INTEGER     NOT NULL REFERENCES students (id) ON DELETE CASCADE,
+  exam_month TEXT        NOT NULL,               -- شهر السبر بصيغة YYYY-MM
+  status     TEXT        NOT NULL DEFAULT 'nominated'
+                         CHECK (status IN ('nominated', 'passed', 'failed')),
+  notes      TEXT,
+  created_by INTEGER     REFERENCES users (id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (student_id, exam_month)
+);
+CREATE INDEX IF NOT EXISTS idx_awqaf_month ON awqaf_records (exam_month);
+CREATE INDEX IF NOT EXISTS idx_awqaf_student ON awqaf_records (student_id);

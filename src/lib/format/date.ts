@@ -150,3 +150,16 @@ export function todayLocal(date: Date = new Date()): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
+
+/**
+ * `2026/08` — شهر بصيغة "YYYY-MM" معروضاً (رؤوس الجداول ومحاور المخطّطات).
+ *
+ * ترتيب سنة/شهر كما في formatShortDate: يبقى ثابتاً في الاتجاهين ولا
+ * يلتبس بـ MM/YY. لا يمرّ بـ Intl لأن المُدخل شهر بلا يوم، وبناء تاريخ
+ * وهميّ منه ليعيده Intl نصّاً يفتح باب أخطاء المناطق الزمنية بلا فائدة.
+ */
+export function formatMonth(month: string | null | undefined): string {
+  if (!month) return "—";
+  const match = /^(\d{4})-(\d{2})$/.exec(month);
+  return match ? `${match[1]}/${match[2]}` : month;
+}

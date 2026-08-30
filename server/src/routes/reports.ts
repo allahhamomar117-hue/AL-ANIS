@@ -1,34 +1,15 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db, type SqlParam } from "../db/index.js";
-import { dateOf, greatest } from "../db/sqlfn.js";
+import { dateOf } from "../db/sqlfn.js";
 import { ApiError, asyncHandler, parse } from "../lib/http.js";
 import { idParam, isoDate, today } from "../lib/schemas.js";
+import { denySupervisor } from "../middleware/auth.js";
 import { assertHalaqaAccess, assertStudentAccess, halaqaFilter } from "../services/scope.js";
-import { JUZ_AMMA, surahByNumber } from "../lib/surahs.js";
+import { surahByNumber } from "../lib/surahs.js";
+import { recitationPagesExpr } from "../services/recitationSql.js";
 
 export const reportsRouter = Router();
-
-/**
- * عدد الصفحات لتلاوة واحدة داخل SQL — نفس قواعد recitationPages في
- * services/points.ts: السورة بوزنها في جزء عمّ (سور تتقاسم الصفحة الواحدة)،
- * نصف الصفحة 0.5، والمدى بعدد صفحاته شاملاً الطرفين، وما عداه صفحة.
- * الأوزان تُبنى من JUZ_AMMA فيبقى مصدر الحقيقة ملفاً واحداً.
- */
-const SURAH_PAGES_CASE = JUZ_AMMA.map(
-  (surah) => `WHEN r.surah_number = ${surah.number} THEN ${surah.pages}`
-).join(" ");
-
-/** دالة لا ثابت: `greatest` تحتاج معرفة اللهجة، وهي لا تُعرف قبل الاتصال. */
-const recitationPagesExpr = (): string => `
-  CASE
-    ${SURAH_PAGES_CASE}
-    WHEN r.type = 'half' THEN 0.5
-    WHEN r.type = 'more' AND r.to_page IS NOT NULL
-      THEN ${greatest("1", "r.to_page - r.page_number + 1")}
-    ELSE 1
-  END
-`;
 
 /** تحويل التقييم إلى درجة من 100 لحساب متوسط التسميع. */
 const RATING_SCORE = "CASE r.rating WHEN 'excellent' THEN 100 WHEN 'good' THEN 85 ELSE 65 END";
@@ -65,6 +46,7 @@ function rangeClause(q: z.infer<typeof rangeSchema>, dateColumn: string, halaqaC
  */
 reportsRouter.get(
   "/leaderboard",
+  denySupervisor,
   asyncHandler(async (req, res) => {
     const q = parse(
       rangeSchema.extend({
@@ -202,39 +184,62 @@ reportsRouter.get(
       };
     };
 
-    const halaqatScope = await scopeOn("id");
-    const halaqat = await db().get<{ n: number }>(
-      `SELECT COUNT(*) AS n FROM halaqat WHERE is_active = TRUE${halaqatScope.clause}`,
-      halaqatScope.params
-    );
+    /*
+     * بطاقات الإحصاء العامة محجوبة عن المشرف: دوره المتابعة اليومية.
+     * لا تُحسب أرقامها ولا تُرسَل — فالإخفاء في الواجهة ليس شكلياً.
+     * آخر النشاطات تبقى للجميع: هي متابعة تشغيلية لا إحصاء.
+     */
+    const stats =
+      req.user!.role === "SUPERVISOR"
+        ? null
+        : await (async () => {
+          const halaqatScope = await scopeOn("id");
+          const halaqat = await db().get<{ n: number }>(
+            `SELECT COUNT(*) AS n FROM halaqat WHERE is_active = TRUE${halaqatScope.clause}`,
+            halaqatScope.params
+          );
 
-    const studentsScope = await scopeOn("halaqa_id");
-    const students = await db().get<{ n: number }>(
-      `SELECT COUNT(*) AS n FROM students WHERE is_active = TRUE${studentsScope.clause}`,
-      studentsScope.params
-    );
+          const studentsScope = await scopeOn("halaqa_id");
+          const students = await db().get<{ n: number }>(
+            `SELECT COUNT(*) AS n FROM students WHERE is_active = TRUE${studentsScope.clause}`,
+            studentsScope.params
+          );
 
-    const attScope = await scopeOn("a.halaqa_id");
-    const todayAttendance = await db().get<{ total: number; present: number | null }>(
-      `SELECT COUNT(*) AS total,
-              SUM(CASE WHEN e.status IN ('present','late') THEN 1 ELSE 0 END) AS present
-       FROM attendance_entries e
-       JOIN attendance_sessions a ON a.id = e.session_id
-       WHERE a.date = ?${attScope.clause}`,
-      [date, ...attScope.params]
-    );
+          const attScope = await scopeOn("a.halaqa_id");
+          const todayAttendance = await db().get<{ total: number; present: number | null }>(
+            `SELECT COUNT(*) AS total,
+                    SUM(CASE WHEN e.status IN ('present','late') THEN 1 ELSE 0 END) AS present
+             FROM attendance_entries e
+             JOIN attendance_sessions a ON a.id = e.session_id
+             WHERE a.date = ?${attScope.clause}`,
+            [date, ...attScope.params]
+          );
 
-    const sessionScope = await scopeOn("halaqa_id");
-    const recordedHalaqat = await db().get<{ n: number }>(
-      `SELECT COUNT(*) AS n FROM attendance_sessions WHERE date = ?${sessionScope.clause}`,
-      [date, ...sessionScope.params]
-    );
+          const sessionScope = await scopeOn("halaqa_id");
+          const recordedHalaqat = await db().get<{ n: number }>(
+            `SELECT COUNT(*) AS n FROM attendance_sessions WHERE date = ?${sessionScope.clause}`,
+            [date, ...sessionScope.params]
+          );
 
-    const recScope = await scopeOn("halaqa_id");
-    const recitationsToday = await db().get<{ n: number }>(
-      `SELECT COUNT(*) AS n FROM recitations WHERE recited_at = ?${recScope.clause}`,
-      [date, ...recScope.params]
-    );
+          const recScope = await scopeOn("halaqa_id");
+          const recitationsToday = await db().get<{ n: number }>(
+            `SELECT COUNT(*) AS n FROM recitations WHERE recited_at = ?${recScope.clause}`,
+            [date, ...recScope.params]
+          );
+          const attendanceTotal = todayAttendance?.total ?? 0;
+          const attendancePresent = todayAttendance?.present ?? 0;
+
+          return {
+            halaqat: halaqat?.n ?? 0,
+            students: students?.n ?? 0,
+            halaqatRecordedToday: recordedHalaqat?.n ?? 0,
+            attendanceRate: attendanceTotal
+              ? Math.round((attendancePresent / attendanceTotal) * 100)
+              : 0,
+            presentToday: attendancePresent,
+            recitationsToday: recitationsToday?.n ?? 0,
+          };
+        })();
 
     const actRecScope = await scopeOn("r.halaqa_id");
     const actAttScope = await scopeOn("a.halaqa_id");
@@ -264,20 +269,10 @@ reportsRouter.get(
       return surah ? { ...row, detail: `سورة ${surah.name}` } : row;
     });
 
-    const attendanceTotal = todayAttendance?.total ?? 0;
-    const attendancePresent = todayAttendance?.present ?? 0;
-
     res.json({
       data: {
         date,
-        halaqat: halaqat?.n ?? 0,
-        students: students?.n ?? 0,
-        halaqatRecordedToday: recordedHalaqat?.n ?? 0,
-        attendanceRate: attendanceTotal
-          ? Math.round((attendancePresent / attendanceTotal) * 100)
-          : 0,
-        presentToday: attendancePresent,
-        recitationsToday: recitationsToday?.n ?? 0,
+        ...(stats ?? {}),
         recentActivity,
       },
     });

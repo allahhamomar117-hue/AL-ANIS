@@ -15,6 +15,8 @@ export interface AuthContextValue {
   isTeacher: boolean;
   /** مشرف بلا إدارة حسابات. */
   isSupervisor: boolean;
+  /** إدارة سجلّات الطلاب (CRUD) — المدير وحده، لا المشرف. */
+  canManageStudents: boolean;
   /** إدارة حسابات الكادر — المدير وحده. */
   canManageUsers: boolean;
   isLoading: boolean;

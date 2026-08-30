@@ -3,9 +3,9 @@
  * كلها مبنية على TanStack Query: تخزين مؤقت، إعادة جلب، وإبطال تلقائي بعد التعديل.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { halaqatApi, studentsApi, usersApi } from "./index";
+import { awqafApi, halaqatApi, statisticsApi, studentsApi, usersApi } from "./index";
 import { qk } from "./queryKeys";
-import type { Halaqa, HalaqaStudent, Role, Student } from "./types";
+import type { AwqafStatus, Halaqa, HalaqaStudent, Role, Student } from "./types";
 
 /* ==================== الحلقات ==================== */
 
@@ -285,6 +285,69 @@ function invalidateStaff(qc: ReturnType<typeof useQueryClient>) {
   // qk.users.all يشمل قوائم الكادر وحلقات كل مستخدم (users/:id/halaqat)
   void qc.invalidateQueries({ queryKey: qk.users.all });
   void qc.invalidateQueries({ queryKey: qk.halaqat.all });
+}
+
+/* ==================== شهادات وسبر الأوقاف ==================== */
+
+/**
+ * سجلّات سبر الأوقاف. المسار محصور بالمدير على الخادم، فيُعطَّل الاستعلام
+ * لغيره بدل إرسال طلب يُردّ بـ403 (نفس نهج useStaff).
+ */
+export function useAwqafRecords(
+  params?: { month?: string; status?: AwqafStatus; halaqaId?: number },
+  enabled = true
+) {
+  return useQuery({
+    queryKey: qk.awqaf.list(params),
+    queryFn: () => awqafApi.list(params),
+    enabled,
+  });
+}
+
+export function useCreateAwqafRecord() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Parameters<typeof awqafApi.create>[0]) => awqafApi.create(body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: qk.awqaf.all });
+    },
+  });
+}
+
+export function useUpdateAwqafRecord() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: number } & Parameters<typeof awqafApi.update>[1]) =>
+      awqafApi.update(id, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: qk.awqaf.all });
+    },
+  });
+}
+
+export function useDeleteAwqafRecord() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => awqafApi.remove(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: qk.awqaf.all });
+    },
+  });
+}
+
+/* ==================== لوحة الإحصاءات ==================== */
+
+/**
+ * تجميعات الإحصاءات الشاملة. المسار محصور بالمدير على الخادم، فيُعطَّل
+ * الاستعلام لغيره بدل إرسال طلب يُردّ بـ403 (نفس نهج useStaff).
+ */
+export function useStatistics(enabled = true) {
+  return useQuery({
+    queryKey: qk.statistics.dashboard,
+    queryFn: () => statisticsApi.dashboard(),
+    select: (res) => res.data,
+    enabled,
+  });
 }
 
 /* ==================== مساعدات العرض ==================== */

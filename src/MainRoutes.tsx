@@ -15,7 +15,10 @@ import SettingsPage from "./pages/Settings/SettingsPage";
 import StaffPage from "./pages/Staff/StaffPage";
 import ProtectedRoute from "./shared/ProtectedRoute";
 import RequireManager from "./shared/RequireManager";
+import DenySupervisor from "./shared/DenySupervisor";
 import HalaqatPage from "./pages/Halaqat/HalaqatPage";
+import AwqafExams from "./pages/Awqaf/AwqafExams";
+import StatisticsDashboard from "./pages/Statistics/StatisticsDashboard";
 import LoginPage from "./pages/logIn/LoginPage";
 
 const MainRoutes = () => {
@@ -54,12 +57,36 @@ const MainRoutes = () => {
           element={<RecitationRegistration />}
         />
 
-        {/* صفحة الطلاب: المشرف يرى الجميع بكامل الصلاحيات،
-            والمدرّس يرى طلاب حلقته للاطّلاع فقط (النطاق والصلاحيات من الخادم). */}
-        <Route path="all-student" element={<AllStudent />} />
-        <Route path="all-student/StudentProfile/:id" element={<StudentProfile />} />
+        {/* صفحة الطلاب: المدير بكامل الصلاحيات، والمدرّس يرى طلاب حلقته
+            للاطّلاع فقط. المشرف محجوب عنها كلياً — دوره تشغيلي يومي
+            (النطاق والصلاحيات من الخادم على أي حال). */}
+        <Route
+          path="all-student"
+          element={
+            <DenySupervisor>
+              <AllStudent />
+            </DenySupervisor>
+          }
+        />
+        <Route
+          path="all-student/StudentProfile/:id"
+          element={
+            <DenySupervisor>
+              <StudentProfile />
+            </DenySupervisor>
+          }
+        />
 
-        <Route path="reports" element={<Reports />} />
+        {/* لوحة الصدارة والإحصاءات: للمدير وللمدرّس ضمن حلقاته.
+            المشرف محجوب — تركيزه على المتابعة اليومية لا الإحصاء العام. */}
+        <Route
+          path="reports"
+          element={
+            <DenySupervisor>
+              <Reports />
+            </DenySupervisor>
+          }
+        />
         <Route path="settings" element={<SettingsPage />} />
 
         {/* إدارة الحلقات: للمدير وحده — منها تُشتقّ كل قوائم اختيار الحلقات */}
@@ -68,6 +95,28 @@ const MainRoutes = () => {
           element={
             <RequireManager>
               <HalaqatPage />
+            </RequireManager>
+          }
+        />
+
+        {/* لوحة الإحصاءات الشاملة: للمدير وحده — أرقام المركز كلّه عبر
+            كامل عمره (مسارات /api/statistics محصورة بـADMIN) */}
+        <Route
+          path="statistics"
+          element={
+            <RequireManager>
+              <StatisticsDashboard />
+            </RequireManager>
+          }
+        />
+
+        {/* شهادات وسبر الأوقاف: للمدير وحده — ترشيح الطلاب لاختبارات
+            وزارة الأوقاف وتسجيل نتائجهم (مسارات /api/awqaf محصورة بـADMIN) */}
+        <Route
+          path="awqaf"
+          element={
+            <RequireManager>
+              <AwqafExams />
             </RequireManager>
           }
         />

@@ -79,3 +79,18 @@ export const requireUserManager = requireRole("ADMIN");
 
 /** كل صلاحيات البيانات الموسّعة: المدير والمشرف سواء. */
 export const requireStaff = requireRole("ADMIN", "SUPERVISOR");
+
+/**
+ * إدارة سجلّات الطلاب (إنشاء/تعديل/حذف/نقل/صورة) محصورة بالمدير وحده.
+ * المشرف دوره تشغيلي يومي: يسمّع، ويأخذ الحضور، ويمنح النقاط ويخصمها،
+ * ويعرض التقارير — ويقرأ قوائم الطلاب اللازمة لذلك، لكنه لا يمسّ
+ * بيانات الطالب الأساسية.
+ */
+export const requireStudentManager = requireRole("ADMIN");
+
+/**
+ * الإحصاءات العامة ولوحة الصدارة: للمدير وللمدرّس (ضمن نطاق حلقاته).
+ * المشرف محجوب عنها — دوره المتابعة اليومية لا الإحصاء العام.
+ * لا تُكتب requireRole("ADMIN") هنا: المدرّس يحتاج لوحة صدارة حلقاته.
+ */
+export const denySupervisor = requireRole("ADMIN", "TEACHER");

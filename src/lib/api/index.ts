@@ -5,6 +5,8 @@
 import { api, setToken } from "./client";
 import type {
   AttendanceSession,
+  AwqafRecord,
+  AwqafStatus,
   AttendanceSheet,
   AttendanceStatus,
   AuthUser,
@@ -21,6 +23,7 @@ import type {
   RecitationType,
   Role,
   StaffUser,
+  StatisticsDashboard,
   Student,
   StudentStats,
 } from "./types";
@@ -303,4 +306,37 @@ export const usersApi = {
   /** استبدال كامل لقائمة الحلقات المسندة. */
   assignHalaqat: (id: number, halaqaIds: number[]) =>
     api.put<{ data: { id: number; name: string }[] }>(`/users/${id}/halaqat`, { halaqaIds }),
+};
+
+/* ==================== شهادات وسبر الأوقاف ==================== */
+
+/** سجلّات سبر الأوقاف — كلها محصورة بالمدير (الخادم يرد 403 لغيره). */
+export const awqafApi = {
+  /** meta.months يحمل كل الأشهر المسجَّلة، لا أشهر النتيجة المفلترة. */
+  list: (params?: { month?: string; status?: AwqafStatus; halaqaId?: number }) =>
+    api.get<{ data: AwqafRecord[]; meta: { months: string[] } }>("/awqaf", params),
+
+  get: (id: number) => api.get<{ data: AwqafRecord }>(`/awqaf/${id}`),
+
+  create: (body: {
+    studentId: number;
+    examMonth: string;
+    status?: AwqafStatus;
+    notes?: string | null;
+  }) => api.post<{ data: AwqafRecord }>("/awqaf", body),
+
+  update: (
+    id: number,
+    body: Partial<{ status: AwqafStatus; examMonth: string; notes: string | null }>
+  ) => api.patch<{ data: AwqafRecord }>(`/awqaf/${id}`, body),
+
+  /** حذف فعلي — السجل ليس مرجعاً لبيانات أخرى. */
+  remove: (id: number) => api.delete<void>(`/awqaf/${id}`),
+};
+
+/* ==================== لوحة الإحصاءات ==================== */
+
+/** تجميعات الإحصاءات الشاملة — للمدير وحده (الخادم يرد 403 لغيره). */
+export const statisticsApi = {
+  dashboard: () => api.get<{ data: StatisticsDashboard }>("/statistics/dashboard"),
 };

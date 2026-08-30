@@ -3,7 +3,10 @@ import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import logo from "/logo.png";
 
+import type { IconType } from "react-icons";
 import {
+  FaCertificate,
+  FaChartLine,
   FaUsers,
   FaBookOpen,
   FaChartBar,
@@ -17,6 +20,12 @@ import QuickPointsModal from "./QuickPointsModal";
 import DailyReportModal from "./DailyReportModal";
 import { useAuth } from "../context/authContext";
 
+/**
+ * تبويبات خارج دور المشرف التشغيلي: سجلّات الطلاب، ولوحة الصدارة
+ * والإحصاءات العامة. تُحذف من شريطه كلياً — لا تعطيل ولا تظليل.
+ */
+const SUPERVISOR_HIDDEN = new Set(["students", "reports"]);
+
 function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -24,14 +33,26 @@ function Navbar() {
   const { t } = useTranslation();
 
   const isArabic = lang === "ar";
-  const { user: me } = useAuth();
+  const { user: me, isSupervisor, canManageUsers } = useAuth();
 
   const [quickPoints, setQuickPoints] = useState(false);
   const [dailyReport, setDailyReport] = useState(false);
 
   /* ===== Navigation Items ===== */
-  // صفحة الطلاب متاحة للجميع: المشرف بكامل الصلاحيات، والمدرّس للاطّلاع على حلقته.
-  const navItems = [
+  /*
+   * صفحة الطلاب للمدير (بكامل الصلاحيات) وللمدرّس (اطّلاع على حلقته).
+   * المشرف دوره تشغيلي يومي — تسميع وحضور ونقاط وتقارير — فيُحذف التبويب
+   * من شريطه كلياً (لا تعطيل ولا تظليل) تبسيطاً للواجهة، والمسار محميّ
+   * بـ RequireStudentManager فلا ينفع الدخول عبر الرابط.
+   */
+  const navItems: {
+    key: string;
+    title: string;
+    icon: IconType;
+    path: string;
+    /** تبويب إداري بحت: يظهر للمدير وحده (لا المشرف ولا المدرّس). */
+    adminOnly?: boolean;
+  }[] = [
     {
       key: "attendance",
       title: t("dashboard.attendance.title"),
@@ -56,7 +77,25 @@ function Navbar() {
       icon: FaChartBar,
       path: "reports",
     },
-  ];
+    {
+      key: "statistics",
+      title: t("statistics.navTitle"),
+      icon: FaChartLine,
+      path: "statistics",
+      adminOnly: true,
+    },
+    {
+      key: "awqaf",
+      title: t("awqaf.navTitle"),
+      icon: FaCertificate,
+      path: "awqaf",
+      adminOnly: true,
+    },
+  ].filter(
+    (item) =>
+      !(isSupervisor && SUPERVISOR_HIDDEN.has(item.key)) &&
+      !(item.adminOnly && !canManageUsers)
+  );
 
   const isActive = (path: string) => location.pathname.includes(path);
 

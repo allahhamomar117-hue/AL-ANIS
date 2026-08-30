@@ -12,6 +12,7 @@ import { EmptyState, ErrorState, LoadingState, Spinner } from "../../shared/Quer
 import { useCurrentHalaqa } from "../../lib/api/useCurrentHalaqa";
 import { useToast } from "../../shared/toast/toastContext";
 import Avatar from "../../shared/Avatar";
+import { useAuth } from "../../context/authContext";
 
 type PopupKind = "edit" | "delete" | "addStudent";
 
@@ -30,11 +31,12 @@ export default function AllStudent() {
 
   const current = useCurrentHalaqa();
   /**
-   * الصلاحيات: المدير والمشرف يضيفان ويعدّلان ويحذفان ويريان كل الحلقات.
-   * المدرّس يرى طلاب حلقته للاطّلاع فقط — تُخفى أزرار الإضافة والتعديل والحذف.
+   * الصلاحيات: المدير وحده يضيف ويعدّل ويحذف. المدرّس يرى طلاب حلقته
+   * للاطّلاع فقط — تُخفى أزرار الإضافة والتعديل والحذف. المشرف لا يصل
+   * إلى هذه الصفحة أصلاً (RequireStudentManager).
    * الخادم يفرض القيد نفسه، فهذا لتوضيح الواجهة لا للحماية.
    */
-  const canManageStudents = current.isAdmin;
+  const { canManageStudents } = useAuth();
   const halaqatQuery = useHalaqat();
   /*
    * المدرّس: بلا مرشّح حلقة إطلاقاً.

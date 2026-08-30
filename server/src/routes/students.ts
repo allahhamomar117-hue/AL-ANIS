@@ -3,7 +3,7 @@ import { z } from "zod";
 import { db, tx, type SqlParam } from "../db/index.js";
 import { ApiError, asyncHandler, parse } from "../lib/http.js";
 import { idParam, isoDate, pagination } from "../lib/schemas.js";
-import { requireRole } from "../middleware/auth.js";
+import { requireStudentManager } from "../middleware/auth.js";
 import { deleteAvatar, saveAvatar } from "../lib/avatars.js";
 import { addPoints } from "../services/points.js";
 import { applyScope, assertHalaqaAccess, assertStudentAccess } from "../services/scope.js";
@@ -144,10 +144,10 @@ studentsRouter.get(
   })
 );
 
-/** POST /api/students — إضافة طالب: المدير والمشرف. */
+/** POST /api/students — إضافة طالب: المدير وحده. */
 studentsRouter.post(
   "/",
-  requireRole("ADMIN", "SUPERVISOR"),
+  requireStudentManager,
   asyncHandler(async (req, res) => {
     const body = parse(studentBody, req.body);
     await assertHalaqaAccess(req.user!, body.halaqa_id ?? null);
@@ -173,10 +173,10 @@ studentsRouter.post(
   })
 );
 
-/** PATCH /api/students/:id — تعديل بيانات الطالب: المدير والمشرف. */
+/** PATCH /api/students/:id — تعديل بيانات الطالب: المدير وحده. */
 studentsRouter.patch(
   "/:id",
-  requireRole("ADMIN", "SUPERVISOR"),
+  requireStudentManager,
   asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
     await assertStudentAccess(req.user!, id);
@@ -223,11 +223,11 @@ studentsRouter.patch(
 
 /**
  * DELETE /api/students/:id — تعطيل، أو حذف نهائي عبر ?hard=true.
- * الحذف بنوعيه للمدير والمشرف؛ المدرّس يطّلع على طلاب حلقته فقط.
+ * الحذف بنوعيه للمدير وحده؛ المشرف والمدرّس يطّلعان فقط.
  */
 studentsRouter.delete(
   "/:id",
-  requireRole("ADMIN", "SUPERVISOR"),
+  requireStudentManager,
   asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
     await assertStudentAccess(req.user!, id);
@@ -345,7 +345,7 @@ async function avatarOf(id: number): Promise<string | null> {
  */
 studentsRouter.post(
   "/:id/avatar",
-  requireRole("ADMIN", "SUPERVISOR"),
+  requireStudentManager,
   asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
     const { data } = parse(z.object({ data: z.string().min(1) }), req.body);
@@ -364,7 +364,7 @@ studentsRouter.post(
 /** DELETE /api/students/:id/avatar — إزالة الصورة والعودة إلى الحرفين الأولين. */
 studentsRouter.delete(
   "/:id/avatar",
-  requireRole("ADMIN", "SUPERVISOR"),
+  requireStudentManager,
   asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
     const previous = await avatarOf(id);
@@ -379,7 +379,7 @@ studentsRouter.delete(
 /** POST /api/students/:id/transfer — نقل الطالب إلى حلقة أخرى. */
 studentsRouter.post(
   "/:id/transfer",
-  requireRole("ADMIN", "SUPERVISOR"),
+  requireStudentManager,
   asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
     const { halaqa_id } = parse(z.object({ halaqa_id: z.number().int().positive() }), req.body);

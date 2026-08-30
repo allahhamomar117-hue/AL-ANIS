@@ -7,10 +7,12 @@ import { config } from "./config.js";
 import { ApiError, errorHandler } from "./lib/http.js";
 import { requireAuth } from "./middleware/auth.js";
 import { attendanceRouter } from "./routes/attendance.js";
+import { awqafRouter } from "./routes/awqaf.js";
 import { authRouter } from "./routes/auth.js";
 import { halaqatRouter } from "./routes/halaqat.js";
 import { recitationsRouter } from "./routes/recitations.js";
 import { reportsRouter } from "./routes/reports.js";
+import { statisticsRouter } from "./routes/statistics.js";
 import { studentsRouter } from "./routes/students.js";
 import { usersRouter } from "./routes/users.js";
 
@@ -52,6 +54,8 @@ export function createApp() {
   app.use("/api/attendance", requireAuth, attendanceRouter);
   app.use("/api/recitations", requireAuth, recitationsRouter);
   app.use("/api/reports", requireAuth, reportsRouter);
+  app.use("/api/awqaf", requireAuth, awqafRouter);
+  app.use("/api/statistics", requireAuth, statisticsRouter);
 
   // أي مسار تحت /api لم تلتقطه المسارات أعلاه = 404 بصيغة JSON.
   // يجب أن يسبق تقديم الواجهة، وإلا ابتلع fallback الـ SPA طلبات الـ API

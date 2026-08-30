@@ -64,3 +64,17 @@ export function nowPlusMinutes(minutes: number): string {
     ? `now() + interval '${n} minutes'`
     : `datetime('now', '+${n} minutes')`;
 }
+
+/**
+ * الشهر من تاريخ بصيغة 'YYYY-MM' — للتجميع الشهري في الإحصاءات.
+ *   SQLite   : strftime('%Y-%m', expr) — التواريخ نصوص
+ *   Postgres : to_char(expr, 'YYYY-MM') — العمود من نوع date
+ *
+ * لا يصلح substr() هنا: يعمل في SQLite وحده، ويحتاج في Postgres تحويلاً
+ * صريحاً إلى نصّ فيسقط الاستعلام على العمود التاريخي.
+ */
+export function monthOf(expr: string): string {
+  return db().dialect === "postgres"
+    ? `to_char(${expr}, 'YYYY-MM')`
+    : `strftime('%Y-%m', ${expr})`;
+}

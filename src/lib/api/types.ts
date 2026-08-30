@@ -152,12 +152,17 @@ export interface LeaderboardRow {
 
 export interface DashboardStats {
   date: string;
-  halaqat: number;
-  students: number;
-  halaqatRecordedToday: number;
-  attendanceRate: number;
-  presentToday: number;
-  recitationsToday: number;
+  /*
+   * أرقام البطاقات اختيارية: الخادم يحجبها عن المشرف (دوره المتابعة
+   * اليومية لا الإحصاء العام)، فلا تصل في ردّه أصلاً.
+   */
+  halaqat?: number;
+  students?: number;
+  halaqatRecordedToday?: number;
+  attendanceRate?: number;
+  presentToday?: number;
+  recitationsToday?: number;
+  /** آخر النشاطات: متابعة تشغيلية، تصل لكل الأدوار ضمن نطاقها. */
   recentActivity: { kind: string; student: string; at: string; detail: string }[];
 }
 
@@ -206,4 +211,65 @@ export interface StaffUser {
   hasPassword: number;
   halaqatCount: number;
   halaqatNames: string | null;
+}
+
+/* ==================== شهادات وسبر الأوقاف ==================== */
+
+/** حالة الطالب في دورة سبر الأوقاف — الترجمة في locales تحت awqafStatuses. */
+export const AWQAF_STATUSES = ["nominated", "passed", "failed"] as const;
+export type AwqafStatus = (typeof AWQAF_STATUSES)[number];
+
+export interface AwqafRecord {
+  id: number;
+  studentId: number;
+  studentName: string;
+  studentCode: string;
+  studentAvatarUrl: string | null;
+  halaqaId: number | null;
+  halaqa: string;
+  /** شهر السبر بصيغة YYYY-MM. */
+  examMonth: string;
+  status: AwqafStatus;
+  notes: string | null;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/* ==================== لوحة الإحصاءات ==================== */
+
+/** نقطة في السلسلة الشهرية للتسميع. الشهر بصيغة YYYY-MM. */
+export interface MonthlyRecitationPoint {
+  month: string;
+  /** الصفحات محسوبة بأوزان جزء عمّ ونصف الصفحة — نفس قاعدة لوحة الصدارة. */
+  pages: number;
+  count: number;
+}
+
+export interface AwqafPeriodStats {
+  passed: number;
+  nominated: number;
+  failed: number;
+  total: number;
+}
+
+export interface StatisticsDashboard {
+  totals: {
+    recitationPages: number;
+    recitationCount: number;
+    /** أيام سُجّلت فيها جلسة حضور واحدة على الأقل. */
+    attendanceDays: number;
+    attendanceSessions: number;
+    awqafPassed: number;
+    awqafTotal: number;
+    students: number;
+    halaqat: number;
+  };
+  /** متّصلة زمنياً: الأشهر الخالية تصل بأصفار فلا ينقطع الخطّ. */
+  monthlyRecitation: MonthlyRecitationPoint[];
+  awqafStats: {
+    /** أشهر السبر المسجّلة فقط — لا تُملأ الفجوات (السبر واقعة متقطّعة). */
+    byMonth: (AwqafPeriodStats & { month: string })[];
+    byYear: (AwqafPeriodStats & { year: string })[];
+  };
 }
