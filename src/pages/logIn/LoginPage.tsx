@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { FaLock, FaUser } from "react-icons/fa";
 import { useAuth } from "../../context/authContext";
 import { ApiError } from "../../lib/api";
-import logo from "/logo.png";
+import logo from "../../assets/logo.png";
 
 /** تسجيل الدخول باسم المستخدم وكلمة المرور. */
 export default function LoginPage() {

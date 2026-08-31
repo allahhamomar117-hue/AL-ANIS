@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { FaTimes, FaWhatsapp, FaDownload } from "react-icons/fa";
 import { toPng } from "html-to-image";
-import logo from "/logo.png";
+import logo from "../assets/logo.png";
 import { reportsApi } from "../lib/api";
 import { qk } from "../lib/api/queryKeys";
 import { useHalaqat } from "../lib/api/hooks";

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import logo from "/logo.png";
+import logo from "../assets/logo.png";
 
 import type { IconType } from "react-icons";
 import {
