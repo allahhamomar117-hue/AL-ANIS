@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { FaTimes, FaWhatsapp, FaDownload } from "react-icons/fa";
 import { toPng } from "html-to-image";
 import logo from "../assets/logo.png";
+import backgroundPattern from "../assets/background.jpg";
 import { reportsApi } from "../lib/api";
 import { qk } from "../lib/api/queryKeys";
 import { useHalaqat } from "../lib/api/hooks";
@@ -16,34 +17,38 @@ import { ErrorState, LoadingState } from "./QueryState";
 import { useToast } from "./toast/toastContext";
 
 /**
- * الشعار مُحمَّل سلفاً: الالتقاط لا ينتظر الشبكة، فصورة لم تكتمل
- * تخرج علامةً مائية فارغة.
+ * الشعار والزخرفة مُحمَّلان سلفاً: الالتقاط لا ينتظر الشبكة، فصورة لم
+ * تكتمل تخرج بترويسة فارغة أو ورقة بلا زخرفة.
  *
- * المحاولة مخزَّنة لا نتيجتها: الشعار ملف كبير نسبياً، فإن فشل فكّه مرة
+ * المحاولة مخزَّنة لا نتيجتها: الملفّان كبيران نسبياً، فإن فشل فكّهما مرة
  * (شبكة متقطّعة) أُعيدت المحاولة عند التصدير التالي بدل تثبيت الفشل.
  */
-let logoPromise: Promise<boolean> | null = null;
+let assetsPromise: Promise<boolean> | null = null;
 
-const loadLogo = (): Promise<boolean> => {
-  if (!logoPromise) {
-    logoPromise = (async () => {
-      const image = new Image();
-      image.src = logo;
+const loadAssets = (): Promise<boolean> => {
+  if (!assetsPromise) {
+    assetsPromise = (async () => {
       try {
-        await image.decode();
+        await Promise.all(
+          [logo, backgroundPattern].map(async (src) => {
+            const image = new Image();
+            image.src = src;
+            await image.decode();
+          })
+        );
         return true;
       } catch {
-        // الشعار زينة لا أكثر — فشل تحميله لا يمنع التصدير
-        logoPromise = null;
+        // الصورتان زينة لا أكثر — فشل تحميلهما لا يمنع التصدير
+        assetsPromise = null;
         return false;
       }
     })();
   }
-  return logoPromise;
+  return assetsPromise;
 };
 
 // بدء التحميل فور استيراد الوحدة، قبل أن يفتح المستخدم النافذة.
-void loadLogo();
+void loadAssets();
 
 /**
  * عرض ورقة A4 بدقة 96dpi — عرض الصورة المصدَّرة دائماً.
@@ -115,7 +120,7 @@ export default function DailyReportModal({ onClose }: { onClose: () => void }) {
     await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
     await new Promise((resolve) => setTimeout(resolve, 120));
     await document.fonts?.ready;
-    await loadLogo();
+    await loadAssets();
 
     const node = exportRef.current;
     if (!node) {
@@ -253,26 +258,17 @@ export default function DailyReportModal({ onClose }: { onClose: () => void }) {
                   minHeight: `${A4_MIN_HEIGHT}px`,
                   height: "auto",
                   padding: `${A4_PADDING}px`,
-                  // تدرّج مكتوب صراحةً لا بفئات Tailwind: تدرّجات v4 تُبنى
-                  // بمتغيّرات CSS قد لا تنتقل سليمة إلى نسخة foreignObject
+                  // الزخرفة خلفية الورقة كاملة، وفوقها حجاب داكن خفيف يعمّق لونها
+                  // ويبرز بطاقاتها البيضاء. مكتوبة صراحةً لا بفئات Tailwind: تدرّجات v4
+                  // تُبنى بمتغيّرات CSS قد لا تنتقل سليمة إلى foreignObject
                   backgroundColor: "#ffffff",
-                  backgroundImage:
-                    "linear-gradient(to bottom, rgba(209, 250, 229, 0.45) 0%, rgba(255, 255, 255, 1) 55%)",
+                  backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.08)), url(${backgroundPattern})`,
+                  backgroundSize: "cover, cover",
+                  backgroundPosition: "center, center",
+                  backgroundRepeat: "no-repeat, no-repeat",
                 }}
                 ref={exportRef}
               >
-                {/* العلامة المائية: خلف المحتوى تماماً وبشفافية لا تعيق القراءة */}
-                <div
-                  className="absolute inset-0 flex items-center justify-center"
-                  style={{ zIndex: 0, opacity: 0.06 }}
-                >
-                  <img
-                    src={logo}
-                    alt=""
-                    style={{ height: "560px", width: "auto", maxWidth: "70%", objectFit: "contain" }}
-                  />
-                </div>
-
                 <div
                   dir={i18n.language === "ar" ? "rtl" : "ltr"}
                   style={{ width: `${CONTENT_WIDTH}px`, position: "relative", zIndex: 10 }}
@@ -376,39 +372,94 @@ function ReportSheet({ data, print }: { data: DailyReport; print?: boolean }) {
 
   // نسخة التصدير أضيق حشواً وأصغر خطاً: تقصّر الورقة طبيعياً بلا تحجيم
   const cell = print ? "px-2 py-1.5 text-xs" : "px-3 py-2";
+  // حدود الطباعة أخفت: البطاقة المستديرة هي ما يحدّ الجدول، لا خطوط داكنة
+  const headDivider = print ? "border-s border-white/15" : "border-s border-gray-300";
+  const headEdge = print ? "" : "border-b border-gray-300";
+  const rowEdge = print ? "border-b border-gray-100" : "border-b border-gray-200";
+  const rowDivider = print ? "border-s border-gray-100" : "border-s border-gray-200";
 
   return (
     <div className={print ? "w-full" : ""} dir={i18n.language === "ar" ? "rtl" : "ltr"}>
+      {/*
+        في التصدير الترويسة وثيقة رسمية: بطاقة بيضاء بشريط أخضر على حرفها،
+        الشعار في صدر السطر (يمين العربية) والعنوان موسّطاً إلى جانبه، وتحته
+        شارة نوع التقرير. على الشاشة تبقى الترويسة نصّاً موسّطاً بلا شعار.
+      */}
       <div
-        className={`border-b border-gray-300 text-center ${print ? "px-3 py-2" : "px-4 py-3"}`}
+        className={
+          print
+            ? "relative flex items-center gap-5 overflow-hidden rounded-2xl border border-gray-200/80 bg-white/95 px-6 py-5 shadow-sm"
+            : "border-b border-gray-300 px-4 py-3 text-center"
+        }
       >
-        <p className="text-base font-bold text-gray-800">
-          {t("dailyReport.sheetTitle", { halaqa: data.halaqa.name })}
-        </p>
-        <p className="mt-0.5 text-xs text-gray-500">
-          {formatDate(data.date, i18n.language)}
-          {data.halaqa.teacher ? ` · ${data.halaqa.teacher}` : ""}
-          {print ? ` · ${t("dailyReport.studentCount", { count: data.students.length })}` : ""}
-        </p>
+        {print && (
+          <>
+            {/* الشريط الأخضر: يسار البطاقة فيزيائياً في الاتجاهين معاً */}
+            <span
+              aria-hidden
+              className="absolute bottom-4 left-0 top-4 w-1.5 rounded-full bg-emerald-600"
+            />
+            <div className="shrink-0 rounded-xl border border-gray-200 bg-white p-2">
+              <img
+                src={logo}
+                alt=""
+                style={{ height: "84px", width: "auto", objectFit: "contain", display: "block" }}
+              />
+            </div>
+          </>
+        )}
+
+        <div className={print ? "min-w-0 flex-1 text-center" : ""}>
+          <p
+            className={`font-bold ${print ? "text-2xl text-[#1f2d3d]" : "text-base text-gray-800"}`}
+          >
+            {print
+              ? t("dailyReport.sheetHeading", { halaqa: data.halaqa.name })
+              : t("dailyReport.sheetTitle", { halaqa: data.halaqa.name })}
+          </p>
+
+          {/* المعلّم ثم التاريخ ثم العدد: أهمّها أولاً في اتجاه القراءة */}
+          <p className={`mt-1 text-gray-500 ${print ? "text-sm" : "text-xs"}`}>
+            {[
+              data.halaqa.teacher || null,
+              formatDate(data.date, i18n.language),
+              print ? t("dailyReport.studentCount", { count: data.students.length }) : null,
+            ]
+              .filter(Boolean)
+              .join("   ·   ")}
+          </p>
+
+          {print && (
+            <span className="mt-2.5 inline-block rounded-full bg-emerald-100/90 px-4 py-1 text-xs font-bold text-emerald-800">
+              {t("dailyReport.sheetBadge")}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* على الشاشة يمرّر الجدول أفقياً؛ في التصدير لا تمرير ولا عرض أدنى */}
-      <div className={print ? "" : "overflow-x-auto"}>
+      <div
+        className={
+          print
+            ? "mt-4 overflow-hidden rounded-2xl border border-gray-200/80 shadow-sm"
+            : "overflow-x-auto"
+        }
+      >
         <table
           className={`w-full border-collapse text-sm ${print ? "table-fixed" : "min-w-[520px]"}`}
         >
           <thead>
-            <tr className={`text-gray-700 ${print ? "bg-gray-100/80" : "bg-gray-100"}`}>
-              <th className={`border-b border-gray-300 text-start font-bold ${cell}`}>
+            <tr className={print ? "bg-[#243447] text-white" : "bg-gray-100 text-gray-700"}>
+              <th className={`text-start font-bold ${headEdge} ${cell}`}>
                 {t("dailyReport.columns.student")}
               </th>
-              <th className={`border-b border-s border-gray-300 text-center font-bold ${cell}`}>
+              <th className={`text-center font-bold ${headEdge} ${headDivider} ${cell}`}>
                 {t("dailyReport.columns.attendance")}
               </th>
-              <th className={`border-b border-s border-gray-300 text-center font-bold ${cell}`}>
+              <th className={`text-center font-bold ${headEdge} ${headDivider} ${cell}`}>
                 {t("dailyReport.columns.participation")}
               </th>
-              <th className={`border-b border-s border-gray-300 text-start font-bold ${cell}`}>
+              <th className={`text-start font-bold ${headEdge} ${headDivider} ${cell}`}>
                 {t("dailyReport.columns.recitation")}
               </th>
             </tr>
@@ -423,22 +474,23 @@ function ReportSheet({ data, print }: { data: DailyReport; print?: boolean }) {
               return (
                 <tr
                   key={student.id}
-                  // في التصدير خلفيات نصف شفافة كي تظهر العلامة المائية تحتها
+                  // في التصدير خلفيات شبه معتمة: الزخرفة تظهر خلفها بخفوت
+                  // والنص يبقى مقروءاً فوقها
                   className={
                     print
                       ? index % 2
-                        ? "bg-gray-50/70"
-                        : "bg-white/60"
+                        ? "bg-gray-50/90"
+                        : "bg-white/90"
                       : index % 2
                         ? "bg-gray-50"
                         : "bg-white"
                   }
                 >
-                  <td className={`border-b border-gray-200 font-semibold text-gray-800 ${cell}`}>
+                  <td className={`font-semibold text-gray-800 ${rowEdge} ${cell}`}>
                     {student.name}
                   </td>
 
-                  <td className={`border-b border-s border-gray-200 text-center ${cell}`}>
+                  <td className={`text-center ${rowEdge} ${rowDivider} ${cell}`}>
                     <span
                       className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-bold ${statusChip(student.status)}`}
                     >
@@ -454,7 +506,7 @@ function ReportSheet({ data, print }: { data: DailyReport; print?: boolean }) {
                     الحسم فيصل التقرير إلى الأهالي ناقصاً، فنعرض
                     الإشارتين ونميّزهما باللون.
                   */}
-                  <td className={`border-b border-s border-gray-200 text-center font-bold ${cell}`}>
+                  <td className={`text-center font-bold ${rowEdge} ${rowDivider} ${cell}`}>
                     {student.participation > 0 && (
                       <span className="text-emerald-700">+{student.participation}</span>
                     )}
@@ -473,7 +525,7 @@ function ReportSheet({ data, print }: { data: DailyReport; print?: boolean }) {
                     )}
                   </td>
 
-                  <td className={`border-b border-s border-gray-200 text-gray-700 ${cell}`}>
+                  <td className={`text-gray-700 ${rowEdge} ${rowDivider} ${cell}`}>
                     {recitation ? (
                       <span>
                         {recitation}
@@ -508,6 +560,13 @@ function ReportSheet({ data, print }: { data: DailyReport; print?: boolean }) {
           </tbody>
         </table>
       </div>
+
+      {/* دعاء الختام: يقفل الورقة كوثيقة، ولا محلّ له في معاينة الشاشة */}
+      {print && (
+        <p className="mt-5 text-center text-sm font-bold text-gray-600">
+          {t("dailyReport.sheetFooter")}
+        </p>
+      )}
     </div>
   );
 }

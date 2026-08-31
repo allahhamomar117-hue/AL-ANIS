@@ -569,6 +569,9 @@
     "surah": "Surah {{surah}}",
     "share": "Download image and share",
     "sheetTitle": "{{halaqa}} — daily report",
+    "sheetHeading": "{{halaqa}} halaqa report",
+    "sheetBadge": "Daily report",
+    "sheetFooter": "May Allah grant our children guidance and success",
     "columns": {
       "student": "Student",
       "attendance": "Attendance",

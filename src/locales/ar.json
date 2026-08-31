@@ -571,6 +571,9 @@
     "surah": "سورة {{surah}}",
     "share": "تحميل الصورة ومشاركتها",
     "sheetTitle": "تقرير حلقة {{halaqa}} اليومي",
+    "sheetHeading": "تقرير حلقة {{halaqa}}",
+    "sheetBadge": "التقرير اليومي",
+    "sheetFooter": "نسأل الله لأبنائنا التوفيق والسداد",
     "columns": {
       "student": "الطالب",
       "attendance": "الحضور",
