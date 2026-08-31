@@ -121,7 +121,7 @@ body {
 
 .dark .app-bg::before {
   mix-blend-mode: soft-light;
-  opacity: 0.55;
+  opacity: 0.95;
 }
 
 /*
