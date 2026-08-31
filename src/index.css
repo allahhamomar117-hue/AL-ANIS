@@ -76,14 +76,14 @@ body {
 }
 
 /*
- * خلفية النظام.
+ * خلفية النظام — زخرفة متكرّرة.
  *
- * طبقة ثابتة (fixed) خلف كل شيء لا تتكرّر ولا تتمدّد مع السكرول، فوقها
- * حجاب لوني كثيف: الخلفية زينة بعيدة والجداول والنصوص فوقها تُقرأ كما لو
- * كانت على سطح صلب. تُطبَّق على عنصر الهيكل عبر الصنف .app-bg.
+ * الصورة نفسها مُخفَّفة الألوان سلفاً (شبه بيضاء)، فتُعرض كما هي بلا
+ * حجاب ولا opacity: أيّ طبقة فوقها تُخفيها بلا فائدة.
  *
- * ملاحظة: الشفافية موضوعة على الصورة نفسها (opacity على ::before) لا على
- * المحتوى، فلا يرث أيّ نص أو جدول أيّ خفوت.
+ * الطبقة عنصر زائف ثابت (fixed) خلف المحتوى: يغطّي إطار العرض ولا
+ * يتحرّك مع السكرول، فالنمط ساكن والزخرفة لا تتمدّد مع طول الصفحة.
+ * تُطبَّق على عنصر الهيكل عبر الصنف .app-bg.
  */
 .app-bg {
   position: relative;
@@ -94,47 +94,33 @@ body {
   content: "";
   position: fixed;
   inset: 0;
-  z-index: -2;
-  background-image: url("./assets/background.jpg");
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
-  opacity: 0.12;
-  pointer-events: none;
-}
-
-/* حجاب فوق الصورة: يوحّد الأرضية ويضمن تبايناً كاملاً للنصوص. */
-.app-bg::after {
-  content: "";
-  position: fixed;
-  inset: 0;
   z-index: -1;
-  background-color: rgba(255, 255, 255, 0.82);
+  background-image: url("./assets/background.jpg");
+  background-repeat: repeat;
+  background-size: auto;
+  background-position: top center;
   pointer-events: none;
 }
 
+/*
+ * الوضع الليلي: الزخرفة شبه بيضاء، فعرضها كما هي يُبيّض الواجهة كلّها
+ * ويجعل النصوص الفاتحة (dark:text-gray-200) غير مقروءة. تُرفع هنا
+ * وتعود الأرضية الداكنة. احذف هذه القاعدة إن أردت النمط في الوضعين.
+ */
 .dark .app-bg::before {
-  opacity: 0.08;
-}
-
-.dark .app-bg::after {
-  background-color: rgba(17, 17, 17, 0.88);
-}
-
-/* من يفضّل تقليل الحركة: الخلفية الثابتة تُلغى (attachment يسبّب اهتزازاً). */
-@media (prefers-reduced-motion: reduce) {
-  .app-bg::before {
-    background-attachment: scroll;
-  }
+  background-image: none;
 }
 
 /*
  * جذور الصفحات تطلي أرضية معتمة (bg-white / bg-gray-50 / bg-emerald-50)
- * تحجب طبقة الخلفية تماماً. تُشفَّف هنا في موضع واحد بدل تعديل كل صفحة،
- * فالأرضية الموحّدة تأتي من حجاب .app-bg نفسه. البطاقات والجداول داخل
- * الصفحة تحتفظ بأرضيتها فلا يتأثّر وضوحها.
+ * تحجب طبقة الزخرفة تماماً. تُشفَّف هنا في موضع واحد بدل تعديل كل صفحة.
+ * البطاقات والجداول داخل الصفحة تحتفظ بأرضيتها فلا يتأثّر وضوحها.
  */
 .app-bg > main > * {
   background-color: transparent;
+}
+
+/* الوضع الليلي يستعيد أرضيته الصلبة بعد رفع الزخرفة. */
+.dark .app-bg > main > * {
+  background-color: var(--chart-surface);
 }
