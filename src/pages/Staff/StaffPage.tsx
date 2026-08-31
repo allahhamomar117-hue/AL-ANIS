@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import { FaEdit, FaUserPlus, FaUserTie } from "react-icons/fa";
 import { useStaff } from "../../lib/api/hooks";
 import type { Role, StaffUser } from "../../lib/api/types";
+import { useAuth } from "../../context/authContext";
+import DepartmentBadge from "../../shared/DepartmentBadge";
 import { ErrorState, LoadingState } from "../../shared/QueryState";
 import PopupStaffForm from "./PopupStaffForm";
 
@@ -17,6 +19,7 @@ import PopupStaffForm from "./PopupStaffForm";
 export default function StaffPage() {
   const { t } = useTranslation();
   const { lang = "ar" } = useParams();
+  const { isSuperAdmin } = useAuth();
 
   const [form, setForm] = useState<{ role: Role; editing?: StaffUser } | null>(null);
 
@@ -90,6 +93,22 @@ export default function StaffPage() {
                     >
                       {t(`roles.${member.role}`)}
                     </span>
+                    {/*
+                      رقاقة القسم، ونصٌّ صريح بدلها حين لا قسم — والغياب
+                      هنا ليس نقصاً في البيانات بل معنى: حسابٌ بلا قسم
+                      نطاقُه المعهد كلّه. تركه فارغاً يقرأ كحقل لم يُملأ.
+
+                      كلاهما يُعرض للمدير العام وحده: قائمةُ مديرِ القسم
+                      كلّها قسمُه، فالرقاقة على كل صفّ ضجيج لا تمييز.
+                    */}
+                    {isSuperAdmin &&
+                      (member.department ? (
+                        <DepartmentBadge department={member.department} />
+                      ) : (
+                        <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-bold text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                          {t("staff.allDepartments")}
+                        </span>
+                      ))}
                   </div>
 
                   <p className="mt-1 truncate text-xs text-gray-500 dark:text-gray-400" dir="ltr">

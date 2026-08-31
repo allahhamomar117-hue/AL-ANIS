@@ -1,6 +1,19 @@
 /** أنواع البيانات القادمة من API الأنيس. */
 
 export type Role = "ADMIN" | "SUPERVISOR" | "TEACHER";
+
+/**
+ * أقسام المعهد — مفاتيح ثابتة، الترجمة في locales تحت departments.
+ *
+ * لا تخلطها بـ HALAQA_STAGES: تلك مرحلة دراسية وصفية، وهذه تقسيم إداري
+ * يحدّد من يرى ماذا — والمكثفة لا مقابل لها في المراحل.
+ *
+ * دلالة `null` تختلف بين الحقلين:
+ *   AuthUser.department / StaffUser.department  ⇒ مدير عام، نطاقه المعهد كلّه.
+ *   Halaqa.department                            ⇒ حلقة لم يُسنَد لها قسم بعد.
+ */
+export const DEPARTMENTS = ["PRIMARY", "MIDDLE_HIGH", "INTENSIVE"] as const;
+export type Department = (typeof DEPARTMENTS)[number];
 export type AttendanceStatus = "present" | "absent" | "late" | "excused";
 export type RecitationType = "full" | "half" | "more" | "surah";
 export type Rating = "excellent" | "good" | "needs";
@@ -14,6 +27,8 @@ export interface AuthUser {
   phone_number: string | null;
   country_code: string;
   role: Role;
+  /** قسم الإداري — null يعني المدير العام (يرى الأقسام كلها). */
+  department: Department | null;
   /** حلقة المدرّس الافتراضية — null للمدير والمشرف (يريان الجميع). */
   halaqa_id: number | null;
   halaqa_name: string | null;
@@ -31,6 +46,8 @@ export interface Halaqa {
   teacherId: number | null;
   teacher: string;
   stage: HalaqaStage | null;
+  /** قسم الحلقة — null للحلقات التي لم تُسنَد بعد (لا يراها إلا المدير العام). */
+  department: Department | null;
   scheduleTime: string | null;
   location: string | null;
   isActive: number;
@@ -216,6 +233,8 @@ export interface StaffUser {
   name: string;
   username: string | null;
   role: Role;
+  /** قسم الحساب — null يعني نطاق المعهد كلّه (مدير عام). */
+  department: Department | null;
   isActive: number;
   createdAt: string;
   hasPassword: number;

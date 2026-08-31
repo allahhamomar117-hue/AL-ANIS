@@ -1,10 +1,20 @@
 import { createContext, use } from "react";
-import type { AuthUser, Role } from "../lib/api/types";
+import type { AuthUser, Department, Role } from "../lib/api/types";
 
 export interface AuthContextValue {
   /** المستخدم الحالي، أو null إن لم تكن هناك جلسة. */
   user: AuthUser | null;
   role: Role | null;
+  /**
+   * قسم المستخدم، أو null لمن نطاقه المعهد كلّه.
+   *
+   * تُقرأ من هنا لا من user.department مباشرةً: المدرّس له عمود قسم أيضاً
+   * (ليظهر في قائمة كادر قسمه) لكن نطاقه حلقاته لا قسمه — فقراءة العمود
+   * خاماً تُنتج قيداً لا وجود له على الخادم.
+   */
+  department: Department | null;
+  /** مدير عام: إداريّ بلا قسم — يرى الأقسام كلها ويسند الحسابات إليها. */
+  isSuperAdmin: boolean;
   /** حلقة المدرّس الافتراضية؛ null للمدير والمشرف. */
   halaqaId: number | null;
   halaqaName: string | null;

@@ -18,8 +18,10 @@ import {
   useUpdateUser,
   useUserHalaqat,
 } from "../../lib/api/hooks";
-import type { Role, StaffUser } from "../../lib/api/types";
+import type { Department, Role, StaffUser } from "../../lib/api/types";
 import { useAuth } from "../../context/authContext";
+import { departmentToSend } from "../../lib/department";
+import DepartmentField from "../../shared/DepartmentField";
 import { useToast } from "../../shared/toast/toastContext";
 
 /** الحدّ الأدنى عند الإنشاء (يفرضه الخادم على /users). */
@@ -46,7 +48,7 @@ export default function PopupStaffForm({
 }) {
   const { t } = useTranslation();
   const { notify } = useToast();
-  const { user } = useAuth();
+  const { user, isSuperAdmin } = useAuth();
 
   const isEdit = Boolean(editing);
   const [name, setName] = useState(editing?.name ?? "");
@@ -55,6 +57,15 @@ export default function PopupStaffForm({
   const [confirm, setConfirm] = useState("");
   const [visible, setVisible] = useState(false);
   const [role, setRole] = useState<Role>(editing?.role ?? initialRole);
+  /**
+   * القسم. يُهيّأ من الحساب المُعدَّل، وفارغاً عند الإنشاء.
+   *
+   * مدير القسم لا يقرأه ولا يكتبه — departmentToSend تُعيد له undefined
+   * فيملأه الخادم. الحالة موجودة على أي حال كي لا ينقسم المسار إلى فرعين.
+   */
+  const [department, setDepartment] = useState<Department | "">(
+    editing?.department ?? ""
+  );
   const [isActive, setIsActive] = useState(editing ? editing.isActive === 1 : true);
   /** null = لم يلمس المستخدم الرقاقات بعد، فالمعروض هو الإسناد الحالي. */
   const [picked, setPicked] = useState<number[] | null>(null);
@@ -117,11 +128,20 @@ export default function PopupStaffForm({
 
     try {
       if (isEdit && editing) {
+        /*
+         * القسم يُطوى في الجسم فقط حين تكون له قيمة تُرسل: مدير القسم
+         * تُعيد له departmentToSend القيمة undefined، ولو مُرّرت كمفتاح
+         * صريح لَسَرَتْ في JSON.stringify كغياب — وهو ما نريده — لكن
+         * الطيّ المشروط يجعل النية ظاهرة في الكود لا مستنتَجة منه.
+         */
+        const dept = departmentToSend(department, isSuperAdmin);
+
         await updateUser.mutateAsync({
           id: editing.id,
           name: name.trim(),
           username: username.trim(),
           role,
+          ...(dept !== undefined ? { department: dept } : {}),
           ...(canToggleActive ? { is_active: isActive } : {}),
           // الإرسال استبدال كامل، والقائمة محمّلة بالإسناد الحالي فلا يضيع منها شيء.
           // لا تُرسل قبل وصول الإسناد كي لا يُمحى بقائمة فارغة.
@@ -134,11 +154,14 @@ export default function PopupStaffForm({
         }
         notify(t("staff.updated"));
       } else {
+        const dept = departmentToSend(department, isSuperAdmin);
+
         await createUser.mutateAsync({
           name: name.trim(),
           username: username.trim(),
           password,
           role,
+          ...(dept !== undefined ? { department: dept } : {}),
           halaqaIds: needsHalaqat ? halaqaIds : [],
         });
         notify(t("staff.created"));
@@ -231,6 +254,22 @@ export default function PopupStaffForm({
             className={fieldClass}
           />
         </div>
+
+        {/*
+          القسم — للأدوار الثلاثة لا للإداريين وحدهم.
+
+          نطاق المدرّس حلقاته لا قسمه، لكن users.department هو ما يقرّر
+          ظهوره في قائمة كادر مدير قسمه: مدرّس بلا قسم لا يراه مدير قسمه
+          ولا يستطيع تعديله، فيبدو الحساب مفقوداً.
+        */}
+        <DepartmentField
+          value={department}
+          onChange={setDepartment}
+          label={t("staff.department")}
+          emptyLabel={t("staff.noDepartment")}
+          lockedHint={t("staff.departmentLocked")}
+          className={fieldClass}
+        />
 
         {/* كلمة المرور — مطلوبة عند الإنشاء، اختيارية عند التعديل */}
         <div>

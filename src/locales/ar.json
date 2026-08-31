@@ -483,6 +483,10 @@
     "studentRestored": "أُعيد {{name}} إلى الدورة الجارية"
   },
   "staff": {
+    "department": "القسم",
+    "noDepartment": "كل الأقسام (مدير عام)",
+    "departmentLocked": "يُسنَد الحساب إلى قسمك تلقائياً",
+    "allDepartments": "كل الأقسام",
     "title": "إدارة الكادر",
     "subtitle": "حسابات الأساتذة والمشرفين: إضافة وتعديل",
     "open": "فتح الصفحة",
@@ -521,6 +525,10 @@
     "deleted": "تم حذف حساب {{name}} نهائياً"
   },
   "halaqatAdmin": {
+    "department": "القسم",
+    "noDepartment": "بلا قسم",
+    "departmentLocked": "تُسنَد الحلقة إلى قسمك تلقائياً",
+    "noDepartmentWarning": "حلقة بلا قسم لا يراها إلا المدير العام — لن تظهر لمدير القسم ولا في تقاريره.",
     "title": "إدارة الحلقات",
     "subtitle": "إضافة الحلقات وتعديل أسمائها وتعطيلها — تنعكس فوراً في كل قوائم الاختيار",
     "add": "إضافة حلقة جديدة",
@@ -552,6 +560,11 @@
     "primary": "ابتدائي",
     "preparatory": "إعدادي",
     "secondary": "ثانوي"
+  },
+  "departments": {
+    "PRIMARY": "ابتدائي",
+    "MIDDLE_HIGH": "إعدادي وثانوي",
+    "INTENSIVE": "مكثفة"
   },
   "attendanceStatus": {
     "present": "حاضر",

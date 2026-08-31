@@ -1,6 +1,7 @@
 import { ArrowLeftIcon, UserGroupIcon } from "@heroicons/react/24/outline";
 import { useTranslation } from "react-i18next";
-import type { HalaqaStage } from "../lib/api/types";
+import type { Department, HalaqaStage } from "../lib/api/types";
+import DepartmentBadge from "./DepartmentBadge";
 
 interface HalaqaCardProps {
   name: string;
@@ -8,10 +9,19 @@ interface HalaqaCardProps {
   students: number;
   /** المرحلة الدراسية — تُخفى الرقاقة إن لم تُحدَّد. */
   stage?: HalaqaStage | null;
+  /** قسم الحلقة — تُخفى الرقاقة إن لم يُسنَد. */
+  department?: Department | null;
   onClick: () => void;
 }
 
-export default function HalaqaCard({ name, teacher, students, stage, onClick }: HalaqaCardProps) {
+export default function HalaqaCard({
+  name,
+  teacher,
+  students,
+  stage,
+  department,
+  onClick,
+}: HalaqaCardProps) {
   const { t } = useTranslation();
 
   return (
@@ -40,6 +50,14 @@ export default function HalaqaCard({ name, teacher, students, stage, onClick }: 
               {t(`halaqaStages.${stage}`)}
             </span>
           )}
+          {/*
+            بلا شرط isSuperAdmin هنا خلافاً للقوائم الإدارية: الشبكة
+            يفتحها المدرّس أيضاً، وقد تُسنَد إليه حلقات من قسمين — فالرقاقة
+            تفرزهما له. ومدير القسم لا تصله إلا حلقات قسمه أصلاً، فتتكرّر
+            عليه رقاقة واحدة لا أكثر: تَكرارٌ محتمَل، أهون من إخفاء تمييزٍ
+            يحتاجه المدرّس.
+          */}
+          <DepartmentBadge department={department ?? null} />
         </div>
         <p className="text-sm text-gray-500 dark:text-gray-300 mb-5">
           👤 {teacher}

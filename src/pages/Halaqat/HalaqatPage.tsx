@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import { FaEdit, FaPlus, FaTrashAlt, FaUsers } from "react-icons/fa";
 import { useDeleteHalaqa, useHalaqat } from "../../lib/api/hooks";
 import type { Halaqa } from "../../lib/api/types";
+import { useAuth } from "../../context/authContext";
+import DepartmentBadge from "../../shared/DepartmentBadge";
 import { ErrorState, LoadingState } from "../../shared/QueryState";
 import { useToast } from "../../shared/toast/toastContext";
 import PopupHalaqaForm from "./PopupHalaqaForm";
@@ -18,6 +20,7 @@ import PopupHalaqaForm from "./PopupHalaqaForm";
 export default function HalaqatPage() {
   const { t } = useTranslation();
   const { lang = "ar" } = useParams();
+  const { isSuperAdmin } = useAuth();
   const { notify } = useToast();
 
   const [form, setForm] = useState<{ editing?: Halaqa } | null>(null);
@@ -107,6 +110,22 @@ export default function HalaqatPage() {
                         {t("halaqatAdmin.inactive")}
                       </span>
                     )}
+                    {/*
+                      رقاقة القسم للمدير العام وحده — قائمةُ مدير القسم
+                      كلّها قسمُه فلا تمييز فيها.
+
+                      و«بلا قسم» تُعرض تحذيراً بلون كهرماني لا رقاقةً
+                      محايدة: الحلقة غير المسنَدة مخفيّة عن مدير قسمها،
+                      وهي حالة تحتاج إصلاحاً لا مجرّد وصف.
+                    */}
+                    {isSuperAdmin &&
+                      (halaqa.department ? (
+                        <DepartmentBadge department={halaqa.department} />
+                      ) : (
+                        <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                          {t("halaqatAdmin.noDepartment")}
+                        </span>
+                      ))}
                   </div>
 
                   <p className="mt-1 truncate text-xs text-gray-500 dark:text-gray-400">

@@ -11,6 +11,7 @@ import type {
   AttendanceStatus,
   AuthUser,
   DailyReport,
+  Department,
   DashboardStats,
   Halaqa,
   HalaqaStage,
@@ -77,10 +78,16 @@ export const halaqatApi = {
     api.get<{ data: Halaqa[] }>("/halaqat", params),
   get: (id: number) => api.get<{ data: Halaqa }>(`/halaqat/${id}`),
   students: (id: number) => api.get<{ data: HalaqaStudent[] }>(`/halaqat/${id}/students`),
+  /**
+   * department مُغفَل (undefined) لا null حين يُنشئ مديرُ قسمٍ حلقة:
+   * الخادم يملؤه من قسم المُنشئ. أمّا null فقيمة صريحة تعني «بلا قسم»،
+   * ويرفضها الخادم من مدير القسم لأنها خارج نطاقه.
+   */
   create: (body: {
     name: string;
     teacher_id?: number | null;
     stage?: HalaqaStage | null;
+    department?: Department | null;
     schedule_time?: string | null;
     location?: string | null;
   }) => api.post<{ data: Halaqa }>("/halaqat", body),
@@ -90,6 +97,7 @@ export const halaqatApi = {
       name: string;
       teacher_id: number | null;
       stage: HalaqaStage | null;
+      department: Department | null;
       schedule_time: string | null;
       location: string | null;
       is_active: boolean;
@@ -284,11 +292,13 @@ export const usersApi = {
   list: (params?: { role?: Role; includeInactive?: boolean }) =>
     api.get<{ data: StaffUser[] }>("/users", params),
 
+  /** department مُغفَل يعني «اتركه للخادم» — راجع الملاحظة في halaqatApi.create. */
   create: (body: {
     name: string;
     username: string;
     password: string;
     role?: Role;
+    department?: Department | null;
     halaqaIds?: number[];
   }) => api.post<{ data: StaffUser }>("/users", body),
 
@@ -299,6 +309,7 @@ export const usersApi = {
       username: string;
       password: string;
       role: Role;
+      department: Department | null;
       is_active: boolean;
       halaqaIds: number[];
     }>

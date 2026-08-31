@@ -3,8 +3,11 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { FaTimes, FaUsers } from "react-icons/fa";
 import { useCreateHalaqa, useTeachers, useUpdateHalaqa } from "../../lib/api/hooks";
-import type { Halaqa, HalaqaStage } from "../../lib/api/types";
+import type { Department, Halaqa, HalaqaStage } from "../../lib/api/types";
 import { HALAQA_STAGES } from "../../lib/api/types";
+import { useAuth } from "../../context/authContext";
+import { departmentToSend } from "../../lib/department";
+import DepartmentField from "../../shared/DepartmentField";
 import { useToast } from "../../shared/toast/toastContext";
 
 /** إضافة حلقة أو تعديل بياناتها — للمدير وحده (الخادم يرد 403 لغيره). */
@@ -22,7 +25,11 @@ export default function PopupHalaqaForm({
   const [name, setName] = useState(editing?.name ?? "");
   const [teacherId, setTeacherId] = useState<number | "">(editing?.teacherId ?? "");
   const [stage, setStage] = useState<HalaqaStage | "">(editing?.stage ?? "");
+  const [department, setDepartment] = useState<Department | "">(
+    editing?.department ?? ""
+  );
 
+  const { isSuperAdmin } = useAuth();
   const teachers = useTeachers();
   const create = useCreateHalaqa();
   const update = useUpdateHalaqa();
@@ -34,10 +41,14 @@ export default function PopupHalaqaForm({
   const submit = async () => {
     if (!valid || pending) return;
 
+    // مدير القسم لا يرسل الحقل — الخادم يملؤه من قسمه (راجع DepartmentField)
+    const dept = departmentToSend(department, isSuperAdmin);
+
     const body = {
       name: name.trim(),
       teacher_id: teacherId === "" ? null : teacherId,
       stage: stage === "" ? null : stage,
+      ...(dept !== undefined ? { department: dept } : {}),
     };
 
     try {
@@ -126,6 +137,31 @@ export default function PopupHalaqaForm({
             ))}
           </select>
         </div>
+
+        {/*
+          القسم بعد المرحلة عمداً وإن تشابها في الشكل: المرحلة وصفٌ
+          للحلقة، والقسم يقرّر من يراها — فترتيبُه بعدها يمنع قراءتهما
+          حقلين لمعنى واحد.
+        */}
+        <DepartmentField
+          value={department}
+          onChange={setDepartment}
+          label={t("halaqatAdmin.department")}
+          emptyLabel={t("halaqatAdmin.noDepartment")}
+          lockedHint={t("halaqatAdmin.departmentLocked")}
+          className={fieldClass}
+        />
+
+        {/*
+          تحذير الحلقة بلا قسم — للمدير العام وحده، فهو الوحيد القادر على
+          تركها فارغة. الحلقة بلا قسم لا يراها إلا هو (راجع scope.ts):
+          تُنشأ اليوم فتختفي غداً عن مدير قسمها، بلا خطأ يفسّر الاختفاء.
+        */}
+        {isSuperAdmin && department === "" && (
+          <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+            {t("halaqatAdmin.noDepartmentWarning")}
+          </p>
+        )}
 
         {error && (
           <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:bg-red-900/20 dark:text-red-400">

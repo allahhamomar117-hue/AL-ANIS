@@ -481,6 +481,10 @@
     "studentRestored": "{{name}} restored to the current cycle"
   },
   "staff": {
+    "department": "Department",
+    "noDepartment": "All departments (super admin)",
+    "departmentLocked": "The account joins your department automatically",
+    "allDepartments": "All departments",
     "title": "Staff management",
     "subtitle": "Teacher and supervisor accounts: add and edit",
     "open": "Open page",
@@ -519,6 +523,10 @@
     "deleted": "{{name}} account permanently deleted"
   },
   "halaqatAdmin": {
+    "department": "Department",
+    "noDepartment": "No department",
+    "departmentLocked": "The halaqa joins your department automatically",
+    "noDepartmentWarning": "A halaqa with no department is visible to the super admin only — section admins will not see it or its reports.",
     "title": "Halaqat Management",
     "subtitle": "Add, rename and deactivate halaqat — reflected instantly in every picker",
     "add": "Add New Halaqa",
@@ -550,6 +558,11 @@
     "primary": "Primary",
     "preparatory": "Preparatory",
     "secondary": "Secondary"
+  },
+  "departments": {
+    "PRIMARY": "Primary",
+    "MIDDLE_HIGH": "Middle & high",
+    "INTENSIVE": "Intensive"
   },
   "attendanceStatus": {
     "present": "Present",
