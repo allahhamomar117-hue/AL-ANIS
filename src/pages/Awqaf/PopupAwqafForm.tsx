@@ -7,6 +7,9 @@ import { AWQAF_STATUSES, type AwqafStatus } from "../../lib/api/types";
 import Avatar from "../../shared/Avatar";
 import { useToast } from "../../shared/toast/toastContext";
 
+/** أجزاء المصحف 1..30 — خيارات قائمة الجزء. */
+const JUZ_OPTIONS = Array.from({ length: 30 }, (_, i) => i + 1);
+
 /** الشهر الحالي بصيغة YYYY-MM بالتوقيت المحلي (لا UTC، فلا ينزلق الشهر). */
 function currentMonth(): string {
   const now = new Date();
@@ -27,15 +30,20 @@ export default function PopupAwqafForm({ onClose }: { onClose: () => void }) {
   const [studentId, setStudentId] = useState<number | null>(null);
   const [examMonth, setExamMonth] = useState(currentMonth());
   const [status, setStatus] = useState<AwqafStatus>("nominated");
-  const [notes, setNotes] = useState("");
+  /** الجزء مطلوب، ويبدأ فارغاً حتى لا يُحفظ جزء لم يختره أحد. */
+  const [juz, setJuz] = useState<number | "">("");
 
-  const students = useStudents({ search: search.trim() || undefined, limit: 30 });
+  const students = useStudents({
+    search: search.trim() || undefined,
+    limit: 30,
+  });
   const create = useCreateAwqafRecord();
 
   const list = students.data?.data ?? [];
   const selected = list.find((s) => s.id === studentId) ?? null;
 
-  const valid = studentId !== null && /^\d{4}-\d{2}$/.test(examMonth);
+  const valid =
+    studentId !== null && juz !== "" && /^\d{4}-\d{2}$/.test(examMonth);
 
   const submit = async () => {
     if (!valid || create.isPending) return;
@@ -44,7 +52,7 @@ export default function PopupAwqafForm({ onClose }: { onClose: () => void }) {
         studentId: studentId!,
         examMonth,
         status,
-        notes: notes.trim() || null,
+        juz: juz as number,
       });
       notify(t("awqaf.created"));
       onClose();
@@ -55,7 +63,8 @@ export default function PopupAwqafForm({ onClose }: { onClose: () => void }) {
 
   const fieldClass =
     "w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark-light px-4 py-3 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-400";
-  const labelClass = "mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300";
+  const labelClass =
+    "mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300";
 
   return createPortal(
     <div
@@ -97,9 +106,13 @@ export default function PopupAwqafForm({ onClose }: { onClose: () => void }) {
 
           <div className="mt-2 max-h-48 overflow-y-auto rounded-xl border border-gray-200 dark:border-gray-600">
             {students.isPending ? (
-              <p className="p-4 text-center text-sm text-gray-400">{t("state.loading")}</p>
+              <p className="p-4 text-center text-sm text-gray-400">
+                {t("state.loading")}
+              </p>
             ) : list.length === 0 ? (
-              <p className="p-4 text-center text-sm text-gray-400">{t("awqaf.noStudents")}</p>
+              <p className="p-4 text-center text-sm text-gray-400">
+                {t("awqaf.noStudents")}
+              </p>
             ) : (
               list.map((student) => (
                 <button
@@ -163,21 +176,31 @@ export default function PopupAwqafForm({ onClose }: { onClose: () => void }) {
           </select>
         </div>
 
-        {/* ملاحظات */}
+        {/* الجزء المُختبَر — مطلوب: زر الحفظ معطّل حتى يُختار */}
         <div>
-          <label className={labelClass}>{t("awqaf.notes")}</label>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={2}
-            placeholder={t("awqaf.notesPlaceholder")}
+          <label className={labelClass}>{t("awqaf.juz")}</label>
+          <select
+            required
+            value={juz}
+            onChange={(e) =>
+              setJuz(e.target.value === "" ? "" : Number(e.target.value))
+            }
             className={fieldClass}
-          />
+          >
+            <option value="">{t("awqaf.juzPlaceholder")}</option>
+            {JUZ_OPTIONS.map((number) => (
+              <option key={number} value={number}>
+                {t("awqaf.juzOption", { number })}
+              </option>
+            ))}
+          </select>
         </div>
 
         {create.error && (
           <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700 dark:bg-red-900/20 dark:text-red-400">
-            {create.error instanceof Error ? create.error.message : t("state.error")}
+            {create.error instanceof Error
+              ? create.error.message
+              : t("state.error")}
           </p>
         )}
 
@@ -200,6 +223,6 @@ export default function PopupAwqafForm({ onClose }: { onClose: () => void }) {
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

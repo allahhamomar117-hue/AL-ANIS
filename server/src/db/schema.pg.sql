@@ -147,6 +147,10 @@ CREATE TABLE IF NOT EXISTS awqaf_records (
   exam_month TEXT        NOT NULL,               -- شهر السبر بصيغة YYYY-MM
   status     TEXT        NOT NULL DEFAULT 'nominated'
                          CHECK (status IN ('nominated', 'passed', 'failed')),
+  -- الجزء المُختبَر 1..30. يقبل NULL للصفوف السابقة وحدها؛ الإنشاء
+  -- الجديد يوجبه في POST /api/awqaf.
+  juz        INTEGER     CHECK (juz IS NULL OR juz BETWEEN 1 AND 30),
+  -- حقل حرّ قديم: ارتفع عن الواجهة وبقي في الجدول لبيانات كُتبت سلفاً.
   notes      TEXT,
   created_by INTEGER     REFERENCES users (id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

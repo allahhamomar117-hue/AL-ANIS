@@ -240,7 +240,8 @@ export interface AwqafRecord {
   /** شهر السبر بصيغة YYYY-MM. */
   examMonth: string;
   status: AwqafStatus;
-  notes: string | null;
+  /** الجزء المُختبَر 1..30. null في السجلّات السابقة لإضافة الحقل. */
+  juz: number | null;
   createdBy: string;
   createdAt: string;
   updatedAt: string;

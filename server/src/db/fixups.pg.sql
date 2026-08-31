@@ -144,3 +144,27 @@ BEGIN
     RAISE NOTICE 'أُضيف قيد point_transactions_kind_check موسَّعاً بـ awqaf';
   END IF;
 END $$;
+
+-- ── الجزء المُختبَر في سبر الأوقاف: عمود juz ─────────────────────────
+--
+-- نظير الترقية 011 لـ SQLite. تُكتب هنا لأن مسار Postgres لا يقرأ
+-- migrations/‎، و`CREATE TABLE IF NOT EXISTS` لا يضيف عموداً إلى جدول
+-- قائم — فالقاعدة العاملة سترفض الإدراج بعمود juz بدون هذا.
+--
+-- العمود يقبل NULL: الصفوف القديمة لا جزء لها، والإلزام مفروض في المسار
+-- عند الإنشاء لا في القاعدة. القيد يُضاف باسمه الصريح الذي تولّده
+-- Postgres للقيد المضمّن في المخطّط، فلا يُضاف مرّتين على قاعدة جديدة.
+ALTER TABLE awqaf_records
+  ADD COLUMN IF NOT EXISTS juz INTEGER;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'awqaf_records_juz_check'
+  ) THEN
+    ALTER TABLE awqaf_records
+      ADD CONSTRAINT awqaf_records_juz_check
+      CHECK (juz IS NULL OR juz BETWEEN 1 AND 30);
+    RAISE NOTICE 'أُضيف قيد awqaf_records_juz_check';
+  END IF;
+END $$;

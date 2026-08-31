@@ -343,12 +343,12 @@ export const awqafApi = {
     studentId: number;
     examMonth: string;
     status?: AwqafStatus;
-    notes?: string | null;
+    juz: number;
   }) => api.post<{ data: AwqafRecord }>("/awqaf", body),
 
   update: (
     id: number,
-    body: Partial<{ status: AwqafStatus; examMonth: string; notes: string | null }>
+    body: Partial<{ status: AwqafStatus; examMonth: string; juz: number }>
   ) => api.patch<{ data: AwqafRecord }>(`/awqaf/${id}`, body),
 
   /** حذف فعلي — السجل ليس مرجعاً لبيانات أخرى. */

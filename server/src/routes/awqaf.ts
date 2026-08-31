@@ -26,6 +26,17 @@ awqafRouter.use(requireStudentManager);
 const awqafStatus = z.enum(["nominated", "passed", "failed"]);
 
 /** شهر السبر: YYYY-MM. لا يوم فيه — الدورة تُعرَّف بشهرها لا بتاريخ محدّد. */
+/**
+ * الجزء المُختبَر: عدد صحيح من 1 إلى 30.
+ *
+ * حلّ محلّ الحقل الحرّ notes الذي كان يحمل الجزء نصّاً غير منضبط.
+ */
+const juz = z
+  .number()
+  .int()
+  .min(1, "الجزء يجب أن يكون بين 1 و 30")
+  .max(30, "الجزء يجب أن يكون بين 1 و 30");
+
 const examMonth = z
   .string()
   .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "شهر السبر يجب أن يكون بصيغة YYYY-MM");
@@ -40,7 +51,7 @@ const SELECT_RECORD = `
          COALESCE(h.name, '')        AS halaqa,
          a.exam_month                AS "examMonth",
          a.status,
-         a.notes,
+         a.juz,
          COALESCE(u.name, '')        AS "createdBy",
          a.created_at                AS "createdAt",
          a.updated_at                AS "updatedAt"
@@ -118,7 +129,7 @@ awqafRouter.post(
         studentId: z.number().int().positive(),
         examMonth,
         status: awqafStatus.default("nominated"),
-        notes: z.string().max(500).nullable().optional(),
+        juz,
       }),
       req.body
     );
@@ -140,9 +151,9 @@ awqafRouter.post(
 
     const recordId = await tx(async () => {
       const info = await db().run(
-        `INSERT INTO awqaf_records (student_id, exam_month, status, notes, created_by)
+        `INSERT INTO awqaf_records (student_id, exam_month, status, juz, created_by)
          VALUES (?, ?, ?, ?, ?)`,
-        [body.studentId, body.examMonth, body.status, body.notes ?? null, req.user!.id]
+        [body.studentId, body.examMonth, body.status, body.juz, req.user!.id]
       );
 
       // الترشيح يبدأ عادةً بـ nominated، لكن المسار يقبل status صراحةً —
@@ -169,7 +180,7 @@ awqafRouter.post(
 
 /**
  * PATCH /api/awqaf/:id — تغيير الحالة (مرشّح ← ناجح/لم ينجح) أو الشهر
- * أو الملاحظات. الحقول المتروكة تبقى كما هي.
+ * أو الجزء. الحقول المتروكة تبقى كما هي.
  */
 awqafRouter.patch(
   "/:id",
@@ -179,7 +190,7 @@ awqafRouter.patch(
       z.object({
         status: awqafStatus.optional(),
         examMonth: examMonth.optional(),
-        notes: z.string().max(500).nullable().optional(),
+        juz: juz.optional(),
       }),
       req.body
     );
@@ -188,9 +199,9 @@ awqafRouter.patch(
       studentId: number;
       examMonth: string;
       status: string;
-      notes: string | null;
+      juz: number | null;
     }>(
-      `SELECT student_id AS "studentId", exam_month AS "examMonth", status, notes
+      `SELECT student_id AS "studentId", exam_month AS "examMonth", status, juz
        FROM awqaf_records WHERE id = ?`,
       [id]
     );
@@ -211,18 +222,18 @@ awqafRouter.patch(
     await tx(async () => {
       await db().run(
         `UPDATE awqaf_records
-         SET status = ?, exam_month = ?, notes = ?, updated_at = ${nowExpr()}
+         SET status = ?, exam_month = ?, juz = ?, updated_at = ${nowExpr()}
          WHERE id = ?`,
         [
           nextStatus,
           nextMonth,
-          body.notes !== undefined ? body.notes : current.notes,
+          body.juz !== undefined ? body.juz : current.juz,
           id,
         ]
       );
 
       // مكافأة النجاح. الشرط على الانتقال لا على الحالة الجديدة وحدها:
-      // تعديل الملاحظات على سجلّ ناجح لا يمنح النقاط ثانيةً.
+      // تعديل الجزء على سجلّ ناجح لا يمنح النقاط ثانيةً.
       if (nextStatus === "passed" && current.status !== "passed") {
         await addPoints({
           studentId: current.studentId,
