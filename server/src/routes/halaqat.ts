@@ -2,9 +2,14 @@ import { Router } from "express";
 import { z } from "zod";
 import { db, tx, type SqlParam } from "../db/index.js";
 import { ApiError, asyncHandler, parse } from "../lib/http.js";
-import { idParam } from "../lib/schemas.js";
+import { departmentInput, idParam } from "../lib/schemas.js";
 import { requireRole } from "../middleware/auth.js";
-import { applyScope, assertHalaqaAccess } from "../services/scope.js";
+import {
+  applyScope,
+  assertDepartmentAccess,
+  assertHalaqaAccess,
+  departmentScope,
+} from "../services/scope.js";
 import { visibleStudent } from "../services/studentSql.js";
 
 export const halaqatRouter = Router();
@@ -25,6 +30,7 @@ const SELECT_HALAQA = `
          h.schedule_time                    AS "scheduleTime",
          h.location,
          h.stage,
+         h.department,
          h.is_active                        AS "isActive",
          (SELECT COUNT(*) FROM students s
            WHERE s.halaqa_id = h.id AND ${visibleStudent("s")}) AS students
@@ -51,10 +57,16 @@ async function assertNameFree(name: string, exceptId?: number): Promise<void> {
 /** المرحلة الدراسية للحلقة — القيم مفاتيح ثابتة تُترجَم في الواجهة. */
 const halaqaStage = z.enum(["primary", "preparatory", "secondary"]);
 
+/**
+ * قسم الحلقة. مطلوب عند الإنشاء لا اختياري: الحلقة بلا قسم لا يراها إلا
+ * المدير العام (راجع scope.ts) — فحلقة تُنشأ اليوم بلا قسم تختفي عن مدير
+ * قسمها فوراً. القبول بـ null محصور بصفوف ما قبل الترقية 012.
+ */
 const halaqaBody = z.object({
   name: z.string().min(2),
   teacher_id: z.number().int().positive().nullable().optional(),
   stage: halaqaStage.nullable().optional(),
+  department: departmentInput.optional(),
   schedule_time: z.string().max(50).nullable().optional(),
   location: z.string().max(120).nullable().optional(),
 });
@@ -137,13 +149,24 @@ halaqatRouter.post(
     const body = parse(halaqaBody, req.body);
     await assertNameFree(body.name);
 
+    /*
+     * مدير القسم ينشئ في قسمه وحده، ويُملأ تلقائياً إن لم يُرسله. والمدير
+     * العام يرسله صراحةً — و null منه مقبول لأن نطاقه المعهد كلّه.
+     */
+    const scope = departmentScope(req.user!);
+    if (body.department !== undefined) {
+      assertDepartmentAccess(req.user!, body.department);
+    }
+    const department = body.department !== undefined ? body.department : scope;
+
     const info = await db().run(
-      `INSERT INTO halaqat (name, teacher_id, stage, schedule_time, location)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO halaqat (name, teacher_id, stage, department, schedule_time, location)
+       VALUES (?, ?, ?, ?, ?, ?)`,
       [
         cleanName(body.name),
         body.teacher_id ?? null,
         body.stage ?? null,
+        department,
         body.schedule_time ?? null,
         body.location ?? null,
       ]
@@ -171,17 +194,31 @@ halaqatRouter.patch(
       [id]
     );
     if (!current) throw ApiError.notFound("الحلقة غير موجودة");
+
+    /*
+     * الحلقة الهدف داخل النطاق، والقسم الجديد داخله أيضاً.
+     *
+     * الثاني ليس تكراراً للأول: بدونه ينقل مديرُ قسمٍ حلقةً إلى قسم آخر
+     * فيفقدها — أو أسوأ، يُخرجها إلى NULL فلا يراها بعدها إلا المدير
+     * العام. الحركة بين الأقسام من صلاحية المدير العام وحده.
+     */
+    await assertHalaqaAccess(req.user!, id);
+    if (body.department !== undefined) {
+      assertDepartmentAccess(req.user!, body.department);
+    }
+
     if (body.name !== undefined) await assertNameFree(body.name, id);
 
     await db().run(
       `UPDATE halaqat
-       SET name = ?, teacher_id = ?, stage = ?,
+       SET name = ?, teacher_id = ?, stage = ?, department = ?,
            schedule_time = ?, location = ?, is_active = ?
        WHERE id = ?`,
       [
         body.name !== undefined ? cleanName(body.name) : current.name,
         body.teacher_id !== undefined ? body.teacher_id : current.teacher_id,
         body.stage !== undefined ? body.stage : current.stage,
+        body.department !== undefined ? body.department : current.department,
         body.schedule_time !== undefined ? body.schedule_time : current.schedule_time,
         body.location !== undefined ? body.location : current.location,
         // منطقيّ صريح: عمود Postgres من نوع boolean لا يقبل 0/1
@@ -214,6 +251,8 @@ halaqatRouter.delete(
     const halaqa = await db().get<{ id: number }>("SELECT id FROM halaqat WHERE id = ?", [id]);
     if (!halaqa) throw ApiError.notFound("الحلقة غير موجودة");
 
+    await assertHalaqaAccess(req.user!, id);
+
     // المؤرشفون لا يُحسبون: تعطيل الحلقة لا يستدعي نقل من أنهى دورته
     const counted = await db().get<{ n: number }>(
       `SELECT COUNT(*) AS n FROM students WHERE halaqa_id = ? AND ${visibleStudent("")}`,
@@ -237,6 +276,10 @@ halaqatRouter.delete(
         [reassignTo]
       );
       if (!target) throw ApiError.badRequest("حلقة الوجهة غير موجودة أو معطّلة");
+
+      // النقل بابُ تسريبٍ لو تُرك: طلاب القسم يُدفعون إلى حلقة قسم آخر
+      // فيخرجون من نطاق مديرهم ويدخلون نطاق غيره بطلب واحد
+      await assertHalaqaAccess(req.user!, reassignTo);
     }
 
     await tx(async () => {

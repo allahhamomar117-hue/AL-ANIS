@@ -7,10 +7,18 @@ import { ApiError, asyncHandler } from "../lib/http.js";
 export const ROLES = ["ADMIN", "SUPERVISOR", "TEACHER"] as const;
 export type Role = (typeof ROLES)[number];
 
+export const DEPARTMENTS = ["PRIMARY", "MIDDLE_HIGH", "INTENSIVE"] as const;
+export type Department = (typeof DEPARTMENTS)[number];
+
 export interface AuthUser {
   id: number;
   name: string;
   role: Role;
+  /**
+   * قسم الإداري. `null` = المعهد كامل (المدير العام)، وقيمة = ذلك القسم
+   * وحده (مدير القسم). لا معنى له للمدرّس — نطاقه حلقاته المسندة إليه.
+   */
+  department: Department | null;
 }
 
 declare global {
@@ -42,7 +50,7 @@ export const requireAuth = asyncHandler(async (req: Request, _res: Response, nex
   }
 
   const user = await db().get<AuthUser>(
-    "SELECT id, name, role FROM users WHERE id = ? AND is_active = TRUE",
+    "SELECT id, name, role, department FROM users WHERE id = ? AND is_active = TRUE",
     [Number(payload.sub)]
   );
 
@@ -53,6 +61,19 @@ export const requireAuth = asyncHandler(async (req: Request, _res: Response, nex
   if (!ROLES.includes(user.role)) {
     console.warn(`[auth] دور غير معروف "${user.role}" للمستخدم ${user.id} — يُعامل كمدرّس`);
     user.role = "TEACHER";
+  }
+
+  /*
+   * قسم غير معروف (بيانات قديمة أو معدّلة يدوياً) يُعامل كـ null، أي
+   * نطاق المعهد كامل — لا كقسم مجهول يحجب كل شيء. الفرق مقصود: هذا
+   * انحراف بيانات لا قرار إداري، وحجب كل شيء عن مدير يبدو عطلاً في
+   * النظام لا في البيانات. يُسجَّل التنبيه ليُصحَّح من إدارة الكادر.
+   */
+  if (user.department !== null && !DEPARTMENTS.includes(user.department)) {
+    console.warn(
+      `[auth] قسم غير معروف "${user.department}" للمستخدم ${user.id} — يُعامل كنطاق عام`
+    );
+    user.department = null;
   }
 
   req.user = user;

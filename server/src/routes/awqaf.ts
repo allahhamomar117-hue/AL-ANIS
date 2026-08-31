@@ -2,10 +2,21 @@
  * شهادات وسبر الأوقاف — إدارة الطلاب المرشّحين لاختبارات وزارة الأوقاف
  * ونتائجهم فيها.
  *
- * الراوتر كلّه محصور بالمدير (requireStudentManager = ADMIN)، فلا حاجة
- * إلى قيد النطاق (scope) داخل الاستعلامات: المدير يرى كل الحلقات أصلاً.
- * الحصر مطبَّق على مستوى الراوتر لا على كل مسار، حتى لا يُنسى مع أي
- * مسار يُضاف لاحقاً.
+ * الراوتر كلّه محصور بالمدير (requireStudentManager = ADMIN) على مستوى
+ * الراوتر لا على كل مسار، حتى لا يُنسى مع أي مسار يُضاف لاحقاً.
+ *
+ * ── قيد النطاق ───────────────────────────────────────────────────────
+ * كان الملف بلا قيد نطاق، بحجّة أن المدير يرى كل الحلقات. أبطلت الأقسامُ
+ * هذه الحجّة: مدير القسم مدير أيضاً.
+ *
+ * وسجلّ السبر لا يحمل halaqa_id، فانتماؤه إلى قسمٍ يمرّ بالطالب — الحلقة
+ * صفةُ الطالب لا صفةُ السبر. ولذلك القراءة مقيَّدة بـ applyStudentScope،
+ * والكتابة محروسة بـ assertStudentAccess على الطالب المعنيّ.
+ *
+ * والحراسة على الطالب لا على السجلّ عمداً في PATCH و DELETE: القراءة
+ * وحدها لا تكفي حارساً للكتابة — سجلٌّ يُقرأ بمعرّفه المباشر يتخطّى فلتر
+ * القائمة، فلولا الفحص الصريح لعدّل مديرُ قسمٍ سجلَّ طالبٍ من قسم آخر
+ * بمجرّد معرفة رقمه.
  */
 import { Router } from "express";
 import { z } from "zod";
@@ -16,6 +27,7 @@ import { ApiError, asyncHandler, parse } from "../lib/http.js";
 import { idParam } from "../lib/schemas.js";
 import { requireStudentManager } from "../middleware/auth.js";
 import { addPoints, revertPointsFor } from "../services/points.js";
+import { applyStudentScope, assertStudentAccess } from "../services/scope.js";
 import { visibleStudent } from "../services/studentSql.js";
 
 export const awqafRouter = Router();
@@ -102,16 +114,33 @@ awqafRouter.get(
       params.push(query.halaqaId);
     }
 
+    // قيد النطاق: لا حاجة لفحص halaqaId المطلوبة على حدة — الحلقة خارج
+    // النطاق تتقاطع مع القيد فتعطي قائمة فارغة، لا تسريباً
+    await applyStudentScope(req.user!, "a.student_id", where, params);
+
     const sql = `${SELECT_RECORD}
       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
       ORDER BY a.exam_month DESC, s.name`;
 
     const data = await db().all(sql, params);
 
-    // الأشهر المسجَّلة كلها (لا أشهر الصفحة الحالية) — تغذّي قائمة الفلترة
-    // فلا تختفي خيارات الأشهر الأخرى بمجرّد اختيار أحدها.
+    /*
+     * الأشهر المسجَّلة كلها (لا أشهر الصفحة الحالية) — تغذّي قائمة الفلترة
+     * فلا تختفي خيارات الأشهر الأخرى بمجرّد اختيار أحدها.
+     *
+     * مقيَّدة بالنطاق هي أيضاً: قائمةُ أشهرٍ غير مقيَّدة تُظهر لمدير القسم
+     * شهراً لا سبر فيه لقسمه، فيختاره ويقع على جدول فارغ — وقد أفشى ضمناً
+     * أن قسماً آخر سبر فيه.
+     */
+    const monthWhere: string[] = [];
+    const monthParams: SqlParam[] = [];
+    await applyStudentScope(req.user!, "a.student_id", monthWhere, monthParams);
+
     const months = await db().all<{ month: string }>(
-      `SELECT DISTINCT exam_month AS month FROM awqaf_records ORDER BY month DESC`
+      `SELECT DISTINCT a.exam_month AS month FROM awqaf_records a
+       ${monthWhere.length ? `WHERE ${monthWhere.join(" AND ")}` : ""}
+       ORDER BY month DESC`,
+      monthParams
     );
 
     res.json({ data, meta: { months: months.map((m) => m.month) } });
@@ -123,8 +152,15 @@ awqafRouter.get(
   "/:id",
   asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
-    const record = await db().get(`${SELECT_RECORD} WHERE a.id = ?`, [id]);
+
+    const record = await db().get<{ studentId: number }>(
+      `${SELECT_RECORD} WHERE a.id = ?`,
+      [id]
+    );
     if (!record) throw ApiError.notFound("السجل غير موجود");
+
+    await assertStudentAccess(req.user!, record.studentId);
+
     res.json({ data: record });
   })
 );
@@ -142,6 +178,9 @@ awqafRouter.post(
       }),
       req.body
     );
+
+    // القسم أولاً: مدير القسم لا يرشّح طالباً من قسم آخر
+    await assertStudentAccess(req.user!, body.studentId);
 
     // المؤرشف لا يُرشَّح لسبر جديد؛ سجلّاته السابقة تبقى كما هي
     const student = await db().get<{ id: number }>(
@@ -216,6 +255,8 @@ awqafRouter.patch(
     );
     if (!current) throw ApiError.notFound("السجل غير موجود");
 
+    await assertStudentAccess(req.user!, current.studentId);
+
     const nextMonth = body.examMonth ?? current.examMonth;
 
     if (nextMonth !== current.examMonth) {
@@ -276,12 +317,21 @@ awqafRouter.delete(
   asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
 
-    const info = await tx(async () => {
+    // الوجود يُفحص قبل الحذف لا بعده: بدونه لا سبيل لمعرفة صاحب السجلّ
+    // فيُحرَس، و changes === 0 وحدها لا تفرّق بين «غير موجود» و«ممنوع»
+    const record = await db().get<{ studentId: number }>(
+      `SELECT student_id AS "studentId" FROM awqaf_records WHERE id = ?`,
+      [id]
+    );
+    if (!record) throw ApiError.notFound("السجل غير موجود");
+
+    await assertStudentAccess(req.user!, record.studentId);
+
+    await tx(async () => {
       await revertPointsFor("awqaf", id);
       return db().run("DELETE FROM awqaf_records WHERE id = ?", [id]);
     });
 
-    if (info.changes === 0) throw ApiError.notFound("السجل غير موجود");
     res.status(204).end();
   })
 );

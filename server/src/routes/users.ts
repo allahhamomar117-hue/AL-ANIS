@@ -3,8 +3,15 @@ import { z } from "zod";
 import { db, tx, type SqlParam } from "../db/index.js";
 import { groupConcat } from "../db/sqlfn.js";
 import { ApiError, asyncHandler, parse } from "../lib/http.js";
-import { idParam, userRole } from "../lib/schemas.js";
+import { departmentInput, idParam, userRole } from "../lib/schemas.js";
+import type { AuthUser, Department } from "../middleware/auth.js";
 import { requireUserManager } from "../middleware/auth.js";
+import {
+  applyDepartmentScope,
+  assertDepartmentAccess,
+  assertHalaqaAccess,
+  departmentScope,
+} from "../services/scope.js";
 import { hashPassword } from "../lib/password.js";
 
 export const usersRouter = Router();
@@ -15,6 +22,20 @@ export const usersRouter = Router();
  * كل مسارات هذا الملف محصورة بدور المدير (ADMIN) عبر requireUserManager —
  * هذا هو المكافئ لسياسة RLS على جدول users: المشرف يرى كل بيانات الحلقات
  * والطلاب، لكنه لا ينشئ حساباً ولا يبدّل دوراً ولا يعيد ضبط كلمة مرور.
+ *
+ * ── القسم ────────────────────────────────────────────────────────────
+ * هذا الجدول لا يمرّ بطبقة الحلقات: انتماء الحساب إلى قسمٍ منصوصٌ في
+ * users.department نفسه، فالقيد هنا مباشر (applyDepartmentScope) لا
+ * مطويّ في accessibleHalaqaIds كبقية الجداول.
+ *
+ * ولذلك وجب الحرس صراحةً على كل مسار كتابة. القاعدتان:
+ *   1. الهدف داخل قسم المُنفِّذ — وإلا 403.
+ *   2. القسم المُسنَد داخل قسم المُنفِّذ — وإلا 403.
+ *
+ * والثانية ليست تكراراً للأولى، بل هي ما يمنع تصعيد الصلاحية: بدونها
+ * يضبط مديرُ قسمٍ department لنفسه على NULL فيصير مديراً عاماً بطلب
+ * PATCH واحد. القاعدة نفسها تمنع نقل موظّف إلى قسم آخر، وتمنع إنشاء مدير
+ * عام جديد — لأن NULL قيمةٌ خارج نطاقه كسائر الأقسام.
  */
 usersRouter.use(requireUserManager);
 
@@ -23,7 +44,8 @@ usersRouter.use(requireUserManager);
  * (‏GROUP_CONCAT مقابل string_agg) واللهجة لا تُعرف إلا بعد فتح الاتصال.
  */
 const selectUser = (): string => `
-  SELECT u.id, u.name, u.username, u.role, u.is_active AS "isActive",
+  SELECT u.id, u.name, u.username, u.role, u.department,
+         u.is_active AS "isActive",
          u.created_at AS "createdAt",
          (u.password_hash IS NOT NULL) AS "hasPassword",
          (SELECT COUNT(*) FROM halaqat h
@@ -42,6 +64,40 @@ const selectUser = (): string => `
 `;
 
 const byId = (id: number) => db().get(`${selectUser()} WHERE u.id = ?`, [id]);
+
+/**
+ * يرمي 403 إذا كان الحساب الهدف خارج قسم المُنفِّذ (و404 إن لم يوجد).
+ *
+ * تُستدعى في كل مسار يعدّل حساباً بمعرّفه المباشر: فلتر القائمة لا يحرس
+ * PATCH ولا DELETE — المعرّف يصل من المسار لا من قائمة مفلترة.
+ */
+async function assertUserInScope(actor: AuthUser, id: number): Promise<void> {
+  if (departmentScope(actor) === null) return;   // مدير عام
+
+  const target = await db().get<{ department: Department | null }>(
+    "SELECT department FROM users WHERE id = ?",
+    [id]
+  );
+  if (!target) throw ApiError.notFound("المستخدم غير موجود");
+
+  assertDepartmentAccess(actor, target.department);
+}
+
+/**
+ * القسم الذي سيُكتب للحساب، بعد التحقق من أنه داخل نطاق المُنفِّذ.
+ *
+ * `fallback` هو القسم الحالي في التعديل، وقسمُ المُنفِّذ في الإنشاء —
+ * فالحساب الذي ينشئه مدير قسمٍ ينضمّ إلى قسمه تلقائياً بلا حقل يُملأ.
+ */
+function resolveDepartment(
+  actor: AuthUser,
+  requested: Department | null | undefined,
+  fallback: Department | null
+): Department | null {
+  if (requested === undefined) return fallback;
+  assertDepartmentAccess(actor, requested);
+  return requested;
+}
 
 /**
  * مزامنة كاملة لحلقات المستخدم: بعدها يكون نطاقه = القائمة المُرسلة تماماً.
@@ -110,6 +166,10 @@ usersRouter.get(
       params.push(q.role);
     }
 
+    // مدير القسم يرى كادر قسمه وحده. المدير العام (department = NULL) لا
+    // يظهر له أيضاً: حسابٌ نطاقه المعهد كلّه ليس من كادر قسمٍ بعينه.
+    applyDepartmentScope(req.user!, "u.department", where, params);
+
     const sql = `${selectUser()}
       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
       ORDER BY CASE u.role WHEN 'ADMIN' THEN 0 WHEN 'SUPERVISOR' THEN 1 ELSE 2 END, u.name`;
@@ -131,6 +191,7 @@ usersRouter.post(
         username: z.string().trim().min(3),
         password: z.string().min(4),
         role: userRole.default("TEACHER"),
+        department: departmentInput.optional(),
         halaqaIds: z.array(z.number().int().positive()).default([]),
       }),
       req.body
@@ -138,13 +199,24 @@ usersRouter.post(
 
     await assertUsernameFree(body.username);
 
+    const department = resolveDepartment(
+      req.user!,
+      body.department,
+      departmentScope(req.user!)
+    );
+
+    // الحلقات المسندة تُفحص واحدة واحدة: مدير القسم لا يسند حلقة قسم آخر
+    for (const halaqaId of body.halaqaIds ?? []) {
+      await assertHalaqaAccess(req.user!, halaqaId);
+    }
+
     const created = await tx(async () => {
       const info = await db().run(
         // بلا هاتف: العمود يقبل NULL منذ ترقية 006، وكل NULL مميّز في
         // القاعدتين فلا يتضارب مع القيد الفريد (country_code, phone_number).
-        `INSERT INTO users (name, username, password_hash, role)
-         VALUES (?, ?, ?, ?)`,
-        [body.name, body.username, hashPassword(body.password), body.role]
+        `INSERT INTO users (name, username, password_hash, role, department)
+         VALUES (?, ?, ?, ?, ?)`,
+        [body.name, body.username, hashPassword(body.password), body.role, department]
       );
 
       for (const halaqaId of body.halaqaIds ?? []) {
@@ -167,6 +239,7 @@ usersRouter.get(
   "/:id/halaqat",
   asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
+    await assertUserInScope(req.user!, id);
 
     const data = await db().all(
       `SELECT h.id, h.name, (h.teacher_id = ?) AS "isPrimary"
@@ -198,6 +271,11 @@ usersRouter.put(
     const user = await db().get<{ id: number }>("SELECT id FROM users WHERE id = ?", [id]);
     if (!user) throw ApiError.notFound("المستخدم غير موجود");
 
+    await assertUserInScope(req.user!, id);
+    for (const halaqaId of halaqaIds) {
+      await assertHalaqaAccess(req.user!, halaqaId);
+    }
+
     await tx(() => syncUserHalaqat(id, halaqaIds));
 
     res.json({
@@ -225,6 +303,7 @@ usersRouter.patch(
         username: z.string().trim().min(3).optional(),
         password: z.string().min(4).optional(),
         role: userRole.optional(),
+        department: departmentInput.optional(),
         is_active: z.boolean().optional(),
         halaqaIds: z.array(z.number().int().positive()).optional(),
       }),
@@ -238,9 +317,17 @@ usersRouter.patch(
       password_hash: string | null;
       phone_number: string | null;
       role: string;
+      department: Department | null;
       is_active: number;
     }>("SELECT * FROM users WHERE id = ?", [id]);
     if (!current) throw ApiError.notFound("المستخدم غير موجود");
+
+    assertDepartmentAccess(req.user!, current.department);
+    const nextDepartment = resolveDepartment(
+      req.user!,
+      body.department,
+      current.department
+    );
 
     if (body.username) await assertUsernameFree(body.username, id);
 
@@ -260,17 +347,24 @@ usersRouter.patch(
       throw ApiError.badRequest("لا يمكنك تعديل دور حسابك أو تعطيله");
     }
 
+    if (body.halaqaIds) {
+      for (const halaqaId of body.halaqaIds) {
+        await assertHalaqaAccess(req.user!, halaqaId);
+      }
+    }
+
     await tx(async () => {
       await db().run(
         `UPDATE users
             SET name = ?, username = ?, password_hash = ?,
-                role = ?, is_active = ?
+                role = ?, department = ?, is_active = ?
           WHERE id = ?`,
         [
           body.name ?? current.name,
           body.username ?? current.username,
           body.password ? hashPassword(body.password) : current.password_hash,
           nextRole,
+          nextDepartment,
           nextActive,
           id,
         ]
@@ -305,6 +399,8 @@ usersRouter.put(
     const current = await db().get<{ id: number }>("SELECT id FROM users WHERE id = ?", [id]);
     if (!current) throw ApiError.notFound("المستخدم غير موجود");
 
+    await assertUserInScope(req.user!, id);
+
     await db().run("UPDATE users SET password_hash = ? WHERE id = ?", [
       hashPassword(password),
       id,
@@ -325,6 +421,8 @@ usersRouter.delete(
       [id]
     );
     if (!current) throw ApiError.notFound("المستخدم غير موجود");
+
+    await assertUserInScope(req.user!, id);
 
     if (req.user!.id === id) throw ApiError.badRequest("لا يمكنك تعطيل حسابك");
     if (current.role === "ADMIN" && (await activeAdminCount()) <= 1) {
@@ -354,6 +452,8 @@ usersRouter.delete(
       [id]
     );
     if (!current) throw ApiError.notFound("المستخدم غير موجود");
+
+    await assertUserInScope(req.user!, id);
 
     if (req.user!.id === id) throw ApiError.badRequest("لا يمكنك حذف حسابك");
     if (current.role === "ADMIN" && (await activeAdminCount()) <= 1) {

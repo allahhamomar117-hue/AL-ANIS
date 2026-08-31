@@ -1,26 +1,44 @@
 /**
  * لوحة الإحصاءات الشاملة — أرقام المركز كلّه عبر كامل عمره، لا يوم واحد.
  *
- * تختلف عن /api/reports/dashboard: تلك بطاقات يومٍ واحد ضمن نطاق المستخدم،
- * وهذه تجميعات تاريخية للمركز بأسره. لذلك هي محصورة بالمدير
- * (requireStudentManager = ADMIN) بلا قيد نطاق داخل الاستعلامات: المدير
- * يرى كل الحلقات أصلاً. الحصر على مستوى الراوتر لا على كل مسار، حتى لا
- * يُنسى مع أي مسار يُضاف لاحقاً.
+ * تختلف عن /api/reports/dashboard: تلك بطاقات يومٍ واحد، وهذه تجميعات
+ * تاريخية. الوصول محصور بالمدير (requireStudentManager = ADMIN) على مستوى
+ * الراوتر لا على كل مسار، حتى لا يُنسى مع أي مسار يُضاف لاحقاً.
+ *
+ * ── قيد النطاق ───────────────────────────────────────────────────────
+ * كان الملف بلا قيد نطاق داخل الاستعلامات، بحجّة أن المدير يرى كل
+ * الحلقات أصلاً. أبطلت الأقسامُ هذه الحجّة: مدير القسم مدير أيضاً، ولو
+ * بقيت التجميعات مطلقة لقرأ من صفحة واحدة أرقامَ المعهد كلّه — وهي أشدّ
+ * كشفاً من قائمة، لأنها تفصح عن حجم الأقسام الأخرى ونشاطها دفعةً واحدة.
+ *
+ * فكل تجميعة هنا مقيَّدة الآن بـ applyScope (أو applyStudentScope حيث لا
+ * halaqa_id). والقيد يعيد `null` للمدير العام فيبقى استعلامه كما كان
+ * حرفياً — لا كلفة عليه ولا تغيّر في أرقامه.
+ *
+ * القيد مكتوب بلغة النطاق العامّة لا بلغة الأقسام: لو فُتحت الصفحة يوماً
+ * للمدرّس (راجع denySupervisor في middleware/auth) لقُيّدت أرقامه بحلقاته
+ * تلقائياً بلا سطر إضافي هنا.
  *
  * كل التجميعات تتم في القاعدة لا في جافاسكربت: جلب كل التلاوات لجمعها في
  * الذاكرة يكبر مع عمر المركز بلا سقف.
  */
 import { Router } from "express";
-import { db } from "../db/index.js";
+import { db, type SqlParam } from "../db/index.js";
 import { monthOf } from "../db/sqlfn.js";
 import { asyncHandler, logSqlError } from "../lib/http.js";
 import { requireStudentManager } from "../middleware/auth.js";
 import { recitationPagesExpr } from "../services/recitationSql.js";
+import { applyScope, applyStudentScope } from "../services/scope.js";
 import { visibleStudent } from "../services/studentSql.js";
 
 export const statisticsRouter = Router();
 
 statisticsRouter.use(requireStudentManager);
+
+/** `WHERE …` أو نصّ فارغ — حتى يبقى الاستعلام غير المقيَّد كما كان حرفياً. */
+function whereOf(conds: string[]): string {
+  return conds.length ? `WHERE ${conds.join(" AND ")}` : "";
+}
 
 /** الشهر التالي لـ 'YYYY-MM' — لتوليد سلسلة الأشهر المتصلة. */
 function nextMonth(month: string): string {
@@ -61,8 +79,34 @@ function fillMonths<T extends { month: string }>(
  */
 statisticsRouter.get(
   "/dashboard",
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (req, res) => {
     try {
+      const user = req.user!;
+
+      /*
+       * قيود النطاق تُبنى مرّة وتُعاد على كل تجميعة من نفس الجدول: بناؤها
+       * داخل كل استعلام يعني استعلام حلقات لكل تجميعة (ستة) بلا فائدة.
+       */
+      const recitWhere: string[] = [];
+      const recitParams: SqlParam[] = [];
+      await applyScope(user, "r.halaqa_id", recitWhere, recitParams);
+
+      const sessionWhere: string[] = [];
+      const sessionParams: SqlParam[] = [];
+      await applyScope(user, "s.halaqa_id", sessionWhere, sessionParams);
+
+      // الأوقاف لا halaqa_id فيها — الانتماء يمرّ بالطالب
+      const awqafWhere: string[] = [];
+      const awqafParams: SqlParam[] = [];
+      await applyStudentScope(user, "a.student_id", awqafWhere, awqafParams);
+
+      const studentWhere: string[] = [visibleStudent("")];
+      const studentParams: SqlParam[] = [];
+      await applyScope(user, "halaqa_id", studentWhere, studentParams);
+
+      const halaqaWhere: string[] = ["is_active = TRUE"];
+      const halaqaParams: SqlParam[] = [];
+      await applyScope(user, "id", halaqaWhere, halaqaParams);
       /*
        * الصفحات تُحسب بنفس تعبير لوحة الصدارة (recitationPagesExpr): السورة
        * بوزنها من جزء عمّ ونصف الصفحة 0.5. لو جُمعت هنا بـ COUNT(*) لظهر
@@ -74,20 +118,23 @@ statisticsRouter.get(
       const pagesRow = await db().get<{ pages: number | null; count: number }>(
         `SELECT ROUND(CAST(COALESCE(SUM(${recitationPagesExpr()}), 0) AS numeric), 2) AS pages,
                 COUNT(*) AS count
-         FROM recitations r`
+         FROM recitations r ${whereOf(recitWhere)}`,
+        recitParams
       );
 
       // يوم دوام = يوم سُجّلت فيه جلسة حضور واحدة على الأقل، لا مجموع
       // الجلسات: خمس حلقات في يوم واحد تبقى يوم دوام واحداً.
       const attendanceRow = await db().get<{ days: number; sessions: number }>(
         `SELECT COUNT(DISTINCT s.date) AS days, COUNT(*) AS sessions
-         FROM attendance_sessions s`
+         FROM attendance_sessions s ${whereOf(sessionWhere)}`,
+        sessionParams
       );
 
       const awqafRow = await db().get<{ passed: number; total: number }>(
-        `SELECT SUM(CASE WHEN status = 'passed' THEN 1 ELSE 0 END) AS passed,
+        `SELECT SUM(CASE WHEN a.status = 'passed' THEN 1 ELSE 0 END) AS passed,
                 COUNT(*) AS total
-         FROM awqaf_records`
+         FROM awqaf_records a ${whereOf(awqafWhere)}`,
+        awqafParams
       );
 
       const studentsRow = await db().get<{ students: number }>(
@@ -100,10 +147,12 @@ statisticsRouter.get(
          * awqaf_records مباشرةً بلا وصلٍ بالطالب — فالأرشفة لا تنقص منها
          * شيئاً، والتاريخ يبقى كاملاً.
          */
-        `SELECT COUNT(*) AS students FROM students WHERE ${visibleStudent("")}`
+        `SELECT COUNT(*) AS students FROM students ${whereOf(studentWhere)}`,
+        studentParams
       );
       const halaqatRow = await db().get<{ halaqat: number }>(
-        "SELECT COUNT(*) AS halaqat FROM halaqat WHERE is_active = TRUE"
+        `SELECT COUNT(*) AS halaqat FROM halaqat ${whereOf(halaqaWhere)}`,
+        halaqaParams
       );
 
       // ── التسميع الشهري ────────────────────────────────────────────
@@ -115,9 +164,10 @@ statisticsRouter.get(
         `SELECT ${monthOf("r.recited_at")} AS month,
                 ROUND(CAST(SUM(${recitationPagesExpr()}) AS numeric), 2) AS pages,
                 COUNT(*) AS count
-         FROM recitations r
+         FROM recitations r ${whereOf(recitWhere)}
          GROUP BY ${monthOf("r.recited_at")}
-         ORDER BY month`
+         ORDER BY month`,
+        recitParams
       );
 
       // ── الأوقاف شهرياً وسنوياً ────────────────────────────────────
@@ -133,14 +183,15 @@ statisticsRouter.get(
         failed: number;
         total: number;
       }>(
-        `SELECT exam_month AS month,
-                SUM(CASE WHEN status = 'passed'    THEN 1 ELSE 0 END) AS passed,
-                SUM(CASE WHEN status = 'nominated' THEN 1 ELSE 0 END) AS nominated,
-                SUM(CASE WHEN status = 'failed'    THEN 1 ELSE 0 END) AS failed,
+        `SELECT a.exam_month AS month,
+                SUM(CASE WHEN a.status = 'passed'    THEN 1 ELSE 0 END) AS passed,
+                SUM(CASE WHEN a.status = 'nominated' THEN 1 ELSE 0 END) AS nominated,
+                SUM(CASE WHEN a.status = 'failed'    THEN 1 ELSE 0 END) AS failed,
                 COUNT(*) AS total
-         FROM awqaf_records
-         GROUP BY exam_month
-         ORDER BY month`
+         FROM awqaf_records a ${whereOf(awqafWhere)}
+         GROUP BY a.exam_month
+         ORDER BY month`,
+        awqafParams
       );
 
       const awqafByYear = await db().all<{
@@ -150,14 +201,15 @@ statisticsRouter.get(
         failed: number;
         total: number;
       }>(
-        `SELECT substr(exam_month, 1, 4) AS year,
-                SUM(CASE WHEN status = 'passed'    THEN 1 ELSE 0 END) AS passed,
-                SUM(CASE WHEN status = 'nominated' THEN 1 ELSE 0 END) AS nominated,
-                SUM(CASE WHEN status = 'failed'    THEN 1 ELSE 0 END) AS failed,
+        `SELECT substr(a.exam_month, 1, 4) AS year,
+                SUM(CASE WHEN a.status = 'passed'    THEN 1 ELSE 0 END) AS passed,
+                SUM(CASE WHEN a.status = 'nominated' THEN 1 ELSE 0 END) AS nominated,
+                SUM(CASE WHEN a.status = 'failed'    THEN 1 ELSE 0 END) AS failed,
                 COUNT(*) AS total
-         FROM awqaf_records
-         GROUP BY substr(exam_month, 1, 4)
-         ORDER BY year`
+         FROM awqaf_records a ${whereOf(awqafWhere)}
+         GROUP BY substr(a.exam_month, 1, 4)
+         ORDER BY year`,
+        awqafParams
       );
 
       res.json({

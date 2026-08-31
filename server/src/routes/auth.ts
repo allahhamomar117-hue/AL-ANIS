@@ -6,6 +6,7 @@ import { nowExpr, nowPlusMinutes } from "../db/sqlfn.js";
 import { ApiError, asyncHandler, parse } from "../lib/http.js";
 import { requireAuth, signToken } from "../middleware/auth.js";
 import { verifyPassword } from "../lib/password.js";
+import type { Department } from "../middleware/auth.js";
 import { accessibleHalaqaIds } from "../services/scope.js";
 
 export const authRouter = Router();
@@ -54,17 +55,27 @@ async function publicUser(id: number) {
     phone_number: string | null;
     country_code: string;
     role: "ADMIN" | "SUPERVISOR" | "TEACHER";
+    department: Department | null;
   }>(
-    `SELECT u.id, u.name, u.username, u.phone_number, u.country_code, u.role
+    `SELECT u.id, u.name, u.username, u.phone_number, u.country_code, u.role, u.department
      FROM users u WHERE u.id = ?`,
     [id]
   );
 
   if (!user) throw ApiError.notFound("المستخدم غير موجود");
 
-  // حلقات المدرّس؛ للمشرف تبقى فارغة لأنه يرى الكل
+  /*
+   * حلقات المدرّس، أو حلقات القسم لمدير القسم؛ وتبقى فارغة للمدير العام
+   * لأنه يرى الكل. القسم يُمرَّر هنا لا يُهمَل: بدونه تحسبه الدالة مديراً
+   * عاماً فتُعيد null، فتظهر الواجهة لمدير القسم بلا حلقة افتراضية.
+   */
   const halaqaIds =
-    (await accessibleHalaqaIds({ id: user.id, name: user.name, role: user.role })) ?? [];
+    (await accessibleHalaqaIds({
+      id: user.id,
+      name: user.name,
+      role: user.role,
+      department: user.department,
+    })) ?? [];
 
   const halaqat = halaqaIds.length
     ? await db().all<{ id: number; name: string }>(

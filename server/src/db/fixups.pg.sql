@@ -168,3 +168,42 @@ BEGIN
     RAISE NOTICE 'أُضيف قيد awqaf_records_juz_check';
   END IF;
 END $$;
+
+-- ── أقسام المعهد: عمود department في users و halaqat ────────────────
+--
+-- نظير الترقية 012 لـ SQLite. تُكتب هنا لأن مسار Postgres لا يقرأ
+-- migrations/‎، و`CREATE TABLE IF NOT EXISTS` لا يضيف عموداً إلى جدول
+-- قائم — فقاعدة الإنتاج ستسقط بـ "column department does not exist"
+-- عند أول استعلام مقسوم بدون هذا.
+--
+-- العمودان يقبلان NULL، ودلالته تختلف بين الجدولين:
+--   users.department   NULL ⇒ نطاق المعهد كامل (المدير العام).
+--   halaqat.department NULL ⇒ حلقة لم تُسنَد بعد، لا يراها إلا المدير العام.
+--
+-- القيدان يُضافان بالاسمين الصريحين اللذين تولّدهما Postgres للقيدين
+-- المضمّنين في المخطّط، فلا يُضافان مرّتين على قاعدة جديدة.
+ALTER TABLE users   ADD COLUMN IF NOT EXISTS department TEXT;
+ALTER TABLE halaqat ADD COLUMN IF NOT EXISTS department TEXT;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'users_department_check'
+  ) THEN
+    ALTER TABLE users
+      ADD CONSTRAINT users_department_check
+      CHECK (department IS NULL OR department IN ('PRIMARY', 'MIDDLE_HIGH', 'INTENSIVE'));
+    RAISE NOTICE 'أُضيف قيد users_department_check';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'halaqat_department_check'
+  ) THEN
+    ALTER TABLE halaqat
+      ADD CONSTRAINT halaqat_department_check
+      CHECK (department IS NULL OR department IN ('PRIMARY', 'MIDDLE_HIGH', 'INTENSIVE'));
+    RAISE NOTICE 'أُضيف قيد halaqat_department_check';
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_halaqat_department ON halaqat (department);

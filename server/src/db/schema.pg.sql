@@ -19,6 +19,10 @@ CREATE TABLE IF NOT EXISTS users (
   country_code  TEXT        NOT NULL DEFAULT '963',
   role          TEXT        NOT NULL DEFAULT 'TEACHER'
                             CHECK (role IN ('ADMIN', 'SUPERVISOR', 'TEACHER')),
+  -- نطاق الإداري: NULL = المعهد كامل (مدير عام)، وقيمة = قسم واحد
+  -- PRIMARY | MIDDLE_HIGH | INTENSIVE. لا يعني المدرّس.
+  department    TEXT        CHECK (department IS NULL
+                                   OR department IN ('PRIMARY', 'MIDDLE_HIGH', 'INTENSIVE')),
   fcm_token     TEXT,
   is_active     BOOLEAN     NOT NULL DEFAULT TRUE,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -47,10 +51,14 @@ CREATE TABLE IF NOT EXISTS halaqat (
   location      TEXT,
   -- المرحلة الدراسية: primary | preparatory | secondary (يتحقق منها الـ API)
   stage         TEXT,
+  -- قسم المعهد. يقبل NULL للحلقات السابقة للترقية 012 وحدها.
+  department    TEXT        CHECK (department IS NULL
+                                   OR department IN ('PRIMARY', 'MIDDLE_HIGH', 'INTENSIVE')),
   is_active     BOOLEAN     NOT NULL DEFAULT TRUE,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_halaqat_teacher ON halaqat (teacher_id);
+CREATE INDEX IF NOT EXISTS idx_halaqat_department ON halaqat (department);
 
 -- إسناد المدرّسين إلى الحلقات
 CREATE TABLE IF NOT EXISTS teacher_halaqat (

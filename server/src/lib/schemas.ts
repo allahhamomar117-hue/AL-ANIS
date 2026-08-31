@@ -14,6 +14,25 @@ export type RecitationType = z.infer<typeof recitationType>;
 export type Rating = z.infer<typeof rating>;
 export const userRole = z.enum(["ADMIN", "SUPERVISOR", "TEACHER"]);
 
+/**
+ * أقسام المعهد. مفاتيح ثابتة تُترجَم في الواجهة، على غرار halaqaStage.
+ *
+ * لا تخلطها بـ halaqat.stage: تلك مرحلة دراسية وصفية
+ * (primary|preparatory|secondary)، وهذه تقسيم إداري يحدّد من يرى ماذا —
+ * والمكثفة لا مقابل لها في المراحل أصلاً.
+ */
+export const department = z.enum(["PRIMARY", "MIDDLE_HIGH", "INTENSIVE"]);
+export type Department = z.infer<typeof department>;
+
+/**
+ * القسم كما يصل من نموذج الواجهة: القيمة، أو null/"" لـ «كل الأقسام».
+ * السلسلة الفارغة تأتي من <select> بلا اختيار، فتُطبَّع إلى null هنا بدل
+ * أن تصل إلى القاعدة فتسقط على قيد CHECK.
+ */
+export const departmentInput = z
+  .union([department, z.literal(""), z.null()])
+  .transform((value) => (value === "" ? null : value));
+
 export const pagination = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),
   offset: z.coerce.number().int().min(0).default(0),

@@ -8,6 +8,8 @@ PRAGMA foreign_keys = ON;
 --   ADMIN      : يرى كل شيء ويدير حسابات الكادر (إنشاء/تعديل/تعطيل).
 --   SUPERVISOR : يرى كل الحلقات والطلاب والتقارير، بلا إدارة حسابات.
 --   TEACHER    : يرى حلقاته المسندة إليه وطلابها فقط.
+-- ويقيّد العمود department نطاق الإداريين (ADMIN/SUPERVISOR) بقسم واحد:
+-- NULL = المعهد كامل، وقيمة = ذلك القسم وحده. راجع الترقية 012.
 CREATE TABLE IF NOT EXISTS users (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
   name          TEXT    NOT NULL,
@@ -17,6 +19,10 @@ CREATE TABLE IF NOT EXISTS users (
   country_code  TEXT    NOT NULL DEFAULT '963',
   role          TEXT    NOT NULL DEFAULT 'TEACHER'
                         CHECK (role IN ('ADMIN', 'SUPERVISOR', 'TEACHER')),
+  -- نطاق الإداري: NULL = المعهد كامل (مدير عام)، وقيمة = قسم واحد
+  -- (مدير قسم). القيم: PRIMARY | MIDDLE_HIGH | INTENSIVE. لا يعني
+  -- المدرّس: نطاقه حلقاته المسندة إليه. يتحقق من القيمة الـ API.
+  department    TEXT,
   fcm_token     TEXT,
   is_active     INTEGER NOT NULL DEFAULT 1,
   created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
@@ -45,10 +51,15 @@ CREATE TABLE IF NOT EXISTS halaqat (
   location      TEXT,
   -- المرحلة الدراسية: primary | preparatory | secondary (يتحقق منها الـ API)
   stage         TEXT,
+  -- قسم المعهد: PRIMARY | MIDDLE_HIGH | INTENSIVE (يتحقق منه الـ API).
+  -- يقبل NULL للحلقات السابقة للترقية 012 وحدها — ولا يراها إلا المدير
+  -- العام. الإنشاء الجديد يوجبه في POST /api/halaqat.
+  department    TEXT,
   is_active     INTEGER NOT NULL DEFAULT 1,
   created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_halaqat_teacher ON halaqat (teacher_id);
+CREATE INDEX IF NOT EXISTS idx_halaqat_department ON halaqat (department);
 
 -- إسناد المدرّسين إلى الحلقات (مدرّس واحد يمكن أن يُسند إلى أكثر من حلقة).
 -- نطاق رؤية المدرّس = حلقاته هنا + الحلقة التي هو أستاذها الأساسي (halaqat.teacher_id).
