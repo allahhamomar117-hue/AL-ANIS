@@ -79,6 +79,10 @@ export default function RecitationRegistration() {
       notify(t("recitationRegistration.saved"));
       backToList();
     },
+    // التكرار يعود 400 برسالة الخادم — تُعرض كما هي ليعرف الأستاذ سبب الرفض
+    onError: (error) => {
+      notify(error instanceof Error ? error.message : t("state.error"), "error");
+    },
   });
 
   // نفس شروط الخادم: بالسورة يكفي اختيارها، و«أكثر من صفحة» يتطلب نهاية صحيحة

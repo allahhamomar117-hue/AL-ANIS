@@ -37,6 +37,15 @@ const juz = z
   .min(1, "الجزء يجب أن يكون بين 1 و 30")
   .max(30, "الجزء يجب أن يكون بين 1 و 30");
 
+/**
+ * سبب حركة النقاط. الجزء اختياري: السجلّات القديمة (وما قبل حقل juz)
+ * تُبقي النص القديم بلا قوس.
+ */
+const passReason = (month: string, juzNo: number | null | undefined) =>
+  juzNo == null
+    ? `نجاح في سبر الأوقاف ${month}`
+    : `نجاح في سبر الأوقاف (الجزء ${juzNo}) - ${month}`;
+
 const examMonth = z
   .string()
   .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "شهر السبر يجب أن يكون بصيغة YYYY-MM");
@@ -162,7 +171,7 @@ awqafRouter.post(
         await addPoints({
           studentId: body.studentId,
           delta: config.pointRules.awqafPassed,
-          reason: `نجاح في سبر الأوقاف ${body.examMonth}`,
+          reason: passReason(body.examMonth, body.juz),
           kind: "awqaf",
           referenceId: Number(info.lastInsertRowid),
           createdBy: req.user!.id,
@@ -218,18 +227,14 @@ awqafRouter.patch(
     }
 
     const nextStatus = body.status ?? current.status;
+    const nextJuz = body.juz !== undefined ? body.juz : current.juz;
 
     await tx(async () => {
       await db().run(
         `UPDATE awqaf_records
          SET status = ?, exam_month = ?, juz = ?, updated_at = ${nowExpr()}
          WHERE id = ?`,
-        [
-          nextStatus,
-          nextMonth,
-          body.juz !== undefined ? body.juz : current.juz,
-          id,
-        ]
+        [nextStatus, nextMonth, nextJuz, id]
       );
 
       // مكافأة النجاح. الشرط على الانتقال لا على الحالة الجديدة وحدها:
@@ -238,7 +243,7 @@ awqafRouter.patch(
         await addPoints({
           studentId: current.studentId,
           delta: config.pointRules.awqafPassed,
-          reason: `نجاح في سبر الأوقاف ${nextMonth}`,
+          reason: passReason(nextMonth, nextJuz),
           kind: "awqaf",
           referenceId: id,
           createdBy: req.user!.id,

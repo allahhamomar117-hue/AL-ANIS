@@ -5,6 +5,7 @@ import { recitationsApi } from "../../lib/api";
 import { qk } from "../../lib/api/queryKeys";
 import { useHalaqaStudents, useHalaqat } from "../../lib/api/hooks";
 import { todayLocal } from "../../lib/format/date";
+import { useToast } from "../../shared/toast/toastContext";
 
 type RecitationType = "full" | "more";
 type Rating = "excellent" | "good" | "needs";
@@ -16,6 +17,7 @@ interface Props {
 export default function PopupRecitationRegistration({ onClose }: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const { notify } = useToast();
 
   const { data: halaqat = [] } = useHalaqat();
   const [halaqaId, setHalaqaId] = useState<number | "">("");
@@ -46,6 +48,10 @@ export default function PopupRecitationRegistration({ onClose }: Props) {
       void queryClient.invalidateQueries({ queryKey: qk.students.all });
       void queryClient.invalidateQueries({ queryKey: qk.reports.all });
       onClose();
+    },
+    // التكرار يعود 400 برسالة الخادم — تُعرض كما هي ليعرف الأستاذ سبب الرفض
+    onError: (error) => {
+      notify(error instanceof Error ? error.message : t("state.error"), "error");
     },
   });
 

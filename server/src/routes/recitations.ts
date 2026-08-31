@@ -14,6 +14,7 @@ import {
   type RecitationType,
 } from "../lib/schemas.js";
 import { addPoints, recitationPoints, revertPointsFor } from "../services/points.js";
+import { findDuplicateRecitation } from "../services/recitationDuplicate.js";
 import { applyScope, assertHalaqaAccess, assertStudentAccess } from "../services/scope.js";
 import { visibleStudent } from "../services/studentSql.js";
 
@@ -243,6 +244,17 @@ recitationsRouter.post(
         : null;
 
     const id = await tx(async () => {
+      // داخل المعاملة: الرمي هنا يُلغي الإدراج ومنح النقاط معاً
+      const duplicate = await findDuplicateRecitation({
+        studentId: body.studentId,
+        pageNumber,
+        toPage,
+        surahNumber: body.surahNumber ?? null,
+      });
+      if (duplicate !== null) {
+        throw ApiError.badRequest("هذه الصفحة / السورة مسمّعة مسبقاً لهذا الطالب");
+      }
+
       const info = await db().run(
         `INSERT INTO recitations
            (student_id, halaqa_id, type, page_number, to_page, verse, page_completed,
@@ -317,7 +329,27 @@ recitationsRouter.patch(
       req.body
     );
 
+    // القيم بعد التعديل — تُحسب قبل الكتابة ليفحصها منع التكرار
+    // سجل مرتبط بسورة يبقى نوعه 'surah' مهما أُرسل
+    const nextType =
+      current.surah_number != null ? "surah" : (body.type ?? current.type);
+    const nextPage = body.pageNumber ?? current.page_number;
+    const nextToPage = body.toPage !== undefined ? body.toPage : current.to_page;
+
     await tx(async () => {
+      // نفس حماية الإنشاء، وإلا التُفَّ عليها بتعديل سجل قائم إلى محتوى
+      // مكرر. excludeId يمنع السجل من مطابقة نفسه.
+      const duplicate = await findDuplicateRecitation({
+        studentId: current.student_id,
+        pageNumber: nextPage,
+        toPage: nextToPage,
+        surahNumber: current.surah_number,
+        excludeId: id,
+      });
+      if (duplicate !== null) {
+        throw ApiError.badRequest("هذه الصفحة / السورة مسمّعة مسبقاً لهذا الطالب");
+      }
+
       await db().run(
         `UPDATE recitations SET
            type = ?, page_number = ?, to_page = ?, verse = ?,
@@ -325,10 +357,9 @@ recitationsRouter.patch(
            recited_at = ?
          WHERE id = ?`,
         [
-          // سجل مرتبط بسورة يبقى نوعه 'surah' مهما أُرسل
-          current.surah_number != null ? "surah" : (body.type ?? current.type),
-          body.pageNumber ?? current.page_number,
-          body.toPage !== undefined ? body.toPage : current.to_page,
+          nextType,
+          nextPage,
+          nextToPage,
           body.verse !== undefined ? body.verse : current.verse,
           // منطقيّ صريح: القيمة المقروءة تعود 0/1 فتُحوَّل قبل الكتابة
           body.pageCompleted !== undefined
