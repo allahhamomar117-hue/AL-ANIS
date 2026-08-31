@@ -32,10 +32,23 @@ async function seedDemoIfNeeded(): Promise<void> {
 /**
  * فحص سريع بعد الترقية: يمنع اكتشاف نقص المخطط لاحقاً على شكل 500 غامض
  * في منتصف الاستخدام (مثل تسجيل الدخول بلا عمود password_hash).
+ *
+ * ── لماذا يجب أن تُذكر هنا كل أعمدة الترقيات؟ ────────────────────────
+ * تصحيحات Postgres غير قاتلة بذاتها (applyPgFixups يسجّل ويمضي)، فهذه
+ * الدالة هي الحارس الوحيد بينها وبين خدمةٍ تعمل على مخطّط ناقص.
+ *
+ * وقد سقطت مرّة لهذا السبب: أُضيف عمود department ولم يُذكر هنا، ففشل
+ * تصحيحه صامتاً وأقلع الخادم، ثم مات عند أول استعلام مقسوم برسالة
+ * `column "department" does not exist` — رسالةٌ تصف العَرَض ولا تدلّ على
+ * الدواء. المطلوب أن يتوقّف الإقلاع هنا برسالةٍ تقول ما يُفعل.
+ *
+ * ⚠ كل ترقية تضيف عموداً يعتمد عليه الكود: أضِف العمود إلى هذه القائمة
+ *   في نفس الالتزام (commit)، لا بعده.
  */
 async function verifySchema(): Promise<void> {
   const required: Record<string, string[]> = {
-    users: ["username", "password_hash", "role"],
+    users: ["username", "password_hash", "role", "department"],
+    halaqat: ["department"],
     teacher_halaqat: ["user_id", "halaqa_id"],
   };
 
@@ -65,7 +78,25 @@ async function verifySchema(): Promise<void> {
 
   if (missing.length) {
     console.error("✖ مخطط قاعدة البيانات ناقص:", missing.join("، "));
-    console.error("  شغّل: npm run db:migrate ثم npm run db:seed");
+
+    if (db().dialect === "postgres") {
+      /*
+       * على Postgres النقصُ يعني أن تصحيحاً في fixups.pg.sql فشل — وقد
+       * طُبع خطؤه كاملاً قبل هذا السطر مباشرةً. الإحالة إليه أنفع من
+       * db:migrate الذي أُجري للتوّ ولن يغيّر شيئاً بإعادته.
+       */
+      console.error("");
+      console.error("  السبب: فشل تصحيح في fixups.pg.sql — راجع الخطأ المطبوع أعلاه.");
+      console.error("  الإصلاح العاجل: نفّذ الكتلة الناقصة يدوياً في محرّر SQL");
+      console.error("  (Railway/Supabase)، ثم أعد تشغيل الخدمة:");
+      console.error("");
+      console.error("    ALTER TABLE users   ADD COLUMN IF NOT EXISTS department TEXT;");
+      console.error("    ALTER TABLE halaqat ADD COLUMN IF NOT EXISTS department TEXT;");
+      console.error("");
+    } else {
+      console.error("  شغّل: npm run db:migrate ثم npm run db:seed");
+    }
+
     process.exit(1);
   }
 

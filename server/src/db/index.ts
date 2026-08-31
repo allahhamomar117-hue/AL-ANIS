@@ -19,7 +19,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { config } from "../config.js";
 import { logSqlError } from "../lib/http.js";
-import { db, initDb } from "./driver.js";
+import { db, initDb, type DbDriver } from "./driver.js";
 
 export { db, initDb, closeDb } from "./driver.js";
 export type { DbDriver, RunResult, SqlParam } from "./driver.js";
@@ -53,31 +53,76 @@ export async function migrate(): Promise<void> {
     await driver.exec(fs.readFileSync(config.schemaFilePg, "utf8"));
     console.log("✔ طُبِّق مخطط PostgreSQL");
 
-    /*
-     * المخطّط ينشئ الناقص ولا يصحّح القائم (‏IF NOT EXISTS)، فالقاعدة
-     * المُنشأة من إصدار أقدم تبقى على أنواعه — وهذا مصدر انحراف أنواع
-     * أعمدة التاريخ. ملفّ التصحيحات يعالج ذلك، وكل تصحيح فيه محروس
-     * بفحص information_schema فلا يفعل شيئاً على قاعدة سليمة.
-     *
-     * فشلُه لا يمنع الإقلاع، خلافاً للمخطّط أعلاه.
-     *
-     * المخطّط شرطٌ للعمل: بلا جداول لا خدمة. أمّا التصحيحات فتحسينٌ
-     * للاتّساق — والكود يحتمل النوعين أصلاً (sqlfn.monthOf تحوّل صراحةً).
-     * فلو أسقط خطأٌ فيها الإقلاعَ لكانت النتيجة خدمةً متوقّفة تماماً بدل
-     * خدمة تعمل على قاعدة منحرفة: ثمنٌ أفدح من العلّة نفسها. يُسجَّل
-     * الخطأ كاملاً ويمضي الإقلاع.
-     */
-    try {
-      await driver.exec(fs.readFileSync(config.fixupsFilePg, "utf8"));
-      console.log("✔ فُحصت تصحيحات مخطط PostgreSQL");
-    } catch (error) {
-      logSqlError("تصحيحات مخطط PostgreSQL", error);
-      console.warn("⚠ تُخطّيت التصحيحات — الخدمة تعمل، والقاعدة ما تزال على حالها");
-    }
+    await applyPgFixups(driver);
     return;
   }
 
   migrateSqlite();
+}
+
+/**
+ * يقسّم ملفّ التصحيحات إلى كتل عند سطور `-- @fixup <اسم>`.
+ *
+ * القسمة بعلامة صريحة لا بتحليل SQL: الملف فيه كتل `DO $ … $` تحتوي
+ * فواصل منقوطة داخلها، وأي شطر على `;` يمزّقها. والعلامة تعطي كل كتلة
+ * اسماً يُطبع في السجلّ، فيُعرف أيّها فشل دون قراءة الملف.
+ */
+function splitFixups(sql: string): { name: string; body: string }[] {
+  const parts = sql.split(/^-- @fixup +(.+)$/m);
+
+  // ما قبل أول علامة تعليقٌ افتتاحي لا تصحيح — يُهمَل
+  const blocks: { name: string; body: string }[] = [];
+  for (let i = 1; i < parts.length; i += 2) {
+    const body = parts[i + 1] ?? "";
+    if (body.trim()) blocks.push({ name: parts[i].trim(), body });
+  }
+  return blocks;
+}
+
+/**
+ * تطبيق تصحيحات Postgres — كتلةً كتلةً، لا الملفَّ دفعةً واحدة.
+ *
+ * ── لماذا كتلةً كتلةً؟ (علّة أوقفت الإنتاج فعلاً) ────────────────────
+ * `query()` بنصٍّ متعدّد العبارات يستعمل بروتوكول الاستعلام البسيط، وفيه
+ * تُنفَّذ عبارات النصّ كلّها داخل معاملة ضمنية واحدة. فعبارةٌ واحدة تفشل
+ * في آخر الملف تُلغي ما قبلها كلَّه — بما فيه إضافة أعمدة لا علاقة لها
+ * بها. وهذا ما حدث: أُلغيت `ADD COLUMN department` بسبب فشلٍ في كتلة
+ * أخرى، فأقلع الخادم على مخطّط ناقص وسقط عند أول استعلام يمسّ العمود
+ * برسالة `column "department" does not exist` لا تدلّ على السبب أصلاً.
+ *
+ * الآن لكل كتلة استدعاؤها ومعاملتها الضمنية: فشلُ إحداها لا يمسّ سواها،
+ * واسمها يُطبع في السجلّ فيُعرف الجاني من أول سطر.
+ *
+ * ── ولماذا يبقى الفشل غير قاتل هنا؟ ─────────────────────────────────
+ * لأن الحراسة انتقلت إلى موضعها الصحيح: verifySchema في index.ts يفحص
+ * الأعمدة الفعلية بعد الترقية ويُسقط الإقلاع برسالة تصف الإصلاح. فالفشل
+ * هنا يُسجَّل، والقرار هناك — حيث يُعرف ما إذا كان النقص مؤثّراً حقاً.
+ */
+async function applyPgFixups(driver: DbDriver): Promise<void> {
+  const blocks = splitFixups(fs.readFileSync(config.fixupsFilePg, "utf8"));
+
+  if (blocks.length === 0) {
+    console.warn("⚠ ملفّ التصحيحات بلا كتل معلَّمة بـ '-- @fixup' — لم يُطبَّق شيء");
+    return;
+  }
+
+  let failed = 0;
+
+  for (const block of blocks) {
+    try {
+      await driver.exec(block.body);
+    } catch (error) {
+      failed++;
+      logSqlError(`تصحيح PostgreSQL: ${block.name}`, error);
+      console.warn(`⚠ تُخطّي التصحيح "${block.name}" — بقيّة التصحيحات تُطبَّق`);
+    }
+  }
+
+  console.log(
+    failed === 0
+      ? `✔ فُحصت تصحيحات مخطط PostgreSQL (${blocks.length} كتلة)`
+      : `⚠ تصحيحات PostgreSQL: نجحت ${blocks.length - failed} من ${blocks.length}`
+  );
 }
 
 /**
