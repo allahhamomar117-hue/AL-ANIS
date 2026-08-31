@@ -8,6 +8,7 @@ import { denySupervisor } from "../middleware/auth.js";
 import { assertHalaqaAccess, assertStudentAccess, halaqaFilter } from "../services/scope.js";
 import { surahByNumber } from "../lib/surahs.js";
 import { recitationPagesExpr } from "../services/recitationSql.js";
+import { visibleStudent } from "../services/studentSql.js";
 
 export const reportsRouter = Router();
 
@@ -130,7 +131,8 @@ reportsRouter.get(
     `;
     pushDates();
 
-    sql += " WHERE s.is_active = TRUE";
+    // لوحة الصدارة تخصّ الدورة الجارية: المؤرشف لا يزاحم من يسمّع اليوم
+    sql += ` WHERE ${visibleStudent("s")}`;
     if (q.halaqaId) {
       sql += " AND s.halaqa_id = ?";
       params.push(q.halaqaId);
@@ -201,7 +203,7 @@ reportsRouter.get(
 
           const studentsScope = await scopeOn("halaqa_id");
           const students = await db().get<{ n: number }>(
-            `SELECT COUNT(*) AS n FROM students WHERE is_active = TRUE${studentsScope.clause}`,
+            `SELECT COUNT(*) AS n FROM students WHERE ${visibleStudent("")}${studentsScope.clause}`,
             studentsScope.params
           );
 
@@ -325,7 +327,7 @@ reportsRouter.get(
        FROM students s
        LEFT JOIN attendance_entries e
          ON e.student_id = s.id AND e.session_id = ?
-       WHERE s.halaqa_id = ? AND s.is_active = TRUE
+       WHERE s.halaqa_id = ? AND ${visibleStudent("s")}
        ORDER BY s.name`,
       [date, date, session?.id ?? -1, id]
     );

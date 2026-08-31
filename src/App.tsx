@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { BrowserRouter } from "react-router-dom";
 import MainRoutes from "./MainRoutes.tsx";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -21,6 +23,13 @@ const queryClient = new QueryClient({
 });
 
 function App() {
+  const { t, i18n } = useTranslation();
+
+  // عنوان تبويب المتصفح يتبع لغة الواجهة
+  useEffect(() => {
+    document.title = t("appTitle");
+  }, [t, i18n.language]);
+
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>

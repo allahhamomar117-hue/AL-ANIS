@@ -5,7 +5,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { awqafApi, halaqatApi, statisticsApi, studentsApi, usersApi } from "./index";
 import { qk } from "./queryKeys";
-import type { AwqafStatus, Halaqa, HalaqaStudent, Role, Student } from "./types";
+import type { AwqafStatus, Halaqa, HalaqaStudent, Role, Student, StudentStatus } from "./types";
 
 /* ==================== الحلقات ==================== */
 
@@ -75,6 +75,7 @@ export function useDeleteHalaqa() {
 export function useStudents(params?: {
   halaqaId?: number;
   search?: string;
+  status?: StudentStatus | "all";
   limit?: number;
   offset?: number;
 }) {
@@ -154,12 +155,38 @@ export function useDeleteStudent() {
   });
 }
 
+/**
+ * أرشفة الطالب أو إعادته. يبطل نفس ما يبطله تعديل بياناته: القوائم
+ * وعدد طلاب الحلقة والتقارير — فالطالب يظهر أو يختفي منها جميعاً.
+ */
+export function useSetStudentStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: number; status: StudentStatus }) =>
+      studentsApi.setStatus(id, status),
+    onSuccess: (_res, vars) => invalidateStudent(qc, vars.id),
+  });
+}
+
 export function useTransferStudent() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, halaqaId }: { id: number; halaqaId: number }) =>
       studentsApi.transfer(id, halaqaId),
     onSuccess: (_res, vars) => invalidateStudent(qc, vars.id),
+  });
+}
+
+/** النقل الجماعي — يبطل قوائم الطلاب والحلقات وتفاصيل كل طالب مَنقول. */
+export function useBulkTransferStudents() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ studentIds, newHalaqaId }: { studentIds: number[]; newHalaqaId: number }) =>
+      studentsApi.bulkTransfer(studentIds, newHalaqaId),
+    onSuccess: (_res, vars) => {
+      invalidateStudent(qc);
+      vars.studentIds.forEach((id) => invalidateStudent(qc, id));
+    },
   });
 }
 

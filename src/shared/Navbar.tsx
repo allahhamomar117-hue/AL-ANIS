@@ -114,7 +114,7 @@ function Navbar() {
           src={logo}
           alt="logo"
           onClick={() => navigate(`/${lang}`)}
-          className="w-10 h-10 md:w-12 md:h-12 shrink-0 cursor-pointer"
+          className="h-11 md:h-14 w-auto shrink-0 cursor-pointer object-contain"
         />
 
         {/* ===== التنقّل — على الشاشات المتوسطة فأكبر فقط ===== */}

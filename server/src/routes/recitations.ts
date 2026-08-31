@@ -15,6 +15,7 @@ import {
 } from "../lib/schemas.js";
 import { addPoints, recitationPoints, revertPointsFor } from "../services/points.js";
 import { applyScope, assertHalaqaAccess, assertStudentAccess } from "../services/scope.js";
+import { visibleStudent } from "../services/studentSql.js";
 
 export const recitationsRouter = Router();
 
@@ -205,7 +206,7 @@ recitationsRouter.post(
     const body = parse(recitationBody, req.body);
 
     const student = await db().get<{ id: number; halaqaId: number | null }>(
-      `SELECT id, halaqa_id AS "halaqaId" FROM students WHERE id = ? AND is_active = TRUE`,
+      `SELECT id, halaqa_id AS "halaqaId" FROM students WHERE id = ? AND ${visibleStudent("")}`,
       [body.studentId]
     );
     if (!student) throw ApiError.notFound("الطالب غير موجود");

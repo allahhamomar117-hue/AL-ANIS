@@ -1,4 +1,5 @@
 {
+  "appTitle": "نظام الأنيس",
   "dashboard": {
     "attendance": {
       "title": "الحضور",
@@ -225,7 +226,18 @@
     "points": "النقاط",
     "readOnlySubtitle": "طلاب حلقتك — للاطّلاع فقط",
     "editStudent": "تعديل الطالب",
-    "deleteStudent": "حذف الطالب"
+    "deleteStudent": "حذف الطالب",
+    "selectAll": "تحديد الكل",
+    "select": "تحديد",
+    "transferSelected": "نقل المحدد ({{count}})",
+    "selected": "{{count}} محدَّد",
+    "archiveStudent": "أرشفة الطالب",
+    "restoreStudent": "إعادة الطالب إلى الدورة",
+    "statusFilter": {
+      "active": "النشطون",
+      "archived": "المؤرشفون",
+      "all": "الكل"
+    }
   },
   "popupAddPoints": {
     "title": "إضافة نقاط",
@@ -464,7 +476,10 @@
     "studentUpdated": "تم حفظ تعديلات الطالب بنجاح",
     "studentDeleted": "تم حذف الطالب بنجاح",
     "pointsAdded": "تمت إضافة النقاط بنجاح",
-    "pointsDeducted": "تم حسم النقاط بنجاح"
+    "pointsDeducted": "تم حسم النقاط بنجاح",
+    "studentsTransferred": "نُقل {{count}} من الطلاب إلى {{halaqa}}",
+    "studentArchived": "تمت أرشفة {{name}} — سجلاته التاريخية محفوظة",
+    "studentRestored": "أُعيد {{name}} إلى الدورة الجارية"
   },
   "staff": {
     "title": "إدارة الكادر",
@@ -598,7 +613,23 @@
     "deleteTitle": "حذف سجل {{name}}؟",
     "deleteHint": "يُحذف الترشيح نهائياً. بيانات الطالب ونقاطه لا تتأثر.",
     "saveFailed": "تعذّر حفظ حالة {{name}} — {{reason}}",
-    "deleteFailed": "تعذّر حذف سجل {{name}} — {{reason}}"
+    "deleteFailed": "تعذّر حذف سجل {{name}} — {{reason}}",
+    "sectionTitle": "سبر الأوقاف — {{month}}",
+    "collapseSection": "إنهاء التعديل",
+    "expandHint": "فتح قسم {{month}}",
+    "collapseHint": "طيّ قسم {{month}}",
+    "recordsCount_zero": "لا طلاب",
+    "recordsCount_one": "طالب واحد",
+    "recordsCount_two": "طالبان",
+    "recordsCount_few": "{{count}} طلاب",
+    "recordsCount_many": "{{count}} طالباً",
+    "recordsCount_other": "{{count}} طالب",
+    "passedBadge_zero": "لا ناجحين",
+    "passedBadge_one": "ناجح واحد",
+    "passedBadge_two": "ناجحان",
+    "passedBadge_few": "{{count}} ناجحين",
+    "passedBadge_many": "{{count}} ناجحاً",
+    "passedBadge_other": "{{count}} ناجح"
   },
   "awqafStatuses": {
     "nominated": "مرشّح",
@@ -636,5 +667,16 @@
     },
     "noRecitations": "لا توجد تلاوات مسجّلة بعد",
     "noAwqaf": "لا توجد سجلّات سبر بعد"
+  },
+  "popupTransferStudents": {
+    "title": "نقل الطلاب إلى حلقة أخرى",
+    "confirm": "سيُنقل {{count}} من الطلاب إلى الحلقة التي تختارها.",
+    "destination": "الحلقة الوجهة",
+    "choose": "اختر حلقة…",
+    "submit": "نقل"
+  },
+  "studentStatuses": {
+    "active": "نشط",
+    "archived": "مؤرشف"
   }
 }

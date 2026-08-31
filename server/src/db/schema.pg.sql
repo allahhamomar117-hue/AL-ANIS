@@ -72,6 +72,9 @@ CREATE TABLE IF NOT EXISTS students (
   parent_phone  TEXT,
   avatar_url    TEXT,
   points        INTEGER     NOT NULL DEFAULT 0,
+  -- طور الطالب: active جارٍ في الدورة، archived انتهت دورته
+  status        TEXT        NOT NULL DEFAULT 'active'
+                            CHECK (status IN ('active', 'archived')),
   is_active     BOOLEAN     NOT NULL DEFAULT TRUE,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );

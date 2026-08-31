@@ -37,6 +37,15 @@ export interface Halaqa {
   students: number;
 }
 
+/**
+ * طور الطالب — الترجمة في locales تحت studentStatuses.
+ *
+ * مستقلّ عن isActive: ذاك سجلٌّ أُلغي لخطأ إدخال، وهذا طالب أنهى دورته
+ * وتبقى سجلاته التاريخية كاملة.
+ */
+export const STUDENT_STATUSES = ["active", "archived"] as const;
+export type StudentStatus = (typeof STUDENT_STATUSES)[number];
+
 export interface Student {
   id: number;
   code: string;
@@ -48,6 +57,7 @@ export interface Student {
   parentPhone: string | null;
   avatarUrl: string | null;
   points: number;
+  status: StudentStatus;
   isActive: number;
   createdAt: string;
 }

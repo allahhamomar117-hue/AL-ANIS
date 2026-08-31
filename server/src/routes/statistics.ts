@@ -16,6 +16,7 @@ import { monthOf } from "../db/sqlfn.js";
 import { asyncHandler, logSqlError } from "../lib/http.js";
 import { requireStudentManager } from "../middleware/auth.js";
 import { recitationPagesExpr } from "../services/recitationSql.js";
+import { visibleStudent } from "../services/studentSql.js";
 
 export const statisticsRouter = Router();
 
@@ -90,7 +91,16 @@ statisticsRouter.get(
       );
 
       const studentsRow = await db().get<{ students: number }>(
-        "SELECT COUNT(*) AS students FROM students WHERE is_active = TRUE"
+        /*
+         * «طلاب فعّالون» بطاقةُ حاضرٍ لا تاريخ، فالمؤرشف خارجها.
+         *
+         * وهذا الاستعلام الوحيد في الملف الذي يمسّ جدول students أصلاً:
+         * بقيّة التجميعات (الصفحات، أيام الدوام، الأوقاف، السلاسل
+         * الشهرية) تقرأ من recitations و attendance_sessions و
+         * awqaf_records مباشرةً بلا وصلٍ بالطالب — فالأرشفة لا تنقص منها
+         * شيئاً، والتاريخ يبقى كاملاً.
+         */
+        `SELECT COUNT(*) AS students FROM students WHERE ${visibleStudent("")}`
       );
       const halaqatRow = await db().get<{ halaqat: number }>(
         "SELECT COUNT(*) AS halaqat FROM halaqat WHERE is_active = TRUE"

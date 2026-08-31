@@ -25,6 +25,7 @@ import type {
   StaffUser,
   StatisticsDashboard,
   Student,
+  StudentStatus,
   StudentStats,
 } from "./types";
 
@@ -103,8 +104,14 @@ export const halaqatApi = {
 /* ==================== الطلاب والنقاط ==================== */
 
 export const studentsApi = {
-  list: (params?: { halaqaId?: number; search?: string; limit?: number; offset?: number }) =>
-    api.get<Paged<Student>>("/students", params),
+  /** status: 'active' (الافتراضي في الخادم) | 'archived' | 'all'. */
+  list: (params?: {
+    halaqaId?: number;
+    search?: string;
+    status?: StudentStatus | "all";
+    limit?: number;
+    offset?: number;
+  }) => api.get<Paged<Student>>("/students", params),
 
   get: (id: number) => api.get<{ data: Student; stats: StudentStats }>(`/students/${id}`),
 
@@ -123,6 +130,13 @@ export const studentsApi = {
   remove: (id: number, hard = false) =>
     api.delete<void>(`/students/${id}`, hard ? { hard: true } : undefined),
 
+  /**
+   * أرشفة الطالب أو إعادته إلى الدورة الجارية — للمدير وحده.
+   * لا تمسّ أي سجل: الحضور والتسميع والنقاط والأوقاف تبقى كما هي.
+   */
+  setStatus: (id: number, status: StudentStatus) =>
+    api.patch<{ data: Student }>(`/students/${id}/status`, { status }),
+
   /** رفع صورة الطالب (data URL بعد تصغيرها في المتصفح). */
   uploadAvatar: (id: number, data: string) =>
     api.post<{ data: Student }>(`/students/${id}/avatar`, { data }),
@@ -132,6 +146,13 @@ export const studentsApi = {
 
   transfer: (id: number, halaqa_id: number) =>
     api.post<{ data: Student }>(`/students/${id}/transfer`, { halaqa_id }),
+
+  /** نقل جماعي: مصفوفة طلاب إلى حلقة واحدة (المدير وحده). */
+  bulkTransfer: (studentIds: number[], newHalaqaId: number) =>
+    api.post<{ data: Student[]; meta: { moved: number; halaqaId: number } }>(
+      '/students/bulk-transfer',
+      { studentIds, newHalaqaId }
+    ),
 
   points: (id: number, params?: { limit?: number; offset?: number }) =>
     api.get<{ data: PointTransaction[]; meta: { balance: number } }>(

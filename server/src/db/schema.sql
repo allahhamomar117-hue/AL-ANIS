@@ -71,6 +71,11 @@ CREATE TABLE IF NOT EXISTS students (
   parent_phone  TEXT,
   avatar_url    TEXT,
   points        INTEGER NOT NULL DEFAULT 0,       -- الرصيد المحسوب من point_transactions
+  -- طور الطالب: active جارٍ في الدورة، archived انتهت دورته.
+  -- مستقلّ عن is_active عمداً: ذاك سجلّ أُلغي لخطأ إدخال، وهذا طالب
+  -- أنهى دورته وتبقى سجلاته التاريخية كاملة.
+  status        TEXT    NOT NULL DEFAULT 'active'
+                        CHECK (status IN ('active', 'archived')),
   is_active     INTEGER NOT NULL DEFAULT 1,
   created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
 );

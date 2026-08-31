@@ -1,4 +1,5 @@
 {
+  "appTitle": "Al-Anis System",
   "dashboard": {
     "title": "Dashboard",
     "attendance": {
@@ -222,7 +223,18 @@
     "points": "Points",
     "readOnlySubtitle": "Your halaqa's students — view only",
     "editStudent": "Edit student",
-    "deleteStudent": "Delete student"
+    "deleteStudent": "Delete student",
+    "selectAll": "Select all",
+    "select": "Select",
+    "transferSelected": "Transfer selected ({{count}})",
+    "selected": "{{count}} selected",
+    "archiveStudent": "Archive student",
+    "restoreStudent": "Restore to current cycle",
+    "statusFilter": {
+      "active": "Active",
+      "archived": "Archived",
+      "all": "All"
+    }
   },
   "popupAddPoints": {
     "title": "Add Points",
@@ -462,7 +474,10 @@
     "studentUpdated": "Student changes saved successfully",
     "studentDeleted": "Student deleted successfully",
     "pointsAdded": "Points added successfully",
-    "pointsDeducted": "Points deducted successfully"
+    "pointsDeducted": "Points deducted successfully",
+    "studentsTransferred": "Moved {{count}} student(s) to {{halaqa}}",
+    "studentArchived": "{{name}} archived — history kept intact",
+    "studentRestored": "{{name}} restored to the current cycle"
   },
   "staff": {
     "title": "Staff management",
@@ -596,7 +611,15 @@
     "deleteTitle": "Delete the record for {{name}}?",
     "deleteHint": "The nomination is permanently removed. Student data and points are unaffected.",
     "saveFailed": "Could not save {{name}} — {{reason}}",
-    "deleteFailed": "Could not delete {{name}} — {{reason}}"
+    "deleteFailed": "Could not delete {{name}} — {{reason}}",
+    "sectionTitle": "Awqaf exam — {{month}}",
+    "collapseSection": "Done editing",
+    "expandHint": "Expand {{month}}",
+    "collapseHint": "Collapse {{month}}",
+    "recordsCount_one": "1 student",
+    "recordsCount_other": "{{count}} students",
+    "passedBadge_one": "1 passed",
+    "passedBadge_other": "{{count}} passed"
   },
   "awqafStatuses": {
     "nominated": "Nominated",
@@ -634,5 +657,16 @@
     },
     "noRecitations": "No recitations recorded yet",
     "noAwqaf": "No exam records yet"
+  },
+  "popupTransferStudents": {
+    "title": "Transfer students to another halaqa",
+    "confirm": "{{count}} student(s) will be moved to the halaqa you choose.",
+    "destination": "Destination halaqa",
+    "choose": "Choose a halaqa…",
+    "submit": "Transfer"
+  },
+  "studentStatuses": {
+    "active": "Active",
+    "archived": "Archived"
   }
 }

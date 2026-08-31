@@ -18,16 +18,32 @@ import { useToast } from "./toast/toastContext";
 /**
  * الشعار مُحمَّل سلفاً: الالتقاط لا ينتظر الشبكة، فصورة لم تكتمل
  * تخرج علامةً مائية فارغة.
+ *
+ * المحاولة مخزَّنة لا نتيجتها: الشعار ملف كبير نسبياً، فإن فشل فكّه مرة
+ * (شبكة متقطّعة) أُعيدت المحاولة عند التصدير التالي بدل تثبيت الفشل.
  */
-const logoReady = (async () => {
-  const image = new Image();
-  image.src = logo;
-  try {
-    await image.decode();
-  } catch {
-    // الشعار زينة لا أكثر — فشل تحميله لا يمنع التصدير
+let logoPromise: Promise<boolean> | null = null;
+
+const loadLogo = (): Promise<boolean> => {
+  if (!logoPromise) {
+    logoPromise = (async () => {
+      const image = new Image();
+      image.src = logo;
+      try {
+        await image.decode();
+        return true;
+      } catch {
+        // الشعار زينة لا أكثر — فشل تحميله لا يمنع التصدير
+        logoPromise = null;
+        return false;
+      }
+    })();
   }
-})();
+  return logoPromise;
+};
+
+// بدء التحميل فور استيراد الوحدة، قبل أن يفتح المستخدم النافذة.
+void loadLogo();
 
 /**
  * عرض ورقة A4 بدقة 96dpi — عرض الصورة المصدَّرة دائماً.
@@ -99,7 +115,7 @@ export default function DailyReportModal({ onClose }: { onClose: () => void }) {
     await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
     await new Promise((resolve) => setTimeout(resolve, 120));
     await document.fonts?.ready;
-    await logoReady;
+    await loadLogo();
 
     const node = exportRef.current;
     if (!node) {
@@ -250,7 +266,11 @@ export default function DailyReportModal({ onClose }: { onClose: () => void }) {
                   className="absolute inset-0 flex items-center justify-center"
                   style={{ zIndex: 0, opacity: 0.06 }}
                 >
-                  <img src={logo} alt="" style={{ width: "420px", maxWidth: "70%" }} />
+                  <img
+                    src={logo}
+                    alt=""
+                    style={{ height: "560px", width: "auto", maxWidth: "70%", objectFit: "contain" }}
+                  />
                 </div>
 
                 <div

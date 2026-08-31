@@ -7,6 +7,7 @@ import { ApiError, asyncHandler, parse } from "../lib/http.js";
 import { attendanceStatus, idParam, isoDate, pagination, today } from "../lib/schemas.js";
 import { addPoints, revertPointsFor } from "../services/points.js";
 import { applyScope, assertHalaqaAccess } from "../services/scope.js";
+import { visibleStudent } from "../services/studentSql.js";
 import type { AuthUser } from "../middleware/auth.js";
 
 export const attendanceRouter = Router();
@@ -135,7 +136,7 @@ attendanceRouter.get(
        FROM students s
        LEFT JOIN attendance_entries e
          ON e.student_id = s.id AND e.session_id = ?
-       WHERE s.halaqa_id = ? AND s.is_active = TRUE
+       WHERE s.halaqa_id = ? AND ${visibleStudent("s")}
        ORDER BY s.name`,
       [session?.id ?? -1, halaqaId]
     );
@@ -186,7 +187,7 @@ attendanceRouter.post(
     if (!halaqa) throw ApiError.notFound("الحلقة غير موجودة");
 
     const rows = await db().all<{ id: number }>(
-      "SELECT id FROM students WHERE halaqa_id = ? AND is_active = TRUE",
+      `SELECT id FROM students WHERE halaqa_id = ? AND ${visibleStudent("")}`,
       [body.halaqaId]
     );
     const validIds = new Set(rows.map((s) => s.id));

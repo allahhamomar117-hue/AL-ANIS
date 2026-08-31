@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
   FaCertificate,
   FaCheck,
+  FaChevronDown,
   FaPlus,
   FaTimes,
   FaTrashAlt,
@@ -31,8 +32,37 @@ const STATUS_STYLES: Record<AwqafStatus, string> = {
   failed: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
 };
 
+interface MonthGroup {
+  month: string;
+  records: AwqafRecord[];
+  passed: number;
+}
+
 /**
- * شهادات وسبر الأوقاف — إدارة المرشّحين لاختبارات وزارة الأوقاف ونتائجهم.
+ * تجميع السجلات بشهر السبر، مرتّبةً من الأحدث إلى الأقدم.
+ *
+ * الخادم يعيدها مرتّبة أصلاً (exam_month DESC ثم الاسم)، لكن الترتيب
+ * يُفرض هنا صراحةً: الاعتماد على ترتيب المصدر يجعل تغييراً في جملة
+ * ORDER BY يعيد تركيب الصفحة بصمت.
+ */
+function groupByMonth(records: AwqafRecord[]): MonthGroup[] {
+  const groups = records.reduce<Record<string, AwqafRecord[]>>((acc, record) => {
+    (acc[record.examMonth] ??= []).push(record);
+    return acc;
+  }, {});
+
+  return Object.entries(groups)
+    .map(([month, rows]) => ({
+      month,
+      records: rows,
+      passed: rows.filter((r) => r.status === "passed").length,
+    }))
+    .sort((a, b) => b.month.localeCompare(a.month));
+}
+
+/**
+ * شهادات وسبر الأوقاف — إدارة المرشّحين لاختبارات وزارة الأوقاف ونتائجهم،
+ * معروضةً أقساماً قابلة للطيّ حسب شهر السبر.
  *
  * للمدير وحده: المسار محميّ بـ RequireManager، وكل مسارات /api/awqaf
  * محصورة بدور ADMIN على الخادم.
@@ -46,6 +76,18 @@ export default function AwqafExams() {
   const [deleting, setDeleting] = useState<AwqafRecord | null>(null);
   const [month, setMonth] = useState<string>("");
   const [status, setStatus] = useState<AwqafStatus | "">("");
+
+  /*
+   * حالة الطيّ تُخزَّن كاستثناءات لا كقائمة مفتوحة.
+   *
+   * القاعدة: الشهر الأحدث مفتوح وما دونه مطويّ — وما في هذا الكائن هو ما
+   * خالف المستخدم فيه القاعدة. لو خُزّنت "مجموعة المفتوحة" لوجب مزامنتها
+   * مع كل تغيّر في الفلاتر (أشهر تظهر وأخرى تختفي)، فإمّا تأثيرٌ يعيد
+   * ضبطها فيمحو اختيار المستخدم، وإمّا تبقى قديمة فيُفتَح شهر لم يعد
+   * معروضاً. أمّا الاستثناءات فتبقى صالحة مهما تبدّلت النتائج: الشهر
+   * الجديد يأخذ القاعدة، والشهر الذي اختاره المستخدم يحتفظ باختياره.
+   */
+  const [overrides, setOverrides] = useState<Record<string, boolean>>({});
 
   const records = useAwqafRecords({
     month: month || undefined,
@@ -61,6 +103,13 @@ export default function AwqafExams() {
    * يستطيع تغييره إلا بإلغائه.
    */
   const months = records.data?.meta.months ?? [];
+
+  const groups = groupByMonth(list);
+  const newestMonth = groups[0]?.month;
+
+  const isOpen = (m: string) => overrides[m] ?? m === newestMonth;
+  const toggle = (m: string) =>
+    setOverrides((current) => ({ ...current, [m]: !isOpen(m) }));
 
   /**
    * الأزرار السريعة تحفظ فوراً بلا زرّ "حفظ نهائي"، فالإشعار هو الدليل
@@ -179,123 +228,26 @@ export default function AwqafExams() {
           </div>
         </div>
 
-        {/* ===== الجدول ===== */}
+        {/* ===== الأقسام حسب شهر السبر ===== */}
         {records.isPending ? (
           <LoadingState />
         ) : records.isError ? (
           <ErrorState error={records.error} onRetry={() => void records.refetch()} />
-        ) : list.length === 0 ? (
+        ) : groups.length === 0 ? (
           <EmptyState message={t("awqaf.empty")} icon="🎓" />
         ) : (
-          <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm dark:border-gray-700 dark:bg-dark">
-            <table className="w-full min-w-[640px] text-sm">
-              <thead className="bg-gray-50 text-gray-600 dark:bg-dark-light dark:text-gray-300">
-                <tr>
-                  <th className="px-4 py-3 text-start font-bold">{t("awqaf.student")}</th>
-                  <th className="px-4 py-3 text-start font-bold">{t("awqaf.halaqa")}</th>
-                  <th className="px-4 py-3 text-start font-bold">{t("awqaf.month")}</th>
-                  <th className="px-4 py-3 text-start font-bold">{t("awqaf.status")}</th>
-                  <th className="px-4 py-3 text-start font-bold">{t("awqaf.actions")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {list.map((record) => (
-                  <tr
-                    key={record.id}
-                    className="border-t border-gray-100 dark:border-gray-700"
-                  >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <Avatar
-                          name={record.studentName}
-                          url={record.studentAvatarUrl}
-                          className="size-9"
-                          textClassName="text-xs"
-                        />
-                        <div className="min-w-0">
-                          <p className="truncate font-bold text-gray-800 dark:text-white">
-                            {record.studentName}
-                          </p>
-                          <p className="truncate text-xs text-gray-500 dark:text-gray-400">
-                            {record.studentCode}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
-                      {record.halaqa || t("common.none")}
-                    </td>
-
-                    <td className="px-4 py-3 font-semibold text-gray-700 dark:text-gray-300">
-                      {formatMonth(record.examMonth)}
-                    </td>
-
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-block rounded-full px-3 py-1 text-xs font-bold ${STATUS_STYLES[record.status]}`}
-                      >
-                        {t(`awqafStatuses.${record.status}`)}
-                      </span>
-                    </td>
-
-                    {/*
-                     * الأزرار السريعة تعرض ما ليس مطبَّقاً الآن فقط: زر
-                     * "ناجح" على سجلّ ناجح لا يفعل شيئاً، ووجوده يوهم
-                     * بإجراء متاح. من نتيجة مسجَّلة يُتاح "إعادة إلى مرشّح"
-                     * لتصحيح إدخال خاطئ بلا حذف السجل.
-                     */}
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-2">
-                        {record.status !== "passed" && (
-                          <button
-                            onClick={() => void setStatusOf(record, "passed")}
-                            disabled={update.isPending}
-                            title={t("awqaf.markPassed")}
-                            className="flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50 dark:bg-emerald-900/20 dark:text-emerald-300"
-                          >
-                            <FaCheck />
-                            {t("awqafStatuses.passed")}
-                          </button>
-                        )}
-
-                        {record.status !== "failed" && (
-                          <button
-                            onClick={() => void setStatusOf(record, "failed")}
-                            disabled={update.isPending}
-                            title={t("awqaf.markFailed")}
-                            className="flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 transition hover:bg-red-100 disabled:opacity-50 dark:bg-red-900/20 dark:text-red-400"
-                          >
-                            <FaTimes />
-                            {t("awqafStatuses.failed")}
-                          </button>
-                        )}
-
-                        {record.status !== "nominated" && (
-                          <button
-                            onClick={() => void setStatusOf(record, "nominated")}
-                            disabled={update.isPending}
-                            title={t("awqaf.markNominated")}
-                            className="flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-bold text-gray-700 transition hover:bg-gray-200 disabled:opacity-50 dark:bg-dark-light dark:text-gray-200"
-                          >
-                            <FaUndo />
-                            {t("awqafStatuses.nominated")}
-                          </button>
-                        )}
-
-                        <button
-                          onClick={() => setDeleting(record)}
-                          title={t("common.delete")}
-                          className="flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-bold text-gray-600 transition hover:bg-red-100 hover:text-red-700 dark:bg-dark-light dark:text-gray-300"
-                        >
-                          <FaTrashAlt />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-4">
+            {groups.map((group) => (
+              <MonthSection
+                key={group.month}
+                group={group}
+                open={isOpen(group.month)}
+                onToggle={() => toggle(group.month)}
+                pending={update.isPending}
+                onSetStatus={setStatusOf}
+                onDelete={setDeleting}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -338,6 +290,222 @@ export default function AwqafExams() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ==================== قسم الشهر ==================== */
+
+/**
+ * قسم شهرٍ واحد: ترويسة قابلة للنقر ثم جدول طلابه.
+ *
+ * الترويسة زرّ حقيقي لا div بمستمع نقر: يأتي معه تركيز لوحة المفاتيح
+ * ومفتاحا Enter/Space مجاناً، وaria-expanded يخبر قارئ الشاشة بحالة
+ * الطيّ — وهي معلومة لا يحملها السهم المرسوم.
+ */
+function MonthSection({
+  group,
+  open,
+  onToggle,
+  pending,
+  onSetStatus,
+  onDelete,
+}: {
+  group: MonthGroup;
+  open: boolean;
+  onToggle: () => void;
+  pending: boolean;
+  onSetStatus: (record: AwqafRecord, next: AwqafStatus) => void;
+  onDelete: (record: AwqafRecord) => void;
+}) {
+  const { t } = useTranslation();
+  const label = formatMonth(group.month);
+  const panelId = `awqaf-month-${group.month}`;
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm dark:border-gray-700 dark:bg-dark">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        aria-controls={panelId}
+        title={open ? t("awqaf.collapseHint", { month: label }) : t("awqaf.expandHint", { month: label })}
+        className={`flex w-full items-center gap-3 px-4 py-4 text-start transition hover:bg-emerald-50/60 dark:hover:bg-dark-light ${
+          open ? "bg-emerald-50/40 dark:bg-dark-light/50" : ""
+        }`}
+      >
+        {/*
+         * السهم يدور لا يُستبدل بأيقونة أخرى: الحركة نفسها تربط الحالتين
+         * في ذهن القارئ. ولا يُقلب في RTL — دورانه رأسيّ لا أفقيّ.
+         */}
+        <FaChevronDown
+          aria-hidden
+          className={`shrink-0 text-gray-400 transition-transform duration-200 ${
+            open ? "rotate-180" : ""
+          }`}
+        />
+
+        <span className="flex-1 truncate font-bold text-gray-800 dark:text-white">
+          {t("awqaf.sectionTitle", { month: label })}
+        </span>
+
+        {group.passed > 0 && (
+          <span className="hidden shrink-0 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 sm:inline">
+            {t("awqaf.passedBadge", { count: group.passed })}
+          </span>
+        )}
+
+        <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-bold text-gray-600 dark:bg-dark-light dark:text-gray-300">
+          {t("awqaf.recordsCount", { count: group.records.length })}
+        </span>
+      </button>
+
+      {open && (
+        <div id={panelId}>
+          <RecordsTable
+            records={group.records}
+            pending={pending}
+            onSetStatus={onSetStatus}
+            onDelete={onDelete}
+          />
+
+          <div className="flex justify-end border-t border-gray-100 px-4 py-3 dark:border-gray-700">
+            <button
+              type="button"
+              onClick={onToggle}
+              className="flex items-center gap-2 rounded-xl bg-gray-100 px-4 py-2 text-sm font-bold text-gray-700 transition hover:bg-gray-200 dark:bg-dark-light dark:text-gray-200 dark:hover:bg-gray-700"
+            >
+              <FaChevronDown className="rotate-180 text-xs" />
+              {t("awqaf.collapseSection")}
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ==================== جدول الطلاب ==================== */
+
+/**
+ * جدول سجلّات شهر واحد. لا عمود للشهر هنا: ترويسة القسم تحمله، وتكراره
+ * في كل صفّ يشغل عرضاً ثميناً بقيمة واحدة مكرّرة.
+ */
+function RecordsTable({
+  records,
+  pending,
+  onSetStatus,
+  onDelete,
+}: {
+  records: AwqafRecord[];
+  pending: boolean;
+  onSetStatus: (record: AwqafRecord, next: AwqafStatus) => void;
+  onDelete: (record: AwqafRecord) => void;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <div className="overflow-x-auto border-t border-gray-100 dark:border-gray-700">
+      <table className="w-full min-w-[560px] text-sm">
+        <thead className="bg-gray-50 text-gray-600 dark:bg-dark-light dark:text-gray-300">
+          <tr>
+            <th className="px-4 py-3 text-start font-bold">{t("awqaf.student")}</th>
+            <th className="px-4 py-3 text-start font-bold">{t("awqaf.halaqa")}</th>
+            <th className="px-4 py-3 text-start font-bold">{t("awqaf.status")}</th>
+            <th className="px-4 py-3 text-start font-bold">{t("awqaf.actions")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {records.map((record) => (
+            <tr key={record.id} className="border-t border-gray-100 dark:border-gray-700">
+              <td className="px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <Avatar
+                    name={record.studentName}
+                    url={record.studentAvatarUrl}
+                    className="size-9"
+                    textClassName="text-xs"
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate font-bold text-gray-800 dark:text-white">
+                      {record.studentName}
+                    </p>
+                    <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+                      {record.studentCode}
+                    </p>
+                  </div>
+                </div>
+              </td>
+
+              <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
+                {record.halaqa || t("common.none")}
+              </td>
+
+              <td className="px-4 py-3">
+                <span
+                  className={`inline-block rounded-full px-3 py-1 text-xs font-bold ${STATUS_STYLES[record.status]}`}
+                >
+                  {t(`awqafStatuses.${record.status}`)}
+                </span>
+              </td>
+
+              {/*
+               * الأزرار السريعة تعرض ما ليس مطبَّقاً الآن فقط: زر "ناجح"
+               * على سجلّ ناجح لا يفعل شيئاً، ووجوده يوهم بإجراء متاح. من
+               * نتيجة مسجَّلة يُتاح "إعادة إلى مرشّح" لتصحيح إدخال خاطئ
+               * بلا حذف السجل.
+               */}
+              <td className="px-4 py-3">
+                <div className="flex flex-wrap gap-2">
+                  {record.status !== "passed" && (
+                    <button
+                      onClick={() => onSetStatus(record, "passed")}
+                      disabled={pending}
+                      title={t("awqaf.markPassed")}
+                      className="flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50 dark:bg-emerald-900/20 dark:text-emerald-300"
+                    >
+                      <FaCheck />
+                      {t("awqafStatuses.passed")}
+                    </button>
+                  )}
+
+                  {record.status !== "failed" && (
+                    <button
+                      onClick={() => onSetStatus(record, "failed")}
+                      disabled={pending}
+                      title={t("awqaf.markFailed")}
+                      className="flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 transition hover:bg-red-100 disabled:opacity-50 dark:bg-red-900/20 dark:text-red-400"
+                    >
+                      <FaTimes />
+                      {t("awqafStatuses.failed")}
+                    </button>
+                  )}
+
+                  {record.status !== "nominated" && (
+                    <button
+                      onClick={() => onSetStatus(record, "nominated")}
+                      disabled={pending}
+                      title={t("awqaf.markNominated")}
+                      className="flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-bold text-gray-700 transition hover:bg-gray-200 disabled:opacity-50 dark:bg-dark-light dark:text-gray-200"
+                    >
+                      <FaUndo />
+                      {t("awqafStatuses.nominated")}
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => onDelete(record)}
+                    title={t("common.delete")}
+                    className="flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-bold text-gray-600 transition hover:bg-red-100 hover:text-red-700 dark:bg-dark-light dark:text-gray-300"
+                  >
+                    <FaTrashAlt />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

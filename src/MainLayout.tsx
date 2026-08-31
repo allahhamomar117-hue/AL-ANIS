@@ -18,7 +18,7 @@ const MainLayout = () => {
   }, [lang, i18n]);
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="app-bg flex flex-col min-h-screen">
       <Navbar />
 
       {/* pb للجوال: مساحة لشريط التنقّل السفلي الثابت */}

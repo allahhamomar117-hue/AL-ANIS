@@ -74,3 +74,67 @@ body {
   --chart-axis: #9ca3af;
   --chart-surface: #222222;
 }
+
+/*
+ * خلفية النظام.
+ *
+ * طبقة ثابتة (fixed) خلف كل شيء لا تتكرّر ولا تتمدّد مع السكرول، فوقها
+ * حجاب لوني كثيف: الخلفية زينة بعيدة والجداول والنصوص فوقها تُقرأ كما لو
+ * كانت على سطح صلب. تُطبَّق على عنصر الهيكل عبر الصنف .app-bg.
+ *
+ * ملاحظة: الشفافية موضوعة على الصورة نفسها (opacity على ::before) لا على
+ * المحتوى، فلا يرث أيّ نص أو جدول أيّ خفوت.
+ */
+.app-bg {
+  position: relative;
+  isolation: isolate;
+}
+
+.app-bg::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background-image: url("/background.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  opacity: 0.12;
+  pointer-events: none;
+}
+
+/* حجاب فوق الصورة: يوحّد الأرضية ويضمن تبايناً كاملاً للنصوص. */
+.app-bg::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-color: rgba(255, 255, 255, 0.82);
+  pointer-events: none;
+}
+
+.dark .app-bg::before {
+  opacity: 0.08;
+}
+
+.dark .app-bg::after {
+  background-color: rgba(17, 17, 17, 0.88);
+}
+
+/* من يفضّل تقليل الحركة: الخلفية الثابتة تُلغى (attachment يسبّب اهتزازاً). */
+@media (prefers-reduced-motion: reduce) {
+  .app-bg::before {
+    background-attachment: scroll;
+  }
+}
+
+/*
+ * جذور الصفحات تطلي أرضية معتمة (bg-white / bg-gray-50 / bg-emerald-50)
+ * تحجب طبقة الخلفية تماماً. تُشفَّف هنا في موضع واحد بدل تعديل كل صفحة،
+ * فالأرضية الموحّدة تأتي من حجاب .app-bg نفسه. البطاقات والجداول داخل
+ * الصفحة تحتفظ بأرضيتها فلا يتأثّر وضوحها.
+ */
+.app-bg > main > * {
+  background-color: transparent;
+}

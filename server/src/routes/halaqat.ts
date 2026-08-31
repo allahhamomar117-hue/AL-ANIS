@@ -5,6 +5,7 @@ import { ApiError, asyncHandler, parse } from "../lib/http.js";
 import { idParam } from "../lib/schemas.js";
 import { requireRole } from "../middleware/auth.js";
 import { applyScope, assertHalaqaAccess } from "../services/scope.js";
+import { visibleStudent } from "../services/studentSql.js";
 
 export const halaqatRouter = Router();
 
@@ -26,7 +27,7 @@ const SELECT_HALAQA = `
          h.stage,
          h.is_active                        AS "isActive",
          (SELECT COUNT(*) FROM students s
-           WHERE s.halaqa_id = h.id AND s.is_active = TRUE) AS students
+           WHERE s.halaqa_id = h.id AND ${visibleStudent("s")}) AS students
   FROM halaqat h
   LEFT JOIN users u ON u.id = h.teacher_id
 `;
@@ -119,7 +120,7 @@ halaqatRouter.get(
                 WHERE r.student_id = s.id
                 ORDER BY r.recited_at DESC, r.id DESC LIMIT 1) AS "lastPage"
        FROM students s
-       WHERE s.halaqa_id = ? AND s.is_active = TRUE
+       WHERE s.halaqa_id = ? AND ${visibleStudent("s")}
        ORDER BY s.name`,
       [id]
     );
@@ -213,8 +214,9 @@ halaqatRouter.delete(
     const halaqa = await db().get<{ id: number }>("SELECT id FROM halaqat WHERE id = ?", [id]);
     if (!halaqa) throw ApiError.notFound("الحلقة غير موجودة");
 
+    // المؤرشفون لا يُحسبون: تعطيل الحلقة لا يستدعي نقل من أنهى دورته
     const counted = await db().get<{ n: number }>(
-      "SELECT COUNT(*) AS n FROM students WHERE halaqa_id = ? AND is_active = TRUE",
+      `SELECT COUNT(*) AS n FROM students WHERE halaqa_id = ? AND ${visibleStudent("")}`,
       [id]
     );
     const students = counted?.n ?? 0;

@@ -7,6 +7,7 @@ import { requireStudentManager } from "../middleware/auth.js";
 import { deleteAvatar, saveAvatar } from "../lib/avatars.js";
 import { addPoints } from "../services/points.js";
 import { applyScope, assertHalaqaAccess, assertStudentAccess } from "../services/scope.js";
+import { existingStudent, STUDENT_STATUSES } from "../services/studentSql.js";
 
 export const studentsRouter = Router();
 
@@ -21,6 +22,7 @@ const SELECT_STUDENT = `
          s.parent_phone             AS "parentPhone",
          s.avatar_url               AS "avatarUrl",
          s.points,
+         s.status,
          s.is_active                AS "isActive",
          s.created_at               AS "createdAt"
   FROM students s
@@ -59,13 +61,27 @@ studentsRouter.get(
         halaqaId: z.coerce.number().int().positive().optional(),
         search: z.string().trim().min(1).optional(),
         active: z.coerce.boolean().default(true),
+        /**
+         * طور الطالب: 'active' (الافتراضي) | 'archived' | 'all'.
+         *
+         * الافتراضي هو الجاري، فكل ما يستهلك هذه القائمة اليوم — نافذة
+         * النقاط السريعة، اختيار الطالب في ترشيح الأوقاف، صفحة الطلاب —
+         * يعمل على الدورة الجارية. إظهار المؤرشفين طلبٌ صريح لا سلوك
+         * ضمنيّ.
+         */
+        status: z.enum(["active", "archived", "all"]).default("active"),
       }),
       req.query
     );
 
     const where: string[] = [];
     const params: SqlParam[] = [];
-    if (q.active) where.push("s.is_active = TRUE");
+    // active يخصّ السجلّ (محذوف أو لا)، و status يخصّ طور الطالب
+    if (q.active) where.push(existingStudent("s"));
+    if (q.status !== "all") {
+      where.push("s.status = ?");
+      params.push(q.status);
+    }
     if (q.halaqaId) {
       where.push("s.halaqa_id = ?");
       params.push(q.halaqaId);
@@ -143,6 +159,55 @@ studentsRouter.get(
     });
   })
 );
+/**
+ * POST /api/students/bulk-transfer — نقل مجموعة طلاب إلى حلقة واحدة.
+ *
+ * مسجَّل قبل مسارات ‎/:id‎ كي لا يبتلعه ‎"bulk-transfer"‎ كأنه معرّف.
+ * التحديث في معاملة واحدة: إمّا ينتقل الجميع أو لا أحد.
+ */
+studentsRouter.post(
+  "/bulk-transfer",
+  requireStudentManager,
+  asyncHandler(async (req, res) => {
+    const { studentIds, newHalaqaId } = parse(
+      z.object({
+        studentIds: z.array(z.number().int().positive()).min(1).max(500),
+        newHalaqaId: z.number().int().positive(),
+      }),
+      req.body
+    );
+
+    const ids = [...new Set(studentIds)];
+
+    const halaqa = await db().get<{ id: number }>("SELECT id FROM halaqat WHERE id = ?", [
+      newHalaqaId,
+    ]);
+    if (!halaqa) throw ApiError.notFound("الحلقة غير موجودة");
+
+    const placeholders = ids.map(() => "?").join(", ");
+
+    const moved = await tx(async () => {
+      const found = await db().all<{ id: number }>(
+        `SELECT id FROM students WHERE id IN (${placeholders})`,
+        ids as SqlParam[]
+      );
+      if (found.length !== ids.length) throw ApiError.notFound("بعض الطلاب غير موجودين");
+
+      await db().run(
+        `UPDATE students SET halaqa_id = ? WHERE id IN (${placeholders})`,
+        [newHalaqaId, ...ids] as SqlParam[]
+      );
+
+      return db().all(
+        `${SELECT_STUDENT} WHERE s.id IN (${placeholders})`,
+        ids as SqlParam[]
+      );
+    });
+
+    res.json({ data: moved, meta: { moved: moved.length, halaqaId: newHalaqaId } });
+  })
+);
+
 
 /** POST /api/students — إضافة طالب: المدير وحده. */
 studentsRouter.post(
@@ -239,6 +304,35 @@ studentsRouter.delete(
 
     if (info.changes === 0) throw ApiError.notFound("الطالب غير موجود");
     res.status(204).end();
+  })
+);
+
+/**
+ * PATCH /api/students/:id/status — أرشفة الطالب أو إعادته إلى الدورة.
+ *
+ * مسار مستقلّ لا حقلٌ في PATCH العام: الأرشفة قرار إداري في دورة الطالب،
+ * لا تعديلَ بيانات كالاسم والهاتف — وفصلها يمنع تغييرها عرضاً مع تعديل
+ * روتيني، ويُبقيها محصورة بالمدير وحده.
+ *
+ * الاتجاهان في مسار واحد: الأرشفة وإلغاؤها عمليةٌ واحدة بقيمتين، وفتح
+ * مسارين (archive/restore) يضاعف السطح بلا مقابل.
+ *
+ * لا تُمسّ أي سجلات: الحضور والتسميع والنقاط والأوقاف تبقى كما هي —
+ * وهذا هو الغرض أصلاً، فالتاريخ محفوظ والطالب وحده يخرج من الشاشات.
+ */
+studentsRouter.patch(
+  "/:id/status",
+  requireStudentManager,
+  asyncHandler(async (req, res) => {
+    const id = parse(idParam, req.params.id);
+    await assertStudentAccess(req.user!, id);
+
+    const { status } = parse(z.object({ status: z.enum(STUDENT_STATUSES) }), req.body);
+
+    const info = await db().run("UPDATE students SET status = ? WHERE id = ?", [status, id]);
+    if (info.changes === 0) throw ApiError.notFound("الطالب غير موجود");
+
+    res.json({ data: await db().get(`${SELECT_STUDENT} WHERE s.id = ?`, [id]) });
   })
 );
 

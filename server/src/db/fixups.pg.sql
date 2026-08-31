@@ -89,3 +89,28 @@ BEGIN
     RAISE NOTICE 'أعمدة التاريخ سليمة — لا تصحيح مطلوب';
   END IF;
 END $$;
+
+-- ── طور الطالب: عمود status (الأرشفة) ───────────────────────────────
+--
+-- نظير الترقية 009 لـ SQLite. تُكتب هنا لأن مسار Postgres لا يقرأ
+-- migrations/‎، و`CREATE TABLE IF NOT EXISTS` في المخطّط لا يضيف عموداً
+-- إلى جدول قائم — فالقاعدة العاملة لن ترى العمود أبداً بدون هذا.
+--
+-- ADD COLUMN IF NOT EXISTS يجعلها آمنة للتكرار، والقيد يُضاف باسم صريح
+-- يطابق ما تولّده Postgres للقيد المضمّن في المخطّط
+-- (students_status_check)، فلا يُضاف مرّتين على قاعدة جديدة.
+ALTER TABLE students
+  ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'students_status_check'
+  ) THEN
+    ALTER TABLE students
+      ADD CONSTRAINT students_status_check CHECK (status IN ('active', 'archived'));
+    RAISE NOTICE 'أُضيف قيد students_status_check';
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_students_status ON students (status);

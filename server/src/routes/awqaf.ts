@@ -14,6 +14,7 @@ import { nowExpr } from "../db/sqlfn.js";
 import { ApiError, asyncHandler, parse } from "../lib/http.js";
 import { idParam } from "../lib/schemas.js";
 import { requireStudentManager } from "../middleware/auth.js";
+import { visibleStudent } from "../services/studentSql.js";
 
 export const awqafRouter = Router();
 
@@ -120,11 +121,12 @@ awqafRouter.post(
       req.body
     );
 
+    // المؤرشف لا يُرشَّح لسبر جديد؛ سجلّاته السابقة تبقى كما هي
     const student = await db().get<{ id: number }>(
-      "SELECT id FROM students WHERE id = ? AND is_active = TRUE",
+      `SELECT id FROM students WHERE id = ? AND ${visibleStudent("")}`,
       [body.studentId]
     );
-    if (!student) throw ApiError.badRequest("الطالب غير موجود أو غير فعّال");
+    if (!student) throw ApiError.badRequest("الطالب غير موجود أو مؤرشف");
 
     // القاعدة تمنع التكرار بقيد UNIQUE، لكن رسالتها العامة ("السجل موجود
     // مسبقاً") لا تدلّ على السبب — نفحص أولاً لنردّ رسالة تشرح الحالة.

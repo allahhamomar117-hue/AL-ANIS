@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { FaLock, FaUser } from "react-icons/fa";
 import { useAuth } from "../../context/authContext";
 import { ApiError } from "../../lib/api";
+import logo from "/logo.png";
 
 /** تسجيل الدخول باسم المستخدم وكلمة المرور. */
 export default function LoginPage() {
@@ -44,9 +45,12 @@ export default function LoginPage() {
     "w-full rounded-xl border border-gray-300 py-3 ps-11 pe-4 text-gray-800 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-400";
 
   return (
-    <div className="flex min-h-screen flex-col bg-emerald-400" dir="rtl">
+    <div className="app-bg flex min-h-screen flex-col bg-emerald-50" dir="rtl">
       <div className="flex flex-1 items-center justify-center p-4">
         <div className="w-full max-w-sm space-y-5 rounded-2xl bg-white p-6 shadow-xl">
+          {/* الشعار: ارتفاع ثابت والعرض يتبع النسبة — الشعار طولي لا مربّع */}
+          <img src={logo} alt="" className="mx-auto h-24 w-auto object-contain" />
+
           <h1 className="text-center text-2xl font-bold text-gray-800">{t("login.title")}</h1>
 
           <form onSubmit={handleSubmit} className="space-y-4">
