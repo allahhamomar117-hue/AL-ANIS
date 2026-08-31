@@ -203,12 +203,12 @@ END $$;
 ALTER TABLE users   ADD COLUMN IF NOT EXISTS department TEXT;
 ALTER TABLE halaqat ADD COLUMN IF NOT EXISTS department TEXT;
 
--- @fixup أقسام المعهد: القيود والفهرس
+-- @fixup أقسام المعهد: القيود
 --
 -- كتلة مستقلّة عن الأعمدة عمداً: العمود شرطٌ لعمل الخادم (بدونه يسقط كل
 -- استعلام مقسوم)، والقيدُ حارسُ سلامةٍ يعمل الخادم بدونه. فصلُهما يمنع
--- فشلاً في القيد من أن يُلغي العمود معه — وهو بالضبط ما أوقف الإنتاج.
-DO $
+-- فشلاً في القيد من أن يُلغي العمود معه.
+DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint WHERE conname = 'users_department_check'
@@ -229,4 +229,9 @@ BEGIN
   END IF;
 END $$;
 
+-- @fixup أقسام المعهد: الفهرس
+--
+-- موضعه هنا لا في schema.pg.sql: الفهرس يحتاج العمود موجوداً، والعمود
+-- يُضاف في كتلة «الأعمدة» أعلاه. ووضعُه في ملفّ المخطّط كان يعمل على
+-- قاعدة جديدة ويسقط على قاعدة قائمة — وهي العلّة التي أوقفت الإنتاج.
 CREATE INDEX IF NOT EXISTS idx_halaqat_department ON halaqat (department);

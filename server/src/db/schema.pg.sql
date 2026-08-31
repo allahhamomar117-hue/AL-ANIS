@@ -58,7 +58,15 @@ CREATE TABLE IF NOT EXISTS halaqat (
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_halaqat_teacher ON halaqat (teacher_id);
-CREATE INDEX IF NOT EXISTS idx_halaqat_department ON halaqat (department);
+-- idx_halaqat_department ليس هنا بل في fixups.pg.sql — وهذا مقصود:
+--
+-- `CREATE TABLE IF NOT EXISTS` مشروط بوجود الجدول، أمّا `CREATE INDEX`
+-- فيُنفَّذ دائماً. فعلى قاعدة قائمة يُتخطّى إنشاء halaqat (فلا يُضاف عمود
+-- department) ثم يُحاول فهرسته، فيسقط بـ
+-- `column "department" does not exist` — وهو ما أوقف الإنتاج فعلاً.
+--
+-- ⚠ القاعدة العامة: أيّ فهرس أو قيد على عمود تضيفه fixups.pg.sql يجب أن
+--   يُكتب هناك بعد إضافة العمود، لا هنا. راجع أيضاً idx_students_status.
 
 -- إسناد المدرّسين إلى الحلقات
 CREATE TABLE IF NOT EXISTS teacher_halaqat (

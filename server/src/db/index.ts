@@ -50,14 +50,141 @@ export async function migrate(): Promise<void> {
   const driver = await initDb();
 
   if (driver.dialect === "postgres") {
-    await driver.exec(fs.readFileSync(config.schemaFilePg, "utf8"));
-    console.log("✔ طُبِّق مخطط PostgreSQL");
+    await applyPgSchema(driver);
 
     await applyPgFixups(driver);
     return;
   }
 
   migrateSqlite();
+}
+
+/**
+ * يقسّم نصّ SQL إلى عبارات عند `;` من المستوى الأعلى.
+ *
+ * المقسّم يعرف ما لا يجوز الشطر داخله: النصوص المقتبسة (`'…'`)،
+ * والمعرّفات المقتبسة (`"…"`)، والتعليقات السطرية والكتلية، والاقتباس
+ * الدولاري (`$$…$$` و `$tag$…$tag$`) الذي تُكتب به كتل DO — وفيه
+ * فواصل منقوطة كثيرة، فالشطر الساذج على `;` يمزّقها.
+ *
+ * تُستعمل لملفّ المخطّط وحده؛ التصحيحات تُقسَّم بعلامات صريحة لأن كتلها
+ * وحدات دلالية لا عبارات مفردة.
+ */
+export function splitSqlStatements(sql: string): string[] {
+  const out: string[] = [];
+  let buf = "";
+  let i = 0;
+
+  while (i < sql.length) {
+    const rest = sql.slice(i);
+
+    // تعليق سطري
+    if (rest.startsWith("--")) {
+      const end = sql.indexOf("\n", i);
+      const stop = end === -1 ? sql.length : end;
+      buf += sql.slice(i, stop);
+      i = stop;
+      continue;
+    }
+
+    // تعليق كتلي
+    if (rest.startsWith("/*")) {
+      const end = sql.indexOf("*/", i + 2);
+      const stop = end === -1 ? sql.length : end + 2;
+      buf += sql.slice(i, stop);
+      i = stop;
+      continue;
+    }
+
+    // اقتباس دولاري: $$ أو $tag$
+    const dollar = /^\$([A-Za-z_][A-Za-z0-9_]*)?\$/.exec(rest);
+    if (dollar) {
+      const tag = dollar[0];
+      const end = sql.indexOf(tag, i + tag.length);
+      const stop = end === -1 ? sql.length : end + tag.length;
+      buf += sql.slice(i, stop);
+      i = stop;
+      continue;
+    }
+
+    // نصّ أو معرّف مقتبس
+    if (rest[0] === "'" || rest[0] === '"') {
+      const q = rest[0];
+      let j = i + 1;
+      while (j < sql.length) {
+        if (sql[j] === q) {
+          // اقتباس مضاعف داخل النصّ ('' أو "") يعني حرفاً لا نهاية
+          if (sql[j + 1] === q) { j += 2; continue; }
+          j++;
+          break;
+        }
+        j++;
+      }
+      buf += sql.slice(i, j);
+      i = j;
+      continue;
+    }
+
+    if (rest[0] === ";") {
+      if (buf.trim()) out.push(buf.trim());
+      buf = "";
+      i++;
+      continue;
+    }
+
+    buf += rest[0];
+    i++;
+  }
+
+  if (buf.trim()) out.push(buf.trim());
+
+  // عبارة بلا شيء سوى التعليقات ليست عبارة
+  return out.filter((s) => s.split("\n").some((l) => l.trim() && !l.trim().startsWith("--")));
+}
+
+/**
+ * تطبيق مخطّط Postgres — عبارةً عبارة، لا الملفَّ دفعةً واحدة.
+ *
+ * ── العلّة التي أوقفت الإنتاج ────────────────────────────────────────
+ * ملفّ المخطّط مبنيّ على `CREATE TABLE IF NOT EXISTS`، فيُظنّ أنه آمن
+ * على قاعدة قائمة. وليس كذلك: الشرط على *الجدول* لا على *أعمدته*. فجدول
+ * قائم يُتخطّى إنشاؤه فلا يُضاف إليه عمود جديد، ثم يأتي
+ * `CREATE INDEX IF NOT EXISTS` على ذلك العمود — وهو غير مشروط بوجوده —
+ * فيسقط بـ `column "…" does not exist`.
+ *
+ * وقد وقع هذا بعمود department: أُلغي الملفّ كلّه (عبارات الملف الواحد
+ * تُنفَّذ في معاملة ضمنية واحدة)، وخرج الاستثناء من migrate() فأسقط
+ * الإقلاع — و fixups.pg.sql الذي كان سيضيف العمود لم يُنفَّذ أصلاً.
+ * فالخطأ منع علاجَ نفسه.
+ *
+ * العزل هنا يقطع هذا كلّه: الجداول تُنشأ، والعبارة المعطوبة وحدها تسقط
+ * وتُسجَّل، ثم تعمل التصحيحات فتضيف العمود وفهرسه. والقرار في كون النقص
+ * مؤثّراً متروك لـ verifySchema في index.ts — فهو وحده يعرف ما يحتاجه
+ * الكود فعلاً.
+ */
+async function applyPgSchema(driver: DbDriver): Promise<void> {
+  const statements = splitSqlStatements(fs.readFileSync(config.schemaFilePg, "utf8"));
+  let failed = 0;
+
+  for (const statement of statements) {
+    try {
+      await driver.exec(statement);
+    } catch (error) {
+      failed++;
+      // أول سطر غير تعليق يكفي للتعريف بالعبارة دون إغراق السجلّ
+      const head = statement
+        .split("\n")
+        .find((l) => l.trim() && !l.trim().startsWith("--"))
+        ?.trim();
+      logSqlError(`مخطط PostgreSQL: ${head ?? "عبارة"}`, error);
+    }
+  }
+
+  console.log(
+    failed === 0
+      ? `✔ طُبِّق مخطط PostgreSQL (${statements.length} عبارة)`
+      : `⚠ مخطط PostgreSQL: نجحت ${statements.length - failed} من ${statements.length} — راجع الأخطاء أعلاه`
+  );
 }
 
 /**
