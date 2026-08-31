@@ -133,7 +133,7 @@ CREATE TABLE IF NOT EXISTS point_transactions (
   delta        INTEGER     NOT NULL,
   reason       TEXT,
   kind         TEXT        NOT NULL DEFAULT 'manual'
-                           CHECK (kind IN ('manual', 'attendance', 'recitation', 'adjustment')),
+                           CHECK (kind IN ('manual', 'attendance', 'recitation', 'adjustment', 'awqaf')),
   reference_id INTEGER,
   created_by   INTEGER     REFERENCES users (id) ON DELETE SET NULL,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now()

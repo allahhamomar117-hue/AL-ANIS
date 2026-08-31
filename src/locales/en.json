@@ -451,6 +451,7 @@
     "save": "Save",
     "close": "Close",
     "done": "Done: {{name}} ({{delta}}) — balance is now {{balance}}",
+    "presetOnly": "Amounts come from the preset buttons only.",
     "deductLocked": "Deductions come from the buttons only: 5 or 10 points."
   },
   "settingsPage": {

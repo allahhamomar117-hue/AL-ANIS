@@ -9,11 +9,13 @@
  */
 import { Router } from "express";
 import { z } from "zod";
-import { db, type SqlParam } from "../db/index.js";
+import { config } from "../config.js";
+import { db, tx, type SqlParam } from "../db/index.js";
 import { nowExpr } from "../db/sqlfn.js";
 import { ApiError, asyncHandler, parse } from "../lib/http.js";
 import { idParam } from "../lib/schemas.js";
 import { requireStudentManager } from "../middleware/auth.js";
+import { addPoints, revertPointsFor } from "../services/points.js";
 import { visibleStudent } from "../services/studentSql.js";
 
 export const awqafRouter = Router();
@@ -136,14 +138,31 @@ awqafRouter.post(
     );
     if (clash) throw ApiError.conflict("الطالب مرشّح في هذا الشهر مسبقاً");
 
-    const info = await db().run(
-      `INSERT INTO awqaf_records (student_id, exam_month, status, notes, created_by)
-       VALUES (?, ?, ?, ?, ?)`,
-      [body.studentId, body.examMonth, body.status, body.notes ?? null, req.user!.id]
-    );
+    const recordId = await tx(async () => {
+      const info = await db().run(
+        `INSERT INTO awqaf_records (student_id, exam_month, status, notes, created_by)
+         VALUES (?, ?, ?, ?, ?)`,
+        [body.studentId, body.examMonth, body.status, body.notes ?? null, req.user!.id]
+      );
+
+      // الترشيح يبدأ عادةً بـ nominated، لكن المسار يقبل status صراحةً —
+      // فالسجلّ المُنشأ ناجحاً يمنح مكافأته هنا لا في تعديل لاحق.
+      if (body.status === "passed") {
+        await addPoints({
+          studentId: body.studentId,
+          delta: config.pointRules.awqafPassed,
+          reason: `نجاح في سبر الأوقاف ${body.examMonth}`,
+          kind: "awqaf",
+          referenceId: Number(info.lastInsertRowid),
+          createdBy: req.user!.id,
+        });
+      }
+
+      return info.lastInsertRowid;
+    });
 
     res.status(201).json({
-      data: await db().get(`${SELECT_RECORD} WHERE a.id = ?`, [info.lastInsertRowid]),
+      data: await db().get(`${SELECT_RECORD} WHERE a.id = ?`, [recordId]),
     });
   })
 );
@@ -187,17 +206,41 @@ awqafRouter.patch(
       if (clash) throw ApiError.conflict("الطالب مرشّح في هذا الشهر مسبقاً");
     }
 
-    await db().run(
-      `UPDATE awqaf_records
-       SET status = ?, exam_month = ?, notes = ?, updated_at = ${nowExpr()}
-       WHERE id = ?`,
-      [
-        body.status ?? current.status,
-        nextMonth,
-        body.notes !== undefined ? body.notes : current.notes,
-        id,
-      ]
-    );
+    const nextStatus = body.status ?? current.status;
+
+    await tx(async () => {
+      await db().run(
+        `UPDATE awqaf_records
+         SET status = ?, exam_month = ?, notes = ?, updated_at = ${nowExpr()}
+         WHERE id = ?`,
+        [
+          nextStatus,
+          nextMonth,
+          body.notes !== undefined ? body.notes : current.notes,
+          id,
+        ]
+      );
+
+      // مكافأة النجاح. الشرط على الانتقال لا على الحالة الجديدة وحدها:
+      // تعديل الملاحظات على سجلّ ناجح لا يمنح النقاط ثانيةً.
+      if (nextStatus === "passed" && current.status !== "passed") {
+        await addPoints({
+          studentId: current.studentId,
+          delta: config.pointRules.awqafPassed,
+          reason: `نجاح في سبر الأوقاف ${nextMonth}`,
+          kind: "awqaf",
+          referenceId: id,
+          createdBy: req.user!.id,
+        });
+      }
+
+      // الرجوع عن النجاح يسحب المكافأة. بدون هذا لا يكتمل المنع أعلاه:
+      // ناجح ← لم ينجح ← ناجح كان سيمنح 100 مرّتين، والنتيجة الخاطئة
+      // المصحَّحة كانت ستُبقي نقاطاً بلا سبب.
+      if (nextStatus !== "passed" && current.status === "passed") {
+        await revertPointsFor("awqaf", id);
+      }
+    });
 
     res.json({ data: await db().get(`${SELECT_RECORD} WHERE a.id = ?`, [id]) });
   })
@@ -207,13 +250,21 @@ awqafRouter.patch(
  * DELETE /api/awqaf/:id — حذف فعلي.
  *
  * خلافاً للطلاب والحلقات، سجلّ السبر ليس مرجعاً لبيانات أخرى (لا حضور
- * ولا نقاط تشير إليه)، فلا معنى لتعطيله: الترشيح الخاطئ يُزال تماماً.
+ * ولا تلاوات تشير إليه)، فلا معنى لتعطيله: الترشيح الخاطئ يُزال تماماً.
+ *
+ * تُسحب معه مكافأة النجاح إن كان ناجحاً: حركة النقاط تشير إلى السجلّ
+ * بـ reference_id، فحذفه وحده يترك 100 نقطة بلا مصدر يفسّرها.
  */
 awqafRouter.delete(
   "/:id",
   asyncHandler(async (req, res) => {
     const id = parse(idParam, req.params.id);
-    const info = await db().run("DELETE FROM awqaf_records WHERE id = ?", [id]);
+
+    const info = await tx(async () => {
+      await revertPointsFor("awqaf", id);
+      return db().run("DELETE FROM awqaf_records WHERE id = ?", [id]);
+    });
+
     if (info.changes === 0) throw ApiError.notFound("السجل غير موجود");
     res.status(204).end();
   })

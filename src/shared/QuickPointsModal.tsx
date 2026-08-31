@@ -44,7 +44,9 @@ export default function QuickPointsModal({
   defaultStudentId?: number;
 }) {
   const { t } = useTranslation();
-  const { isTeacher } = useAuth();
+  const { isTeacher, role } = useAuth();
+  /** الكتابة اليدوية للمدير وحده؛ المشرف كالأستاذ مقصور على الأزرار. */
+  const canTypeAmount = role === "ADMIN";
 
   const [operation, setOperation] = useState<Operation>("add");
   const [halaqaId, setHalaqaId] = useState<number | "">(defaultHalaqaId ?? "");
@@ -72,8 +74,12 @@ export default function QuickPointsModal({
   const list = Array.isArray(students.data?.data) ? students.data.data : [];
   const selected = list.find((s) => s.id === studentId);
 
-  /** الخصم لا يقبل الكتابة اليدوية، فمقداره لا يكون إلا أحد الأزرار. */
-  const amountLocked = operation === "deduct";
+  /*
+   * القفل يعني: لا حقل إدخال، والمقدار لا يكون إلا أحد الأزرار.
+   * يقفل الخصم دوماً، ويقفل كلّ شيء على غير المدير — والخادم يفرض فوق ذلك
+   * حدّاً يومياً (25 إضافةً و10 خصماً للطالب الواحد) على غير المدير.
+   */
+  const amountLocked = operation === "deduct" || !canTypeAmount;
   const presets = AMOUNT_PRESETS[operation];
 
   const positive = typeof amount === "number" && amount > 0;
@@ -121,7 +127,7 @@ export default function QuickPointsModal({
     if (REASON_PRESETS[operation].includes(reason)) setReason("");
     // مقدار كُتب يدوياً في الإضافة لا يجوز أن يتسلّل إلى الخصم المقيَّد
     if (typeof amount === "number" && !AMOUNT_PRESETS[next].includes(amount)) {
-      setAmount(next === "deduct" ? "" : amount);
+      setAmount(next === "deduct" || !canTypeAmount ? "" : amount);
     }
   };
 
@@ -254,20 +260,19 @@ export default function QuickPointsModal({
 
         {/* المقدار */}
         <div>
-          {/* الخصم: لا حقل إدخال — القيمة تأتي من الأزرار وحدها */}
+          {/* عند القفل: لا حقل إدخال — القيمة تأتي من الأزرار وحدها */}
+          <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">
+            {t("quickPoints.amount")}
+          </label>
+
           {!amountLocked && (
-            <>
-              <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">
-                {t("quickPoints.amount")}
-              </label>
-              <input
-                type="number"
-                min={1}
-                value={amount}
-                onChange={(e) => setAmount(e.target.value === "" ? "" : Number(e.target.value))}
-                className={fieldClass}
-              />
-            </>
+            <input
+              type="number"
+              min={1}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value === "" ? "" : Number(e.target.value))}
+              className={fieldClass}
+            />
           )}
 
           {/* اختصارات شائعة تختصر الكتابة اليومية */}
@@ -292,7 +297,9 @@ export default function QuickPointsModal({
 
           {amountLocked && (
             <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-              {t("quickPoints.deductLocked")}
+              {operation === "deduct"
+                ? t("quickPoints.deductLocked")
+                : t("quickPoints.presetOnly")}
             </p>
           )}
 

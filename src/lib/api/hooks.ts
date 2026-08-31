@@ -331,13 +331,26 @@ export function useAwqafRecords(
   });
 }
 
+/**
+ * نجاح الطالب في السبر يمنحه نقاطاً على الخادم، والرجوع عنه يسحبها —
+ * فلا يكفي إبطال سجلّات السبر وحدها: رصيد الطالب ولوحة الصدارة
+ * والإحصاءات تتغيّر معها. invalidateStudent يغطّي القوائم والرصيد
+ * والتقارير، ويُضاف إليها مفتاح الإحصاءات.
+ */
+function invalidateAwqaf(
+  qc: ReturnType<typeof useQueryClient>,
+  studentId?: number
+) {
+  void qc.invalidateQueries({ queryKey: qk.awqaf.all });
+  void qc.invalidateQueries({ queryKey: qk.statistics.all });
+  invalidateStudent(qc, studentId);
+}
+
 export function useCreateAwqafRecord() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: Parameters<typeof awqafApi.create>[0]) => awqafApi.create(body),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: qk.awqaf.all });
-    },
+    onSuccess: (res) => invalidateAwqaf(qc, res.data.studentId),
   });
 }
 
@@ -346,19 +359,19 @@ export function useUpdateAwqafRecord() {
   return useMutation({
     mutationFn: ({ id, ...body }: { id: number } & Parameters<typeof awqafApi.update>[1]) =>
       awqafApi.update(id, body),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: qk.awqaf.all });
-    },
+    onSuccess: (res) => invalidateAwqaf(qc, res.data.studentId),
   });
 }
 
+/**
+ * الحذف لا يردّ جسماً (204) فلا studentId معه — يُقرأ من الوسائط:
+ * المكوّن يمرّر السجلّ كاملاً ليُعرف صاحبه بعد زواله.
+ */
 export function useDeleteAwqafRecord() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => awqafApi.remove(id),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: qk.awqaf.all });
-    },
+    mutationFn: ({ id }: { id: number; studentId?: number }) => awqafApi.remove(id),
+    onSuccess: (_res, vars) => invalidateAwqaf(qc, vars.studentId),
   });
 }
 

@@ -142,7 +142,7 @@ export default function AwqafExams() {
 
   const confirmDelete = async (record: AwqafRecord) => {
     try {
-      await remove.mutateAsync(record.id);
+      await remove.mutateAsync({ id: record.id, studentId: record.studentId });
       notify(t("awqaf.deleted"));
       setDeleting(null);
     } catch (error) {

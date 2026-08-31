@@ -3,7 +3,13 @@ import { db } from "../db/index.js";
 import { surahByNumber } from "../lib/surahs.js";
 import type { RecitationType, Rating } from "../lib/schemas.js";
 
-export type PointKind = "manual" | "attendance" | "recitation" | "adjustment";
+export type PointKind =
+  | "manual"
+  | "attendance"
+  | "recitation"
+  | "adjustment"
+  /** نجاح في سبر الأوقاف — reference_id هو معرّف سجلّ السبر. */
+  | "awqaf";
 
 export interface PointEntry {
   studentId: number;
@@ -127,4 +133,39 @@ export function recitationPoints(input: {
   const perPage = config.pointRules.recitation[input.rating];
   const total = Math.round(perPage * recitationPages(input));
   return Math.max(config.pointRules.recitationMin, total);
+}
+
+/* ==================== الحدود اليومية للنقاط اليدوية ==================== */
+
+/**
+ * أقصى ما يملكه غير المدير من نقاط يدوية للطالب الواحد في اليوم الواحد.
+ * المدير خارج هذا القيد كلّياً (انظر assertDailyPointLimit).
+ */
+export const DAILY_MANUAL_LIMITS = { add: 25, deduct: 10 } as const;
+
+/**
+ * مجموع ما سجّله مستخدم لطالب اليوم من نقاط يدوية، الإضافة والخصم منفصلين.
+ *
+ * "اليوم" يُحسب بتاريخ قاعدة البيانات لا بتاريخ الخادم، وSQLite يخزّن
+ * created_at بتوقيت UTC عبر datetime('now') فيُقارَن بـ date('now') وهو UTC
+ * كذلك — فلا انزياح بين الطرفين.
+ */
+export async function dailyManualTotals(
+  userId: number,
+  studentId: number
+): Promise<{ added: number; deducted: number }> {
+  const today =
+    db().dialect === "postgres"
+      ? "p.created_at::date = CURRENT_DATE"
+      : "date(p.created_at) = date('now')";
+
+  const row = await db().get<{ added: number | null; deducted: number | null }>(
+    `SELECT COALESCE(SUM(CASE WHEN p.delta > 0 THEN p.delta ELSE 0 END), 0) AS added,
+            COALESCE(SUM(CASE WHEN p.delta < 0 THEN -p.delta ELSE 0 END), 0) AS deducted
+     FROM point_transactions p
+     WHERE p.kind = 'manual' AND p.created_by = ? AND p.student_id = ? AND ${today}`,
+    [userId, studentId]
+  );
+
+  return { added: Number(row?.added ?? 0), deducted: Number(row?.deducted ?? 0) };
 }

@@ -77,5 +77,10 @@ export const config = {
      * فالنقاط تبقى متناسبة مع حجم السورة كما هو مطلوب.
      */
     recitationMin: Number(process.env.POINTS_RECITATION_MIN ?? 1),
+    /**
+     * مكافأة النجاح في سبر الأوقاف — تُمنح مرّة واحدة لكل سجلّ سبر،
+     * وتُسحب إن رُجع عن النتيجة (انظر routes/awqaf.ts).
+     */
+    awqafPassed: Number(process.env.POINTS_AWQAF_PASSED ?? 100),
   },
 };

@@ -114,3 +114,33 @@ BEGIN
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_students_status ON students (status);
+
+-- ── نوع حركة نقاط: awqaf ────────────────────────────────────────────
+--
+-- نظير الترقية 010 لـ SQLite. تُكتب هنا لأن مسار Postgres لا يقرأ
+-- migrations/‎، و`CREATE TABLE IF NOT EXISTS` لا يعدّل قيداً على جدول
+-- قائم — فالقاعدة العاملة سترفض kind='awqaf' بدون هذا.
+--
+-- خلافاً لـ SQLite لا حاجة لإعادة بناء الجدول: يُسقَط القيد ويُضاف
+-- موسَّعاً باسمه الصريح الذي تولّده Postgres للقيد المضمّن في المخطّط.
+-- التوسيع لا يُبطل أي صفّ قائم (القيم المسموحة تزداد فقط).
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'point_transactions_kind_check'
+      AND pg_get_constraintdef(oid) NOT LIKE '%awqaf%'
+  ) THEN
+    ALTER TABLE point_transactions DROP CONSTRAINT point_transactions_kind_check;
+    RAISE NOTICE 'أُسقط قيد point_transactions_kind_check القديم';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'point_transactions_kind_check'
+  ) THEN
+    ALTER TABLE point_transactions
+      ADD CONSTRAINT point_transactions_kind_check
+      CHECK (kind IN ('manual', 'attendance', 'recitation', 'adjustment', 'awqaf'));
+    RAISE NOTICE 'أُضيف قيد point_transactions_kind_check موسَّعاً بـ awqaf';
+  END IF;
+END $$;

@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS point_transactions (
   delta         INTEGER NOT NULL,                 -- موجب للإضافة وسالب للخصم
   reason        TEXT,
   kind          TEXT    NOT NULL DEFAULT 'manual'
-                        CHECK (kind IN ('manual', 'attendance', 'recitation', 'adjustment')),
+                        CHECK (kind IN ('manual', 'attendance', 'recitation', 'adjustment', 'awqaf')),
   reference_id  INTEGER,                          -- معرّف التلاوة أو الجلسة المرتبطة
   created_by    INTEGER REFERENCES users (id) ON DELETE SET NULL,
   created_at    TEXT    NOT NULL DEFAULT (datetime('now'))

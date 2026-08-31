@@ -5,7 +5,11 @@ import { ApiError, asyncHandler, parse } from "../lib/http.js";
 import { idParam, isoDate, pagination } from "../lib/schemas.js";
 import { requireStudentManager } from "../middleware/auth.js";
 import { deleteAvatar, saveAvatar } from "../lib/avatars.js";
-import { addPoints } from "../services/points.js";
+import {
+  addPoints,
+  DAILY_MANUAL_LIMITS,
+  dailyManualTotals,
+} from "../services/points.js";
 import { applyScope, assertHalaqaAccess, assertStudentAccess } from "../services/scope.js";
 import { existingStudent, STUDENT_STATUSES } from "../services/studentSql.js";
 
@@ -402,6 +406,25 @@ studentsRouter.post(
 
     if (student.points + delta < 0) {
       throw ApiError.badRequest("لا يمكن أن يصبح رصيد النقاط سالباً");
+    }
+
+    /*
+     * حدّ يوميّ لكل (مستخدم، طالب) على النقاط اليدوية وحدها: المدير معفى،
+     * أما الأستاذ والمشرف فلا يتجاوزان 25 إضافةً و10 خصماً في اليوم.
+     * الإضافة والخصم يُحسبان منفصلين فلا يُرمَّم أحدهما بالآخر.
+     */
+    if (req.user!.role !== "ADMIN") {
+      const totals = await dailyManualTotals(req.user!.id, id);
+      const used = delta > 0 ? totals.added : totals.deducted;
+      const limit = delta > 0 ? DAILY_MANUAL_LIMITS.add : DAILY_MANUAL_LIMITS.deduct;
+
+      if (used + magnitude > limit) {
+        const label = delta > 0 ? "إضافة" : "خصم";
+        throw ApiError.badRequest(
+          `تجاوزت حدّ ${label} النقاط اليومي لهذا الطالب (${limit} نقطة). ` +
+            `سجّلت اليوم ${used} والمتبقّي ${Math.max(0, limit - used)}.`
+        );
+      }
     }
 
     const txId = await tx(() =>
