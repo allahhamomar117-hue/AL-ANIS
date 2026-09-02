@@ -22,11 +22,35 @@ const boolParam = z.union([z.boolean(), z.enum(["true", "false", "1", "0"])]).tr
   (value) => (typeof value === "boolean" ? value : value === "true" || value === "1")
 );
 
+/*
+ * اسم الأستاذ من مصدرَين لا مصدر واحد.
+ *
+ * الأستاذية تُسجَّل بطريقتين: halaqat.teacher_id (يُضبط من نموذج الحلقة)،
+ * و teacher_halaqat (يُضبط من «الكادر» حين تُسنَد الحلقات إلى المدرّس —
+ * راجع syncUserHalaqat في users.ts). وهما مصدرا النطاق نفسهما في
+ * accessibleHalaqaIds، فالمدرّس المسنَد يرى حلقته ويسجّل فيها فعلاً.
+ *
+ * وكان العرض يقرأ الأول وحده، فحلقةٌ أُسندت من «الكادر» تظهر «بلا أستاذ»
+ * وإن كان أستاذها يدرّسها — تناقضٌ بين ما تعرضه الصفحة وما يسمح به
+ * النظام. فالاحتياط على الإسناد يرفعه دون أن يغيّر بيانات أحد.
+ *
+ * ترتيب الأسبقية مقصود: teacher_id هو الاختيار الصريح للمدير، فيتقدّم.
+ * والاحتياطي يرتّب بالاسم لا بالمعرّف ليبقى ثابتاً بين التشغيلات؛ ولو
+ * أُسند للحلقة أكثر من مدرّس ظهر أوّلهم اسماً وحده (البطاقة سطر واحد،
+ * وقائمة المدرّسين كاملةً مكانها صفحة الحلقة لا بطاقتها).
+ */
 const SELECT_HALAQA = `
   SELECT h.id,
          h.name,
          h.teacher_id                       AS "teacherId",
-         COALESCE(u.name, '')               AS teacher,
+         COALESCE(u.name,
+                  (SELECT tu.name
+                     FROM teacher_halaqat th
+                     JOIN users tu ON tu.id = th.user_id
+                    WHERE th.halaqa_id = h.id
+                    ORDER BY tu.name
+                    LIMIT 1),
+                  '')                       AS teacher,
          h.schedule_time                    AS "scheduleTime",
          h.location,
          h.stage,

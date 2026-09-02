@@ -130,7 +130,6 @@ export default function HalaqatPage() {
 
                   <p className="mt-1 truncate text-xs text-gray-500 dark:text-gray-400">
                     {halaqa.teacher || t("halaqatAdmin.noTeacher")}
-                    {halaqa.stage ? ` · ${t(`halaqaStages.${halaqa.stage}`)}` : ""}
                   </p>
                 </div>
 

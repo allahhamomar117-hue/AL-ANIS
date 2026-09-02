@@ -3,8 +3,7 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { FaTimes, FaUsers } from "react-icons/fa";
 import { useCreateHalaqa, useTeachers, useUpdateHalaqa } from "../../lib/api/hooks";
-import type { Department, Halaqa, HalaqaStage } from "../../lib/api/types";
-import { HALAQA_STAGES } from "../../lib/api/types";
+import type { Department, Halaqa } from "../../lib/api/types";
 import { useAuth } from "../../context/authContext";
 import { departmentToSend } from "../../lib/department";
 import DepartmentField from "../../shared/DepartmentField";
@@ -24,7 +23,6 @@ export default function PopupHalaqaForm({
   const isEdit = Boolean(editing);
   const [name, setName] = useState(editing?.name ?? "");
   const [teacherId, setTeacherId] = useState<number | "">(editing?.teacherId ?? "");
-  const [stage, setStage] = useState<HalaqaStage | "">(editing?.stage ?? "");
   const [department, setDepartment] = useState<Department | "">(
     editing?.department ?? ""
   );
@@ -47,7 +45,6 @@ export default function PopupHalaqaForm({
     const body = {
       name: name.trim(),
       teacher_id: teacherId === "" ? null : teacherId,
-      stage: stage === "" ? null : stage,
       ...(dept !== undefined ? { department: dept } : {}),
     };
 
@@ -121,27 +118,10 @@ export default function PopupHalaqaForm({
           </select>
         </div>
 
-        {/* المرحلة الدراسية */}
-        <div>
-          <label className={labelClass}>{t("halaqatAdmin.stage")}</label>
-          <select
-            value={stage}
-            onChange={(e) => setStage(e.target.value === "" ? "" : (e.target.value as HalaqaStage))}
-            className={fieldClass}
-          >
-            <option value="">{t("halaqatAdmin.noStage")}</option>
-            {HALAQA_STAGES.map((option) => (
-              <option key={option} value={option}>
-                {t(`halaqaStages.${option}`)}
-              </option>
-            ))}
-          </select>
-        </div>
-
         {/*
-          القسم بعد المرحلة عمداً وإن تشابها في الشكل: المرحلة وصفٌ
-          للحلقة، والقسم يقرّر من يراها — فترتيبُه بعدها يمنع قراءتهما
-          حقلين لمعنى واحد.
+          لا حقل «مرحلة دراسية» هنا: كان يعرض تقسيماً يطابق الأقسام فيُقرأ
+          حقلين لمعنى واحد. العمود باقٍ في القاعدة ببياناته، والحقل غير
+          مُرسَل — فالخادم يُبقي قيمة الحلقة القائمة كما هي عند التعديل.
         */}
         <DepartmentField
           value={department}

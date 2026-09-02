@@ -1,14 +1,12 @@
 import { ArrowLeftIcon, UserGroupIcon } from "@heroicons/react/24/outline";
 import { useTranslation } from "react-i18next";
-import type { Department, HalaqaStage } from "../lib/api/types";
+import type { Department } from "../lib/api/types";
 import DepartmentBadge from "./DepartmentBadge";
 
 interface HalaqaCardProps {
   name: string;
   teacher: string;
   students: number;
-  /** المرحلة الدراسية — تُخفى الرقاقة إن لم تُحدَّد. */
-  stage?: HalaqaStage | null;
   /** قسم الحلقة — تُخفى الرقاقة إن لم يُسنَد. */
   department?: Department | null;
   onClick: () => void;
@@ -18,7 +16,6 @@ export default function HalaqaCard({
   name,
   teacher,
   students,
-  stage,
   department,
   onClick,
 }: HalaqaCardProps) {
@@ -45,11 +42,6 @@ export default function HalaqaCard({
       <div className="relative z-10">
         <div className="mb-1 flex flex-wrap items-center gap-2">
           <h3 className="text-lg font-bold text-gray-800 dark:text-white">{name}</h3>
-          {stage && (
-            <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
-              {t(`halaqaStages.${stage}`)}
-            </span>
-          )}
           {/*
             بلا شرط isSuperAdmin هنا خلافاً للقوائم الإدارية: الشبكة
             يفتحها المدرّس أيضاً، وقد تُسنَد إليه حلقات من قسمين — فالرقاقة

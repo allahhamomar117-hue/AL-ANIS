@@ -1,12 +1,11 @@
 import HalaqaCard from "./HalaqaCard";
-import type { Department, HalaqaStage } from "../lib/api/types";
+import type { Department } from "../lib/api/types";
 
 type Halaqa = {
   id: number;
   name: string; // لازم نضيف الاسم
   teacher: string;
   students: number;
-  stage?: HalaqaStage | null;
   department?: Department | null;
 };
 
@@ -24,7 +23,6 @@ export default function HalaqaGrid({ halaqat, onSelect }: HalaqaGridProps) {
           name={h.name}
           teacher={h.teacher}
           students={h.students}
-          stage={h.stage}
           department={h.department}
           onClick={() => onSelect(h.id, h.name)} // نمرر الـ id والاسم
         />
