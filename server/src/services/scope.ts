@@ -260,3 +260,23 @@ export async function applyScope(
   where.push(filter.sql);
   params.push(...filter.params);
 }
+
+/**
+ * نسخة من المستخدم بنطاق قسمٍ مطلوب — لعرض «المدير العام» أرقامَ قسم واحد.
+ *
+ * فلترة اختيارية للعرض لا توسيعٌ للصلاحية: مدير القسم يُعاد كما هو، فلا
+ * يستطيع تمريرُ ?department=OTHER في الطلب أن ينقله إلى قسم غيره — قيده
+ * المحفوظ في حسابه يبقى هو الحاكم. والمدير العام وحده من له نطاق أوسع
+ * يضيّقه، فالتضييق لا يكشف شيئاً لم يكن يراه أصلاً.
+ *
+ * الطيّ في المستخدم لا في الاستعلام مقصود: كل ما يمرّ من applyScope
+ * و applyStudentScope يصير مفلتراً بلا سطر إضافي في كل تجميعة (راجع
+ * «نقطة الطيّ» في رأس الملف).
+ */
+export function viewAsDepartment(
+  user: AuthUser,
+  department: Department | null | undefined
+): AuthUser {
+  if (!department || !isSuperAdmin(user)) return user;
+  return { ...user, department };
+}

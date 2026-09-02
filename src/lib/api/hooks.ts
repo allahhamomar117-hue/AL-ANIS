@@ -5,7 +5,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { awqafApi, halaqatApi, statisticsApi, studentsApi, usersApi } from "./index";
 import { qk } from "./queryKeys";
-import type { AwqafStatus, Halaqa, HalaqaStudent, Role, Student, StudentStatus } from "./types";
+import type {
+  AwqafStatus,
+  Department,
+  Halaqa,
+  HalaqaStudent,
+  Role,
+  Student,
+  StudentStatus,
+} from "./types";
 
 /* ==================== الحلقات ==================== */
 
@@ -381,10 +389,10 @@ export function useDeleteAwqafRecord() {
  * تجميعات الإحصاءات الشاملة. المسار محصور بالمدير على الخادم، فيُعطَّل
  * الاستعلام لغيره بدل إرسال طلب يُردّ بـ403 (نفس نهج useStaff).
  */
-export function useStatistics(enabled = true) {
+export function useStatistics(department?: Department | null, enabled = true) {
   return useQuery({
-    queryKey: qk.statistics.dashboard,
-    queryFn: () => statisticsApi.dashboard(),
+    queryKey: qk.statistics.dashboard(department),
+    queryFn: () => statisticsApi.dashboard(department),
     select: (res) => res.data,
     enabled,
   });

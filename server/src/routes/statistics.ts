@@ -23,17 +23,27 @@
  * الذاكرة يكبر مع عمر المركز بلا سقف.
  */
 import { Router } from "express";
+import { z } from "zod";
 import { db, type SqlParam } from "../db/index.js";
 import { monthOf } from "../db/sqlfn.js";
-import { asyncHandler, logSqlError } from "../lib/http.js";
+import { asyncHandler, logSqlError, parse } from "../lib/http.js";
+import { departmentInput } from "../lib/schemas.js";
 import { requireStudentManager } from "../middleware/auth.js";
 import { recitationPagesExpr } from "../services/recitationSql.js";
-import { applyScope, applyStudentScope } from "../services/scope.js";
+import { applyScope, applyStudentScope, viewAsDepartment } from "../services/scope.js";
 import { visibleStudent } from "../services/studentSql.js";
 
 export const statisticsRouter = Router();
 
 statisticsRouter.use(requireStudentManager);
+
+/**
+ * فلتر القسم الاختياري — لا أثر له إلا للمدير العام (راجع viewAsDepartment).
+ *
+ * غيابه أو "" يعني «كل الأقسام»، أي السلوك السابق حرفياً: بلا قيد للمدير
+ * العام، وبقيد قسمه لمدير القسم.
+ */
+const scopeQuery = z.object({ department: departmentInput.optional() });
 
 /** `WHERE …` أو نصّ فارغ — حتى يبقى الاستعلام غير المقيَّد كما كان حرفياً. */
 function whereOf(conds: string[]): string {
@@ -81,7 +91,12 @@ statisticsRouter.get(
   "/dashboard",
   asyncHandler(async (req, res) => {
     try {
-      const user = req.user!;
+      /*
+       * الفلتر يُطوى في المستخدم قبل بناء أي قيد، فتَرِثه التجميعات الستّ
+       * كلّها دون أن يُذكر القسم في استعلام واحد منها.
+       */
+      const { department } = parse(scopeQuery, req.query);
+      const user = viewAsDepartment(req.user!, department);
 
       /*
        * قيود النطاق تُبنى مرّة وتُعاد على كل تجميعة من نفس الجدول: بناؤها

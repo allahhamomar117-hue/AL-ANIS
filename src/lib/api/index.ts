@@ -370,5 +370,12 @@ export const awqafApi = {
 
 /** تجميعات الإحصاءات الشاملة — للمدير وحده (الخادم يرد 403 لغيره). */
 export const statisticsApi = {
-  dashboard: () => api.get<{ data: StatisticsDashboard }>("/statistics/dashboard"),
+  /**
+   * `department` فلتر عرضٍ للمدير العام وحده؛ الخادم يتجاهله لمدير القسم
+   * فيبقى مقيَّداً بقسمه. `undefined` = كل الأقسام.
+   */
+  dashboard: (department?: Department | null) =>
+    api.get<{ data: StatisticsDashboard }>("/statistics/dashboard", {
+      department: department ?? undefined,
+    }),
 };

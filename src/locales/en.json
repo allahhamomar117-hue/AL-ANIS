@@ -660,6 +660,10 @@
     "navTitle": "Statistics",
     "title": "Overall Statistics",
     "subtitle": "Center-wide numbers since launch: recitation, attendance, and Awqaf certificates",
+    "filter": {
+      "label": "Filter by department",
+      "all": "All departments"
+    },
     "cards": {
       "pages": "Pages recited",
       "pagesHint": "across {{count}} recorded recitations",

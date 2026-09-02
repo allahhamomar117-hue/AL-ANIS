@@ -20,8 +20,10 @@ import {
   FaChartLine,
   FaUsers,
 } from "react-icons/fa";
+import { useAuth } from "../../context/authContext";
 import { useStatistics } from "../../lib/api/hooks";
-import type { StatisticsDashboard as Stats } from "../../lib/api/types";
+import { DEPARTMENTS } from "../../lib/api/types";
+import type { Department, StatisticsDashboard as Stats } from "../../lib/api/types";
 import { formatMonth } from "../../lib/format/date";
 import { EmptyState, ErrorState, LoadingState } from "../../shared/QueryState";
 
@@ -36,7 +38,16 @@ export default function StatisticsDashboard() {
   const { t } = useTranslation();
   const { lang = "ar" } = useParams();
 
-  const stats = useStatistics();
+  /*
+   * فلتر القسم للمدير العام وحده: مدير القسم نطاقه مقيَّد على الخادم أصلاً،
+   * فتبويبٌ يعرض عليه أقساماً لا يراها وعدٌ كاذب — والخادم يردّ بأرقام قسمه
+   * مهما اختار. `null` = كل الأقسام.
+   */
+  const { isSuperAdmin } = useAuth();
+  const [department, setDepartment] = useState<Department | null>(null);
+  const active = isSuperAdmin ? department : null;
+
+  const stats = useStatistics(active);
 
   return (
     <div
@@ -54,6 +65,10 @@ export default function StatisticsDashboard() {
           </p>
         </header>
 
+        {isSuperAdmin && (
+          <DepartmentTabs value={department} onChange={setDepartment} />
+        )}
+
         {stats.isPending ? (
           <LoadingState />
         ) : stats.isError ? (
@@ -62,6 +77,55 @@ export default function StatisticsDashboard() {
           <StatisticsContent data={stats.data!} />
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * تبويبات فلترة القسم — تبويبات لا قائمة منسدلة: الخيارات أربعة ثابتة،
+ * والقائمة تُخفي الاختيار الحالي خلف نقرة بلا داعٍ.
+ */
+function DepartmentTabs({
+  value,
+  onChange,
+}: {
+  value: Department | null;
+  onChange: (value: Department | null) => void;
+}) {
+  const { t } = useTranslation();
+  const options: { key: Department | null; label: string }[] = [
+    { key: null, label: t("statistics.filter.all") },
+    ...DEPARTMENTS.map((dept) => ({
+      key: dept as Department | null,
+      label: t(`departments.${dept}`),
+    })),
+  ];
+
+  return (
+    <div
+      role="tablist"
+      aria-label={t("statistics.filter.label")}
+      className="flex flex-wrap gap-2 rounded-2xl bg-white p-2 shadow-sm dark:bg-dark"
+    >
+      {options.map((option) => {
+        const selected = option.key === value;
+        return (
+          <button
+            key={option.key ?? "all"}
+            type="button"
+            role="tab"
+            aria-selected={selected}
+            onClick={() => onChange(option.key)}
+            className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+              selected
+                ? "bg-emerald-600 text-white shadow"
+                : "text-gray-600 hover:bg-emerald-50 dark:text-gray-300 dark:hover:bg-dark-light"
+            }`}
+          >
+            {option.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
