@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { FaEdit, FaUserPlus, FaUserTie } from "react-icons/fa";
+import { FaEdit, FaUserPlus, FaUserShield, FaUserTie } from "react-icons/fa";
 import { useStaff } from "../../lib/api/hooks";
 import type { Role, StaffUser } from "../../lib/api/types";
 import { useAuth } from "../../context/authContext";
 import DepartmentBadge from "../../shared/DepartmentBadge";
 import { ErrorState, LoadingState } from "../../shared/QueryState";
+import PopupDepartmentManagerForm from "./PopupDepartmentManagerForm";
 import PopupStaffForm from "./PopupStaffForm";
 
 /**
@@ -22,6 +23,12 @@ export default function StaffPage() {
   const { isSuperAdmin } = useAuth();
 
   const [form, setForm] = useState<{ role: Role; editing?: StaffUser } | null>(null);
+  /*
+   * حالةٌ مستقلّة عن form لا وضعٌ ثالث داخله: نافذة تعيين مدير الدورة
+   * لا تُنشئ حساباً ولا تحمل role ولا editing، فحشرها في الكائن نفسه
+   * يجعل حقليه اختياريَّين على بقية الاستدعاءات بلا سبب.
+   */
+  const [assigningManager, setAssigningManager] = useState(false);
 
   const staff = useStaff({ includeInactive: true });
 
@@ -64,6 +71,17 @@ export default function StaffPage() {
             >
               <FaUserTie />
               {t("staff.addSupervisor")}
+            </button>
+            {/*
+              تعيين مدير دورة — ترقية حسابٍ قائم لا إنشاء حساب، ولونه
+              يطابق رقاقة دور «مدير» في القائمة أسفل الصفحة.
+            */}
+            <button
+              onClick={() => setAssigningManager(true)}
+              className="flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 font-bold text-white shadow transition hover:bg-amber-700"
+            >
+              <FaUserShield />
+              {t("staff.addDepartmentManager")}
             </button>
           </div>
         </header>
@@ -144,6 +162,10 @@ export default function StaffPage() {
           editing={form.editing}
           onClose={() => setForm(null)}
         />
+      )}
+
+      {assigningManager && (
+        <PopupDepartmentManagerForm onClose={() => setAssigningManager(false)} />
       )}
     </div>
   );
