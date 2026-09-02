@@ -18,7 +18,7 @@ export const userRole = z.enum(["ADMIN", "SUPERVISOR", "TEACHER"]);
  * أقسام المعهد. مفاتيح ثابتة تُترجَم في الواجهة، على غرار halaqaStage.
  *
  * لا تخلطها بـ halaqat.stage: تلك مرحلة دراسية وصفية
- * (primary|preparatory|secondary)، وهذه تقسيم إداري يحدّد من يرى ماذا —
+ * (primary|middle_high|intensive)، وهذه تقسيم إداري يحدّد من يرى ماذا —
  * والمكثفة لا مقابل لها في المراحل أصلاً.
  */
 export const department = z.enum(["PRIMARY", "MIDDLE_HIGH", "INTENSIVE"]);

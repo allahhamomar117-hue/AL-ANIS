@@ -570,8 +570,8 @@
   },
   "halaqaStages": {
     "primary": "ابتدائي",
-    "preparatory": "إعدادي",
-    "secondary": "ثانوي"
+    "middle_high": "إعدادي وثانوي",
+    "intensive": "مكثفة"
   },
   "departments": {
     "PRIMARY": "ابتدائي",

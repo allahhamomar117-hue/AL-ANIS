@@ -55,7 +55,7 @@ async function assertNameFree(name: string, exceptId?: number): Promise<void> {
 }
 
 /** المرحلة الدراسية للحلقة — القيم مفاتيح ثابتة تُترجَم في الواجهة. */
-const halaqaStage = z.enum(["primary", "preparatory", "secondary"]);
+const halaqaStage = z.enum(["primary", "middle_high", "intensive"]);
 
 /**
  * قسم الحلقة. مطلوب عند الإنشاء لا اختياري: الحلقة بلا قسم لا يراها إلا

@@ -568,8 +568,8 @@
   },
   "halaqaStages": {
     "primary": "Primary",
-    "preparatory": "Preparatory",
-    "secondary": "Secondary"
+    "middle_high": "Middle & high",
+    "intensive": "Intensive"
   },
   "departments": {
     "PRIMARY": "Primary",

@@ -36,8 +36,19 @@ export interface AuthUser {
   halaqat: { id: number; name: string }[];
 }
 
-/** المرحلة الدراسية للحلقة — مفاتيح ثابتة، الترجمة في locales تحت halaqaStages. */
-export const HALAQA_STAGES = ["primary", "preparatory", "secondary"] as const;
+/**
+ * المرحلة الدراسية للحلقة — مفاتيح ثابتة، الترجمة في locales تحت halaqaStages.
+ *
+ * القيم تطابق أقسام المعهد الثلاثة واحدةً بواحدة (مع اختلاف حالة الأحرف:
+ * المرحلة lowercase كبقية المفاتيح الوصفية، والقسم UPPERCASE كما يُخزَّن).
+ * الإعدادي والثانوي قسم واحد في المعهد فمرحلة واحدة هنا — كانا مفصولين
+ * قبل الترقية 013 وأُدمجا فيها.
+ *
+ * تبقى منفصلة عن DEPARTMENTS رغم التطابق: هذه وصفٌ للحلقة، وتلك تقرّر من
+ * يراها (راجع accessibleHalaqaIds في الخادم). دمجُهما في حقل واحد يجعل
+ * تعديلَ وصفٍ تغييراً في الصلاحيات.
+ */
+export const HALAQA_STAGES = ["primary", "middle_high", "intensive"] as const;
 export type HalaqaStage = (typeof HALAQA_STAGES)[number];
 
 export interface Halaqa {

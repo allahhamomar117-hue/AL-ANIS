@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS halaqat (
   teacher_id    INTEGER REFERENCES users (id) ON DELETE SET NULL,
   schedule_time TEXT,
   location      TEXT,
-  -- المرحلة الدراسية: primary | preparatory | secondary (يتحقق منها الـ API)
+  -- المرحلة الدراسية: primary | middle_high | intensive (يتحقق منها الـ API)
   stage         TEXT,
   -- قسم المعهد: PRIMARY | MIDDLE_HIGH | INTENSIVE (يتحقق منه الـ API).
   -- يقبل NULL للحلقات السابقة للترقية 012 وحدها — ولا يراها إلا المدير

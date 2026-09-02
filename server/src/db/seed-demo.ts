@@ -114,13 +114,14 @@ const HALAQA_NAMES = [
   { name: "حلقة الفرقان", stage: "primary", location: "القاعة الأولى" },
   { name: "حلقة النور", stage: "primary", location: "القاعة الثانية" },
   { name: "حلقة الهدى", stage: "primary", location: "القاعة الثالثة" },
-  { name: "حلقة البيان", stage: "preparatory", location: "القاعة الرابعة" },
-  { name: "حلقة التقوى", stage: "preparatory", location: "قاعة المكتبة" },
-  { name: "حلقة الإخلاص", stage: "preparatory", location: "القاعة الشرقية" },
-  { name: "حلقة الرحمن", stage: "secondary", location: "المصلى الرئيسي" },
-  { name: "حلقة المصابيح", stage: "secondary", location: "المصلى العلوي" },
-  { name: "حلقة السكينة", stage: "secondary", location: "القاعة الغربية" },
-  { name: "حلقة الميزان", stage: "secondary", location: "قاعة المحاضرات" },
+  { name: "حلقة البيان", stage: "middle_high", location: "القاعة الرابعة" },
+  { name: "حلقة التقوى", stage: "middle_high", location: "قاعة المكتبة" },
+  { name: "حلقة الإخلاص", stage: "middle_high", location: "القاعة الشرقية" },
+  { name: "حلقة الرحمن", stage: "middle_high", location: "المصلى الرئيسي" },
+  { name: "حلقة المصابيح", stage: "middle_high", location: "المصلى العلوي" },
+  // حلقتان مكثّفتان ليغطّي العرض المراحل الثلاث كلّها بعد دمج الإعدادي والثانوي
+  { name: "حلقة السكينة", stage: "intensive", location: "القاعة الغربية" },
+  { name: "حلقة الميزان", stage: "intensive", location: "قاعة المحاضرات" },
 ];
 
 /** أوقات دورية: ثلاث فترات تتناوب عليها الحلقات. */
@@ -159,10 +160,11 @@ const FAMILY_NAMES = [
 ];
 
 /** المرحلة تحدّد سنة الميلاد التقريبية، فتبدو الأعمار متسقة مع حلقاتها. */
+// المكثّفة ليست مرحلة عمرية؛ طلابها بعمر الإعدادي والثانوي نفسه
 const BIRTH_YEAR: Record<string, number> = {
   primary: 2015,
-  preparatory: 2012,
-  secondary: 2009,
+  middle_high: 2010,
+  intensive: 2010,
 };
 
 const LEVEL_CYCLE: Level[] = ["strong", "mid", "strong", "weak", "mid"];
