@@ -64,15 +64,29 @@ export const requireAuth = asyncHandler(async (req: Request, _res: Response, nex
   }
 
   /*
-   * قسم غير معروف (بيانات قديمة أو معدّلة يدوياً) يُعامل كـ null، أي
-   * نطاق المعهد كامل — لا كقسم مجهول يحجب كل شيء. الفرق مقصود: هذا
-   * انحراف بيانات لا قرار إداري، وحجب كل شيء عن مدير يبدو عطلاً في
-   * النظام لا في البيانات. يُسجَّل التنبيه ليُصحَّح من إدارة الكادر.
+   * قسم غير معروف (بيانات قديمة أو معدّلة يدوياً) يُرفض الطلب لأجله.
+   *
+   * كان يُعامل كـ null بحجّة أن حجب كل شيء عن مدير يبدو عطلاً في النظام
+   * لا في البيانات. والحجّة خاطئة، لأن `null` هنا ليست «بلا قسم» بل هي
+   * نطاق المعهد كامل: أي انحرافٍ في نصّ القسم — حرفٌ زائد، أو اسم عربي
+   * كُتب مكان المفتاح — كان يرقّي مدير القسم إلى مدير عام صامتاً. وهذا
+   * فشلٌ مفتوح في عمود صلاحيات، وهو أسوأ ما يكون الفشل.
+   *
+   * والرفض يخصّ الإداريين وحدهم: نطاق المدرّس حلقاته المسندة لا قسمه
+   * (departmentScope تُعيد له null على أي حال)، فقيمةٌ فاسدة في عموده لا
+   * تمنحه شيئاً — وحجب الدخول عنه عقوبةٌ على انحراف لا أثر له.
    */
   if (user.department !== null && !DEPARTMENTS.includes(user.department)) {
     console.warn(
-      `[auth] قسم غير معروف "${user.department}" للمستخدم ${user.id} — يُعامل كنطاق عام`
+      `[auth] قسم غير معروف "${user.department}" للمستخدم ${user.id}`
     );
+    if (user.role === "ADMIN" || user.role === "SUPERVISOR") {
+      return next(
+        ApiError.forbidden(
+          "قسم الحساب غير صالح — راجع إدارة الكادر لتصحيحه قبل المتابعة"
+        )
+      );
+    }
     user.department = null;
   }
 
@@ -97,6 +111,29 @@ export function requireRole(...roles: Role[]) {
  * منعاً للتضارب في الصلاحيات.
  */
 export const requireUserManager = requireRole("ADMIN");
+
+/**
+ * المدير العام وحده: دور ADMIN مع نطاق المعهد كامل (department = NULL).
+ *
+ * لا يُكتب بـ requireRole لأن القسم ليس دوراً — راجع «لا يوجد دور
+ * SUPER_ADMIN» في services/scope.ts. وهو الحارس الوحيد في المشروع الذي
+ * يقرأ البعد الثاني (النطاق) لا الأول (الدور)، فيُستعمل حيث يكون المورد
+ * شأناً للمعهد كلّه لا لدورةٍ بعينها.
+ *
+ * ملاحظة: يأتي بعد requireAuth دائماً، وقد رفض ذاك أصلاً كل قسم غير
+ * معروف للإداريين — فلا يصل إلى هنا حسابٌ نطاقه null بسبب انحراف بيانات.
+ */
+export function requireSuperAdmin(
+  req: Request,
+  _res: Response,
+  next: NextFunction
+): void {
+  if (!req.user) return next(ApiError.unauthorized());
+  if (req.user.role !== "ADMIN" || req.user.department !== null) {
+    return next(ApiError.forbidden("هذه العملية للمدير العام وحده"));
+  }
+  next();
+}
 
 /** كل صلاحيات البيانات الموسّعة: المدير والمشرف سواء. */
 export const requireStaff = requireRole("ADMIN", "SUPERVISOR");

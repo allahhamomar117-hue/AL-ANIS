@@ -33,7 +33,7 @@ function Navbar() {
   const { t } = useTranslation();
 
   const isArabic = lang === "ar";
-  const { user: me, isSupervisor, canManageUsers } = useAuth();
+  const { user: me, isSupervisor, canManageUsers, isSuperAdmin } = useAuth();
 
   const [quickPoints, setQuickPoints] = useState(false);
   const [dailyReport, setDailyReport] = useState(false);
@@ -52,6 +52,12 @@ function Navbar() {
     path: string;
     /** تبويب إداري بحت: يظهر للمدير وحده (لا المشرف ولا المدرّس). */
     adminOnly?: boolean;
+    /**
+     * أضيق من adminOnly: للمدير العام وحده، فيُحجب عن مديري الأقسام أيضاً.
+     * علمٌ مستقلّ لا قيمة ثانية في adminOnly كي يبقى شرطُ كلٍّ منهما مقروءاً
+     * في سطر التبويب نفسه.
+     */
+    superAdminOnly?: boolean;
   }[] = [
     {
       key: "attendance",
@@ -89,12 +95,14 @@ function Navbar() {
       title: t("awqaf.navTitle"),
       icon: FaCertificate,
       path: "awqaf",
-      adminOnly: true,
+      // شهادات الأوقاف شأنٌ يخصّ المعهد كلّه لا دورةً بعينها
+      superAdminOnly: true,
     },
   ].filter(
     (item) =>
       !(isSupervisor && SUPERVISOR_HIDDEN.has(item.key)) &&
-      !(item.adminOnly && !canManageUsers)
+      !(item.adminOnly && !canManageUsers) &&
+      !(item.superAdminOnly && !isSuperAdmin)
   );
 
   const isActive = (path: string) => location.pathname.includes(path);

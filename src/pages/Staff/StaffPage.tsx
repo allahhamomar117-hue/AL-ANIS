@@ -75,14 +75,21 @@ export default function StaffPage() {
             {/*
               تعيين مدير دورة — ترقية حسابٍ قائم لا إنشاء حساب، ولونه
               يطابق رقاقة دور «مدير» في القائمة أسفل الصفحة.
+
+              للمدير العام وحده: مدير الدورة لا يعيّن نظيراً له على دورته،
+              وهذا ليس إخفاءً تجميلياً — كل قائمته كادرُ دورته الواحدة،
+              فالنافذة تعرض عليه حقلاً واحداً محسوماً سلفاً، وكل ما تفعله
+              هو صناعة مديرٍ ثانٍ لنفس النطاق.
             */}
-            <button
-              onClick={() => setAssigningManager(true)}
-              className="flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 font-bold text-white shadow transition hover:bg-amber-700"
-            >
-              <FaUserShield />
-              {t("staff.addDepartmentManager")}
-            </button>
+            {isSuperAdmin && (
+              <button
+                onClick={() => setAssigningManager(true)}
+                className="flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 font-bold text-white shadow transition hover:bg-amber-700"
+              >
+                <FaUserShield />
+                {t("staff.addDepartmentManager")}
+              </button>
+            )}
           </div>
         </header>
 

@@ -89,6 +89,30 @@ async function assertUserInScope(actor: AuthUser, id: number): Promise<void> {
  * `fallback` هو القسم الحالي في التعديل، وقسمُ المُنفِّذ في الإنشاء —
  * فالحساب الذي ينشئه مدير قسمٍ ينضمّ إلى قسمه تلقائياً بلا حقل يُملأ.
  */
+/**
+ * يرمي 403 إذا حاول غيرُ المدير العام أن يصنع مديراً.
+ *
+ * resolveDepartment وحدها لا تكفي هنا: هي تمنع مديرَ قسمٍ من إسناد قسمٍ
+ * خارج نطاقه — أي تمنع صناعة مدير عام — لكنها تُجيز له ترقية أحد كادره
+ * إلى مدير على قسمه هو. وذاك حسابٌ يساويه في الصلاحية على نفس النطاق،
+ * يستطيع بدوره ترقية غيره، ويستطيع حذفَ من رقّاه. تعيين المديرين قرارٌ
+ * مركزي، فيبقى بيد المدير العام وحده.
+ *
+ * الفحص على الترقية لا على القيمة: مدير القسم يعدّل بيانات مديرٍ قائم في
+ * قسمه (اسمه، كلمة مروره، تفعيله) وترسل الواجهة role = ADMIN كما هي —
+ * فلو رُفض كلُّ ADMIN لَرُدَّ تعديلٌ لا يغيّر صلاحيةً أصلاً.
+ */
+function assertMayGrantAdmin(
+  actor: AuthUser,
+  nextRole: string,
+  currentRole: string | null
+): void {
+  if (nextRole !== "ADMIN" || currentRole === "ADMIN") return;
+  if (departmentScope(actor) === null) return;   // مدير عام
+
+  throw ApiError.forbidden("تعيين المديرين للمدير العام وحده");
+}
+
 function resolveDepartment(
   actor: AuthUser,
   requested: Department | null | undefined,
@@ -198,6 +222,7 @@ usersRouter.post(
     );
 
     await assertUsernameFree(body.username);
+    assertMayGrantAdmin(req.user!, body.role, null);
 
     const department = resolveDepartment(
       req.user!,
@@ -332,6 +357,7 @@ usersRouter.patch(
     if (body.username) await assertUsernameFree(body.username, id);
 
     const nextRole = body.role ?? current.role;
+    assertMayGrantAdmin(req.user!, nextRole, current.role);
     // منطقيّ صريح: عمود Postgres من نوع boolean لا يقبل 0/1
     const nextActive =
       body.is_active !== undefined ? body.is_active : Boolean(current.is_active);

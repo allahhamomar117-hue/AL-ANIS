@@ -15,6 +15,7 @@ import SettingsPage from "./pages/Settings/SettingsPage";
 import StaffPage from "./pages/Staff/StaffPage";
 import ProtectedRoute from "./shared/ProtectedRoute";
 import RequireManager from "./shared/RequireManager";
+import RequireSuperAdmin from "./shared/RequireSuperAdmin";
 import DenySupervisor from "./shared/DenySupervisor";
 import HalaqatPage from "./pages/Halaqat/HalaqatPage";
 import AwqafExams from "./pages/Awqaf/AwqafExams";
@@ -110,14 +111,15 @@ const MainRoutes = () => {
           }
         />
 
-        {/* شهادات وسبر الأوقاف: للمدير وحده — ترشيح الطلاب لاختبارات
-            وزارة الأوقاف وتسجيل نتائجهم (مسارات /api/awqaf محصورة بـADMIN) */}
+        {/* شهادات وسبر الأوقاف: للمدير العام وحده — الشهادة شأنُ المعهد
+            كلّه أمام الوزارة لا شأنَ دورةٍ بعينها، ومسارات /api/awqaf
+            محصورة بـ requireSuperAdmin */}
         <Route
           path="awqaf"
           element={
-            <RequireManager>
+            <RequireSuperAdmin>
               <AwqafExams />
-            </RequireManager>
+            </RequireSuperAdmin>
           }
         />
 

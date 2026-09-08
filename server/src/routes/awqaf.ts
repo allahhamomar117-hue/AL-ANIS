@@ -2,12 +2,16 @@
  * شهادات وسبر الأوقاف — إدارة الطلاب المرشّحين لاختبارات وزارة الأوقاف
  * ونتائجهم فيها.
  *
- * الراوتر كلّه محصور بالمدير (requireStudentManager = ADMIN) على مستوى
- * الراوتر لا على كل مسار، حتى لا يُنسى مع أي مسار يُضاف لاحقاً.
+ * الراوتر كلّه محصور بالمدير العام (requireSuperAdmin) على مستوى الراوتر
+ * لا على كل مسار، حتى لا يُنسى مع أي مسار يُضاف لاحقاً.
  *
- * ── قيد النطاق ───────────────────────────────────────────────────────
- * كان الملف بلا قيد نطاق، بحجّة أن المدير يرى كل الحلقات. أبطلت الأقسامُ
- * هذه الحجّة: مدير القسم مدير أيضاً.
+ * ── لماذا المدير العام وحده ──────────────────────────────────────────
+ * كان الحارس requireStudentManager (كل مَن دوره ADMIN)، فيدخل مدير القسم
+ * ويرى سجلّات قسمه — لا تسريب فيه، لكن الشهادة شأنٌ تمثّل به المعهدُ كلُّه
+ * وزارةَ الأوقاف، فترشيح الطلاب إليها قرارٌ مركزي لا يُقسَّم على الدورات.
+ * وهذا قيدُ سياسةٍ لا قيدُ تسريب، ولذلك قيدُ النطاق أدناه يبقى قائماً:
+ * حذفُه يجعل الملف يتّكل على حارسٍ واحد، فأيُّ توسيعٍ للسياسة لاحقاً يفتح
+ * البيانات كلّها دفعةً واحدة.
  *
  * وسجلّ السبر لا يحمل halaqa_id، فانتماؤه إلى قسمٍ يمرّ بالطالب — الحلقة
  * صفةُ الطالب لا صفةُ السبر. ولذلك القراءة مقيَّدة بـ applyStudentScope،
@@ -25,14 +29,14 @@ import { db, tx, type SqlParam } from "../db/index.js";
 import { nowExpr } from "../db/sqlfn.js";
 import { ApiError, asyncHandler, parse } from "../lib/http.js";
 import { idParam } from "../lib/schemas.js";
-import { requireStudentManager } from "../middleware/auth.js";
+import { requireSuperAdmin } from "../middleware/auth.js";
 import { addPoints, revertPointsFor } from "../services/points.js";
 import { applyStudentScope, assertStudentAccess } from "../services/scope.js";
 import { visibleStudent } from "../services/studentSql.js";
 
 export const awqafRouter = Router();
 
-awqafRouter.use(requireStudentManager);
+awqafRouter.use(requireSuperAdmin);
 
 /** حالة الطالب في دورة السبر — مفاتيح ثابتة تُترجَم في الواجهة. */
 const awqafStatus = z.enum(["nominated", "passed", "failed"]);
