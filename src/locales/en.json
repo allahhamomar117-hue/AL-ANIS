@@ -265,6 +265,8 @@
     "add": "Add",
     "selectHalaqa": "Select halaqa",
     "nameRequired": "Name is required",
+    "halaqaRequired": "Pick a halaqa — a student without one won't appear in your department's list",
+    "noHalaqatInDepartment": "No halaqat are assigned to your department yet. Assign them from “Halaqat management” first.",
     "saving": "Adding…"
   },
   "popupDeductPoints": {

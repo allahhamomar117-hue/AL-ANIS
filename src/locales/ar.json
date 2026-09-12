@@ -268,6 +268,8 @@
     "add": "إضافة",
     "selectHalaqa": "اختر الحلقة",
     "nameRequired": "الاسم مطلوب",
+    "halaqaRequired": "اختر حلقة — الطالب بلا حلقة لا يظهر في قائمة قسمك",
+    "noHalaqatInDepartment": "لا توجد حلقات مُسنَدة إلى قسمك. أسنِد حلقاتك من «إدارة الحلقات» أولاً.",
     "saving": "جارٍ الإضافة…"
   },
   "popupDeductPoints": {

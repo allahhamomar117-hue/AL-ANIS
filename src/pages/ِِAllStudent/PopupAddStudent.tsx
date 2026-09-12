@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useCreateStudent, useHalaqat } from "../../lib/api/hooks";
+import { useAuth } from "../../context/authContext";
 import { useToast } from "../../shared/toast/toastContext";
 
 type AddStudentPopupProps = {
@@ -14,6 +15,17 @@ export function PopupAddStudent({ onClose, defaultHalaqaId }: AddStudentPopupPro
   const { data: halaqat = [] } = useHalaqat();
   const createStudent = useCreateStudent();
   const { notify } = useToast();
+  const { isSuperAdmin } = useAuth();
+
+  /*
+   * الحلقة إلزامية لمدير القسم: انتماء الطالب إلى قسمٍ يمرّ بحلقته وحدها
+   * (لا عمود قسم في students)، فطالبٌ بلا حلقة يسقط خارج نطاق مُنشئه فور
+   * إنشائه. الخادم يمنعها في assertHalaqaGiven، والشرط هنا ليُقال ذلك قبل
+   * ملء النموذج لا بعد إرساله.
+   *
+   * والمدير العام يبقى له الخيار: الطالب بلا حلقة يظل في نطاقه فيسنده متى شاء.
+   */
+  const halaqaRequired = !isSuperAdmin;
 
   const [name, setName] = useState("");
   const [halaqaId, setHalaqaId] = useState<number | "">(defaultHalaqaId ?? "");
@@ -21,16 +33,23 @@ export function PopupAddStudent({ onClose, defaultHalaqaId }: AddStudentPopupPro
   const [studentPhone, setStudentPhone] = useState("");
   const [parentPhone, setParentPhone] = useState("");
 
-  const handleAdd = async () => {
-    if (!name.trim()) return;
+  const valid = name.trim().length > 0 && !(halaqaRequired && halaqaId === "");
 
-    await createStudent.mutateAsync({
-      name: name.trim(),
-      halaqa_id: halaqaId === "" ? null : halaqaId,
-      birth_date: birthDate || null,
-      student_phone: studentPhone || null,
-      parent_phone: parentPhone || null,
-    });
+  const handleAdd = async () => {
+    if (!valid) return;
+
+    try {
+      await createStudent.mutateAsync({
+        name: name.trim(),
+        halaqa_id: halaqaId === "" ? null : halaqaId,
+        birth_date: birthDate || null,
+        student_phone: studentPhone || null,
+        parent_phone: parentPhone || null,
+      });
+    } catch {
+      // الرسالة تظهر من createStudent.error أسفل النموذج
+      return;
+    }
 
     notify(t("toast.studentAdded"));
     onClose();
@@ -85,6 +104,23 @@ export function PopupAddStudent({ onClose, defaultHalaqaId }: AddStudentPopupPro
               </option>
             ))}
           </select>
+          {/*
+            قائمة فارغة لمدير قسمٍ ليست «لا حلقات بعد»: حلقات قسمه قد تكون
+            موجودة لكن بلا قسم مُسنَد (halaqat.department = NULL لكل حلقة
+            سابقة للترقية 012)، فلا تدخل نطاقه. الرسالة تدلّ على الإصلاح.
+          */}
+          {halaqaRequired && halaqat.length === 0 ? (
+            <p className="mt-1 text-xs font-bold text-red-600 dark:text-red-400">
+              {t("popupAddStudent.noHalaqatInDepartment")}
+            </p>
+          ) : (
+            halaqaRequired &&
+            halaqaId === "" && (
+              <p className="mt-1 text-xs text-gray-400">
+                {t("popupAddStudent.halaqaRequired")}
+              </p>
+            )
+          )}
         </div>
 
         <div>
@@ -132,7 +168,7 @@ export function PopupAddStudent({ onClose, defaultHalaqaId }: AddStudentPopupPro
 
           <button
             onClick={handleAdd}
-            disabled={!name.trim() || createStudent.isPending}
+            disabled={!valid || createStudent.isPending}
             className="px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition disabled:opacity-50"
           >
             {createStudent.isPending ? t("popupAddStudent.saving") : t("popupAddStudent.add")}

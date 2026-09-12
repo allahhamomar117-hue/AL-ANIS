@@ -10,7 +10,13 @@ import {
   DAILY_MANUAL_LIMITS,
   dailyManualTotals,
 } from "../services/points.js";
-import { applyScope, assertHalaqaAccess, assertStudentAccess } from "../services/scope.js";
+import type { AuthUser } from "../middleware/auth.js";
+import {
+  applyScope,
+  assertHalaqaAccess,
+  assertStudentAccess,
+  departmentScope,
+} from "../services/scope.js";
 import { existingStudent, STUDENT_STATUSES } from "../services/studentSql.js";
 
 export const studentsRouter = Router();
@@ -46,6 +52,30 @@ const studentBody = z.object({
     .nullable()
     .optional(),
 });
+
+/**
+ * يرمي 400 إذا ترك مديرُ قسمٍ الطالبَ بلا حلقة.
+ *
+ * جدول students بلا عمود قسم: انتماء الطالب إلى قسمٍ يمرّ بحلقته وحدها
+ * (accessibleHalaqaIds في services/scope.ts). فالطالب بلا حلقة لا يقع في
+ * نطاق أي قسم — ينشئه مدير القسم ثم لا يجده في قائمته ولا يستطيع تعديله.
+ *
+ * وكان assertHalaqaAccess وحده يتكفّل بالمنع، لأن canAccessHalaqa تردّ
+ * false على halaqaId = null لكل من له نطاق محدود. لكنها كانت تردّ برسالة
+ * «هذه الحلقة خارج نطاق صلاحياتك» على حقلٍ تُرك فارغاً — فتقرأ كمنعِ
+ * صلاحية عن إضافة الطلاب أصلاً، لا كحقلٍ ينقصه ملء. المنع نفسه يبقى،
+ * والرسالة تقول ما ينقص.
+ *
+ * المدير العام مستثنى: الطالب بلا حلقة يبقى في نطاقه فيستطيع إسناده لاحقاً.
+ */
+function assertHalaqaGiven(user: AuthUser, halaqaId: number | null): void {
+  if (halaqaId !== null) return;
+  if (departmentScope(user) === null) return;   // مدير عام
+
+  throw ApiError.badRequest(
+    "اختر حلقة للطالب — الطالب بلا حلقة لا يتبع قسماً فلا يظهر في قائمة قسمك"
+  );
+}
 
 async function nextStudentCode(): Promise<string> {
   const year = new Date().getFullYear();
@@ -219,6 +249,7 @@ studentsRouter.post(
   requireStudentManager,
   asyncHandler(async (req, res) => {
     const body = parse(studentBody, req.body);
+    assertHalaqaGiven(req.user!, body.halaqa_id ?? null);
     await assertHalaqaAccess(req.user!, body.halaqa_id ?? null);
     const code = body.code ?? (await nextStudentCode());
 
@@ -255,8 +286,10 @@ studentsRouter.patch(
       req.body
     );
 
-    // نقل الطالب إلى حلقة أخرى يتطلب صلاحية على الحلقة الهدف أيضاً
+    // نقل الطالب إلى حلقة أخرى يتطلب صلاحية على الحلقة الهدف أيضاً.
+    // ونزعُ الحلقة (null) إخراجٌ للطالب من نطاق مدير القسم، فيُمنع برسالته.
     if (body.halaqa_id !== undefined) {
+      assertHalaqaGiven(req.user!, body.halaqa_id);
       await assertHalaqaAccess(req.user!, body.halaqa_id);
     }
 
