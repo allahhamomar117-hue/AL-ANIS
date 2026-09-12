@@ -5,6 +5,7 @@ import { useHalaqat, useRemoveAvatar, useUpdateStudent, useUploadAvatar } from "
 import { useToast } from "../../shared/toast/toastContext";
 import Avatar from "../../shared/Avatar";
 import { ACCEPTED_TYPES, resizeImage } from "../../lib/image/resize";
+import { phoneAcceptable } from "../../lib/phone";
 import type { Student } from "../../lib/api/types";
 
 type EditStudentPopupProps = {
@@ -52,11 +53,21 @@ export function PopupEditStudent({ student, onClose }: EditStudentPopupProps) {
     }
   };
 
+  /*
+   * نفس قاعدة phoneInput على الخادم. وهنا تمسّ أرقاماً محفوظة سلفاً لا
+   * مُدخلةً الآن: سجلٌّ قديم فيه رقم لا يطابق النمط يفتح النافذة وزرّ
+   * الحفظ معطَّل حتى يُصحَّح الرقم أو يُمسح. مقصود — الحقل يقول ما فيه
+   * خطأ بدل أن يُمرَّر الفساد في كل حفظٍ لاحق.
+   */
+  const studentPhoneOk = phoneAcceptable(studentPhone);
+  const parentPhoneOk = phoneAcceptable(parentPhone);
+  const phonesOk = studentPhoneOk && parentPhoneOk;
+
   const saving = updateStudent.isPending || uploadAvatar.isPending || removeAvatar.isPending;
   const saveError = updateStudent.error ?? uploadAvatar.error ?? removeAvatar.error;
 
   const handleSave = async () => {
-    if (!name.trim()) return;
+    if (!name.trim() || !phonesOk) return;
 
     await updateStudent.mutateAsync({
       id: student.id,
@@ -189,6 +200,7 @@ export function PopupEditStudent({ student, onClose }: EditStudentPopupProps) {
           value={parentPhone}
           onChange={setParentPhone}
           type="tel"
+          error={parentPhoneOk ? undefined : t("validation.phone")}
         />
 
         <InputField
@@ -196,6 +208,7 @@ export function PopupEditStudent({ student, onClose }: EditStudentPopupProps) {
           value={studentPhone}
           onChange={setStudentPhone}
           type="tel"
+          error={studentPhoneOk ? undefined : t("validation.phone")}
         />
 
         {saveError && (
@@ -219,7 +232,7 @@ export function PopupEditStudent({ student, onClose }: EditStudentPopupProps) {
           </button>
           <button
             onClick={handleSave}
-            disabled={!name.trim() || saving}
+            disabled={!name.trim() || !phonesOk || saving}
             className="px-4 py-2 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition disabled:opacity-50"
           >
             {uploadAvatar.isPending
@@ -243,11 +256,14 @@ function InputField({
   value,
   onChange,
   type = "text",
+  /** رسالة خطأ تُعرض تحت الحقل؛ الغياب يعني حقلاً سليماً. */
+  error,
 }: {
   label: string;
   value: string;
   onChange: (val: string) => void;
   type?: string;
+  error?: string;
 }) {
   return (
     <div>
@@ -260,6 +276,9 @@ function InputField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
+      {error && (
+        <p className="mt-1 text-xs font-bold text-red-600 dark:text-red-400">{error}</p>
+      )}
     </div>
   );
 }

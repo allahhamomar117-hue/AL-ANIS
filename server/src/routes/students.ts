@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { db, tx, type SqlParam } from "../db/index.js";
 import { ApiError, asyncHandler, parse } from "../lib/http.js";
-import { idParam, isoDate, pagination } from "../lib/schemas.js";
+import { idParam, isoDate, pagination, phoneInput } from "../lib/schemas.js";
 import { requireStudentManager } from "../middleware/auth.js";
 import { deleteAvatar, saveAvatar } from "../lib/avatars.js";
 import {
@@ -44,8 +44,8 @@ const studentBody = z.object({
   code: z.string().min(1).max(20).optional(),
   halaqa_id: z.number().int().positive().nullable().optional(),
   birth_date: isoDate.nullable().optional(),
-  student_phone: z.string().max(20).nullable().optional(),
-  parent_phone: z.string().max(20).nullable().optional(),
+  student_phone: phoneInput,
+  parent_phone: phoneInput,
   avatar_url: z
     .string()
     .refine((v) => v.startsWith("/api/uploads/") || /^https?:\/\//.test(v), "رابط صورة غير صالح")

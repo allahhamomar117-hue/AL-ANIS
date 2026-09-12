@@ -33,6 +33,36 @@ export const departmentInput = z
   .union([department, z.literal(""), z.null()])
   .transform((value) => (value === "" ? null : value));
 
+/**
+ * نمط رقم الجوال السوري: عشر خانات تبدأ بـ 09.
+ *
+ * مُصدَّر ليبقى مصدراً واحداً — الواجهة تعرّف نظيره في src/lib/phone.ts،
+ * وأي اختلاف بينهما يعني حقلاً يقبله النموذج ويردّه الخادم بـ400.
+ */
+export const PHONE_PATTERN = /^09\d{8}$/;
+
+/**
+ * رقم جوال اختياري كما يصل من نموذج الواجهة.
+ *
+ * الاختياريّة والتحقّق لا يتعارضان: `undefined` (حقل لم يُرسل) و`null`
+ * (مُسح صراحةً) و`""` (حقل تُرك فارغاً) كلّها قبول. ما يُرفض هو نصٌّ
+ * كُتب فعلاً ولا يطابق النمط — فالحقل الفارغ غيابُ بيان، والحقل المملوء
+ * خطأً بيانٌ فاسد يُخزَّن ثم يُتّصل به فلا يردّ أحد.
+ *
+ * و`""` تُطبَّع إلى null: عمودٌ فيه سلسلة فارغة وآخر فيه NULL يعنيان
+ * الشيء ذاته، فيقرأهما كلُّ استعلام لاحق حالتين.
+ */
+export const phoneInput = z
+  .string()
+  .trim()
+  .refine(
+    (value) => value === "" || PHONE_PATTERN.test(value),
+    "رقم الجوال يجب أن يكون 10 أرقام ويبدأ بـ 09"
+  )
+  .transform((value) => (value === "" ? null : value))
+  .nullable()
+  .optional();
+
 export const pagination = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),
   offset: z.coerce.number().int().min(0).default(0),

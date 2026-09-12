@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useCreateStudent, useHalaqat } from "../../lib/api/hooks";
 import { useAuth } from "../../context/authContext";
+import { phoneAcceptable } from "../../lib/phone";
 import { useToast } from "../../shared/toast/toastContext";
 
 type AddStudentPopupProps = {
@@ -33,7 +34,19 @@ export function PopupAddStudent({ onClose, defaultHalaqaId }: AddStudentPopupPro
   const [studentPhone, setStudentPhone] = useState("");
   const [parentPhone, setParentPhone] = useState("");
 
-  const valid = name.trim().length > 0 && !(halaqaRequired && halaqaId === "");
+  /*
+   * الحقلان اختياريان، فالفراغ يمرّ. ما يُمنع هو رقم كُتب فعلاً ولا يطابق
+   * النمط — نفس قاعدة phoneInput على الخادم، مكرّرةً هنا كي تُقال قبل
+   * الإرسال لا بعد ردّ 400.
+   */
+  const studentPhoneOk = phoneAcceptable(studentPhone);
+  const parentPhoneOk = phoneAcceptable(parentPhone);
+
+  const valid =
+    name.trim().length > 0 &&
+    !(halaqaRequired && halaqaId === "") &&
+    studentPhoneOk &&
+    parentPhoneOk;
 
   const handleAdd = async () => {
     if (!valid) return;
@@ -133,6 +146,11 @@ export function PopupAddStudent({ onClose, defaultHalaqaId }: AddStudentPopupPro
             value={parentPhone}
             onChange={(e) => setParentPhone(e.target.value)}
           />
+          {!parentPhoneOk && (
+            <p className="mt-1 text-xs font-bold text-red-600 dark:text-red-400">
+              {t("validation.phone")}
+            </p>
+          )}
         </div>
 
         <div>
@@ -145,6 +163,11 @@ export function PopupAddStudent({ onClose, defaultHalaqaId }: AddStudentPopupPro
             value={studentPhone}
             onChange={(e) => setStudentPhone(e.target.value)}
           />
+          {!studentPhoneOk && (
+            <p className="mt-1 text-xs font-bold text-red-600 dark:text-red-400">
+              {t("validation.phone")}
+            </p>
+          )}
         </div>
 
         {!name.trim() && (

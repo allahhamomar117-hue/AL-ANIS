@@ -474,6 +474,9 @@
       "language": "Language"
     }
   },
+  "validation": {
+    "phone": "Must be 10 digits starting with 09"
+  },
   "toast": {
     "copied": "Copied successfully",
     "copyFailed": "Copy failed — copy the number manually",
