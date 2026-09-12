@@ -216,8 +216,8 @@
     "allStudents": "All Students",
     "studentName": "Student Name",
     "actions": "Actions",
-    "studentNumber": "Student No •",
-    "searchPlaceholder": "Search by name or student number",
+    "studentNumber": "Identifier •",
+    "searchPlaceholder": "Search by name or identifier",
     "noStudents": "No students in this halaqa",
     "total": "Total",
     "points": "Points",
@@ -260,7 +260,7 @@
     "birthDate": "Birth Date",
     "halaqa": "Halaqa",
     "parentPhone": "Parent Phone",
-    "studentPhone": "Student Phone",
+    "studentPhone": "Student mobile",
     "cancel": "Cancel",
     "add": "Add",
     "selectHalaqa": "Select halaqa",
@@ -296,7 +296,7 @@
     "birthDate": "Birth Date",
     "halaqa": "Halaqa",
     "parentPhone": "Parent Phone",
-    "studentPhone": "Student Phone",
+    "studentPhone": "Student mobile",
     "cancel": "Cancel",
     "save": "Save",
     "selectHalaqa": "Select halaqa",
@@ -312,7 +312,9 @@
     "forbidden": "This account is a teacher, not a supervisor. Editing students and uploading photos is admin-only."
   },
   "studentProfile": {
-    "studentId": "Student ID",
+    "copy": "Copy",
+    "copyField": "Copy {{field}}",
+    "studentId": "Identifier",
     "points": "Points",
     "attendance": "Attendance",
     "halaqa": "Halaqa",
@@ -325,9 +327,9 @@
     },
     "fields": {
       "name": "Student Name",
-      "studentId": "Student ID",
+      "studentId": "Identifier",
       "birthDate": "Birth Date",
-      "studentPhone": "Student Phone",
+      "studentPhone": "Student mobile",
       "guardianPhone": "Guardian Phone"
     },
     "recitation": {
@@ -473,6 +475,8 @@
     }
   },
   "toast": {
+    "copied": "Copied successfully",
+    "copyFailed": "Copy failed — copy the number manually",
     "studentAdded": "Student added successfully",
     "studentUpdated": "Student changes saved successfully",
     "studentDeleted": "Student deleted successfully",

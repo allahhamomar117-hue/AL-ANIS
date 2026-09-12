@@ -219,8 +219,8 @@
     "allStudents": "كل الطلاب",
     "studentName": "اسم الطالب",
     "actions": "إجراءات",
-    "studentNumber": "رقم الطالب •",
-    "searchPlaceholder": "ابحث بالاسم أو رقم الطالب",
+    "studentNumber": "الرقم التعريفي •",
+    "searchPlaceholder": "ابحث بالاسم أو الرقم التعريفي",
     "noStudents": "لا يوجد طلاب في هذه الحلقة",
     "total": "الإجمالي",
     "points": "النقاط",
@@ -263,7 +263,7 @@
     "birthDate": "المواليد",
     "halaqa": "الحلقة",
     "parentPhone": "رقم ولي الأمر",
-    "studentPhone": "رقم الطالب",
+    "studentPhone": "رقم جوال الطالب",
     "cancel": "إلغاء",
     "add": "إضافة",
     "selectHalaqa": "اختر الحلقة",
@@ -299,7 +299,7 @@
     "birthDate": "المواليد",
     "halaqa": "الحلقة",
     "parentPhone": "رقم ولي الأمر",
-    "studentPhone": "رقم الطالب",
+    "studentPhone": "رقم جوال الطالب",
     "cancel": "إلغاء",
     "save": "حفظ",
     "selectHalaqa": "اختر الحلقة",
@@ -315,7 +315,9 @@
     "forbidden": "هذا الحساب مدرّس لا مشرف. تعديل بيانات الطلاب ورفع صورهم للمشرف وحده."
   },
   "studentProfile": {
-    "studentId": "رقم الطالب",
+    "copy": "نسخ",
+    "copyField": "نسخ {{field}}",
+    "studentId": "الرقم التعريفي",
     "points": "النقاط",
     "attendance": "نسبة الحضور",
     "halaqa": "الحلقة",
@@ -328,9 +330,9 @@
     },
     "fields": {
       "name": "اسم الطالب",
-      "studentId": "رقم الطالب",
+      "studentId": "الرقم التعريفي",
       "birthDate": "تاريخ الميلاد",
-      "studentPhone": "رقم الطالب",
+      "studentPhone": "رقم جوال الطالب",
       "guardianPhone": "رقم ولي الأمر"
     },
     "recitation": {
@@ -475,6 +477,8 @@
     }
   },
   "toast": {
+    "copied": "تم النسخ بنجاح",
+    "copyFailed": "تعذّر النسخ — انسخ الرقم يدوياً",
     "studentAdded": "تمت إضافة الطالب بنجاح",
     "studentUpdated": "تم حفظ تعديلات الطالب بنجاح",
     "studentDeleted": "تم حذف الطالب بنجاح",

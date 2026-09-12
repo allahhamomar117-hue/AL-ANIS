@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useState } from "react";
-import { MdPerson, MdSchool, MdStars, MdEventAvailable } from "react-icons/md";
+import { MdPerson, MdSchool, MdStars, MdEventAvailable, MdContentCopy } from "react-icons/md";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { useStudent, useStudentPoints } from "../../lib/api/hooks";
@@ -11,6 +11,7 @@ import type { PointTransaction, Recitation } from "../../lib/api/types";
 import { surahName } from "../../lib/quran/surahs";
 import { EmptyState, ErrorState, LoadingState } from "../../shared/QueryState";
 import { formatDate, formatShortDate } from "../../lib/format/date";
+import { useToast } from "../../shared/toast/toastContext";
 
 type Tab = "info" | "recitation" | "attendance" | "points";
 
@@ -197,8 +198,16 @@ function InfoTab({ student }: { student: import("../../lib/api/types").Student }
       <InfoRow label={t("studentProfile.fields.name")} value={student.name} />
       <InfoRow label={t("studentProfile.fields.studentId")} value={student.code} />
       <InfoRow label={t("studentProfile.fields.birthDate")} value={student.birthDate || dash} />
-      <InfoRow label={t("studentProfile.fields.studentPhone")} value={student.studentPhone || dash} />
-      <InfoRow label={t("studentProfile.fields.guardianPhone")} value={student.parentPhone || dash} />
+      <InfoRow
+        label={t("studentProfile.fields.studentPhone")}
+        value={student.studentPhone || dash}
+        copyable={student.studentPhone}
+      />
+      <InfoRow
+        label={t("studentProfile.fields.guardianPhone")}
+        value={student.parentPhone || dash}
+        copyable={student.parentPhone}
+      />
     </div>
   );
 }
@@ -387,11 +396,56 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function InfoRow({
+  label,
+  value,
+  /**
+   * القيمة الخام التي تُنسخ — لا `value` نفسها: تلك قد تكون شرطة «—» حين
+   * لا رقم، ونسخُها يضع محرفاً لا معنى له في الحافظة. الغياب (أو الفراغ)
+   * يعني صفّاً بلا زر نسخ أصلاً.
+   */
+  copyable,
+}: {
+  label: string;
+  value: string;
+  copyable?: string | null;
+}) {
+  const { t } = useTranslation();
+  const { notify } = useToast();
+
+  const copy = async () => {
+    if (!copyable) return;
+    try {
+      await navigator.clipboard.writeText(copyable);
+    } catch {
+      /*
+       * navigator.clipboard غير معرّف خارج السياق الآمن (http على شبكة
+       * المسجد مثلاً) ويُرفض إن منع المتصفح الإذن. الفشل صامت بلا هذا:
+       * لا يُنسخ شيء ويظهر إشعار نجاح كاذب.
+       */
+      notify(t("toast.copyFailed"), "error");
+      return;
+    }
+    notify(t("toast.copied"));
+  };
+
   return (
-    <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-600 py-1">
+    <div className="flex justify-between items-center gap-2 border-b border-gray-200 dark:border-gray-600 py-1">
       <span className="text-emerald-700 dark:text-emerald-400 text-sm md:text-base">{label}</span>
-      <span className="font-medium text-sm md:text-base truncate dark:text-white">{value}</span>
+      <div className="flex items-center gap-1.5 min-w-0">
+        <span className="font-medium text-sm md:text-base truncate dark:text-white">{value}</span>
+        {copyable && (
+          <button
+            type="button"
+            onClick={() => void copy()}
+            title={t("studentProfile.copy")}
+            aria-label={t("studentProfile.copyField", { field: label })}
+            className="shrink-0 rounded-lg p-1.5 text-gray-400 transition hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-400"
+          >
+            <MdContentCopy className="text-base" />
+          </button>
+        )}
+      </div>
     </div>
   );
 }
