@@ -25,7 +25,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db, type SqlParam } from "../db/index.js";
-import { monthOf } from "../db/sqlfn.js";
+import { dayOf, monthOf } from "../db/sqlfn.js";
 import { asyncHandler, logSqlError, parse } from "../lib/http.js";
 import { departmentInput } from "../lib/schemas.js";
 import { requireStudentManager } from "../middleware/auth.js";
@@ -43,7 +43,24 @@ statisticsRouter.use(requireStudentManager);
  * غيابه أو "" يعني «كل الأقسام»، أي السلوك السابق حرفياً: بلا قيد للمدير
  * العام، وبقيد قسمه لمدير القسم.
  */
-const scopeQuery = z.object({ department: departmentInput.optional() });
+const scopeQuery = z.object({
+  department: departmentInput.optional(),
+  /*
+   * حبيبة سلسلة التسميع. غيابها = 'monthly'، أي السلوك السابق حرفياً —
+   * فالنداءات القديمة تبقى صحيحة بلا تعديل.
+   */
+  period: z.enum(["monthly", "daily"]).default("monthly"),
+});
+
+/**
+ * نافذة العرض اليومي بالأيام.
+ *
+ * الشهري يغطّي عمر المركز كلّه لأن أشهره عشرات، أمّا اليومي فأيامه آلاف:
+ * رسمها كلّها يعطي خطّاً لا يُقرأ وصفّاً لكل يوم في الرد. والقراءة
+ * المقصودة من العرض اليومي قريبة أصلاً — "كيف كان هذا الشهر؟" لا "كيف
+ * كان عام ٢٠٢٣؟"، وللثانية العرضُ الشهري.
+ */
+const DAILY_WINDOW_DAYS = 90;
 
 /** `WHERE …` أو نصّ فارغ — حتى يبقى الاستعلام غير المقيَّد كما كان حرفياً. */
 function whereOf(conds: string[]): string {
@@ -59,25 +76,49 @@ function nextMonth(month: string): string {
 }
 
 /**
- * يملأ الأشهر الخالية بين أول شهر وآخره بأصفار.
+ * اليوم التالي لـ 'YYYY-MM-DD' — لتوليد سلسلة الأيام المتصلة.
  *
- * الأشهر التي لا سجلّ فيها لا تعيدها القاعدة أصلاً، فيصل المخطّط الخطّي
- * صفر شهر آذار بصفر أيار مباشرةً — فيبدو أن نيسان لم يوجد، لا أنه كان
- * فارغاً. التسلسل الزمني يجب أن يكون متّصلاً ليقرأ الخطُّ صحيحاً.
+ * يمرّ بـ Date بالتوقيت العالمي (Date.UTC) لا بحساب يدوي: أطوال الأشهر
+ * والسنوات الكبيسة ليست مما يُعاد كتابته هنا. والتوقيت العالمي لا المحلي
+ * حتى لا يقفز اليوم أو يتكرّر عند تحوّلات التوقيت الصيفي.
  */
-function fillMonths<T extends { month: string }>(
+function nextDay(day: string): string {
+  const [year, m, d] = day.split("-").map(Number);
+  const next = new Date(Date.UTC(year, m - 1, d + 1));
+  return next.toISOString().slice(0, 10);
+}
+
+/** أول يوم في نافذة العرض اليومي، بصيغة 'YYYY-MM-DD'. */
+function windowStart(days: number): string {
+  const start = new Date();
+  start.setUTCDate(start.getUTCDate() - (days - 1));
+  return start.toISOString().slice(0, 10);
+}
+
+/**
+ * يملأ الفجوات بين أول مفتاح وآخره بأصفار.
+ *
+ * المفاتيح التي لا سجلّ فيها لا تعيدها القاعدة أصلاً، فيصل المخطّط الخطّي
+ * صفر آذار بصفر أيار مباشرةً — فيبدو أن نيسان لم يوجد، لا أنه كان
+ * فارغاً. التسلسل الزمني يجب أن يكون متّصلاً ليقرأ الخطُّ صحيحاً.
+ *
+ * و`next` معاملٌ لا شرطُ حبيبةٍ داخل الحلقة: الملء واحد للشهر واليوم،
+ * وما يختلف بينهما خطوةُ التقدّم وحدها.
+ */
+function fillGaps<T extends { bucket: string }>(
   rows: T[],
-  empty: (month: string) => T
+  next: (bucket: string) => string,
+  empty: (bucket: string) => T
 ): T[] {
   if (rows.length === 0) return [];
 
-  const byMonth = new Map(rows.map((row) => [row.month, row]));
-  const months = rows.map((r) => r.month).sort();
-  const last = months[months.length - 1];
+  const byBucket = new Map(rows.map((row) => [row.bucket, row]));
+  const buckets = rows.map((r) => r.bucket).sort();
+  const last = buckets[buckets.length - 1];
 
   const filled: T[] = [];
-  for (let m = months[0]; m <= last; m = nextMonth(m)) {
-    filled.push(byMonth.get(m) ?? empty(m));
+  for (let b = buckets[0]; b <= last; b = next(b)) {
+    filled.push(byBucket.get(b) ?? empty(b));
   }
   return filled;
 }
@@ -95,7 +136,7 @@ statisticsRouter.get(
        * الفلتر يُطوى في المستخدم قبل بناء أي قيد، فتَرِثه التجميعات الستّ
        * كلّها دون أن يُذكر القسم في استعلام واحد منها.
        */
-      const { department } = parse(scopeQuery, req.query);
+      const { department, period } = parse(scopeQuery, req.query);
       const user = viewAsDepartment(req.user!, department);
 
       /*
@@ -170,19 +211,41 @@ statisticsRouter.get(
         halaqaParams
       );
 
-      // ── التسميع الشهري ────────────────────────────────────────────
-      const monthlyRows = await db().all<{
-        month: string;
+      // ── سلسلة التسميع: شهرية أو يومية ─────────────────────────────
+      /*
+       * الحبيبة تبدّل تعبيرَ التجميع وحده؛ الصفحات والعدد والنطاق تبقى
+       * كما هي، فلا يتفرّع الاستعلام إلى نسختين تتباعدان مع الوقت.
+       */
+      const daily = period === "daily";
+      const bucketExpr = daily ? dayOf("r.recited_at") : monthOf("r.recited_at");
+
+      /*
+       * النافذة تُقصّ في القاعدة لا بعد الجلب: قصّها في جافاسكربت يعني
+       * قراءة كل تلاوات المركز لرمي أقدمها.
+       *
+       * والمقارنة نصّية على recited_at مباشرةً لا على bucketExpr: العمود
+       * مفهرس وصيغته 'YYYY-MM-DD' مرتّبة معجمياً كترتيبها الزمني، أما
+       * المقارنة على التعبير فتُبطل الفهرس.
+       */
+      const seriesWhere = [...recitWhere];
+      const seriesParams = [...recitParams];
+      if (daily) {
+        seriesWhere.push("r.recited_at >= ?");
+        seriesParams.push(windowStart(DAILY_WINDOW_DAYS));
+      }
+
+      const seriesRows = await db().all<{
+        bucket: string;
         pages: number;
         count: number;
       }>(
-        `SELECT ${monthOf("r.recited_at")} AS month,
+        `SELECT ${bucketExpr} AS bucket,
                 ROUND(CAST(SUM(${recitationPagesExpr()}) AS numeric), 2) AS pages,
                 COUNT(*) AS count
-         FROM recitations r ${whereOf(recitWhere)}
-         GROUP BY ${monthOf("r.recited_at")}
-         ORDER BY month`,
-        recitParams
+         FROM recitations r ${whereOf(seriesWhere)}
+         GROUP BY ${bucketExpr}
+         ORDER BY bucket`,
+        seriesParams
       );
 
       // ── الأوقاف شهرياً وسنوياً ────────────────────────────────────
@@ -240,14 +303,23 @@ statisticsRouter.get(
             students: Number(studentsRow?.students ?? 0),
             halaqat: Number(halaqatRow?.halaqat ?? 0),
           },
-          monthlyRecitation: fillMonths(
-            monthlyRows.map((row) => ({
-              month: row.month,
-              pages: Number(row.pages),
-              count: Number(row.count),
-            })),
-            (month) => ({ month, pages: 0, count: 0 })
-          ),
+          /*
+           * الحبيبة تُعاد مع السلسلة لا تُستنتج من طول المفتاح: الواجهة
+           * تصوغ المحور والعنوان عليها، ورقّة «هل المفتاح عشرة محارف؟»
+           * عقدٌ ضمنيّ ينكسر بصمت.
+           */
+          recitationSeries: {
+            period,
+            points: fillGaps(
+              seriesRows.map((row) => ({
+                bucket: row.bucket,
+                pages: Number(row.pages),
+                count: Number(row.count),
+              })),
+              daily ? nextDay : nextMonth,
+              (bucket) => ({ bucket, pages: 0, count: 0 })
+            ),
+          },
           /*
            * أشهر الأوقاف لا تُملأ بالأصفار خلافاً للتسميع.
            *

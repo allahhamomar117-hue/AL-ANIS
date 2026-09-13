@@ -434,15 +434,22 @@ function InfoRow({
       <span className="text-emerald-700 dark:text-emerald-400 text-sm md:text-base">{label}</span>
       <div className="flex items-center gap-1.5 min-w-0">
         <span className="font-medium text-sm md:text-base truncate dark:text-white">{value}</span>
+        {/*
+          زرّ ظاهر بخلفية ولون ونصّ، لا أيقونة رمادية باهتة تتكشّف عند
+          التمرير: الصفحة تُستعمل على الهاتف أكثر مما تُستعمل على الحاسوب،
+          ولا تمرير هناك يكشف ما اختبأ.
+        */}
         {copyable && (
           <button
             type="button"
             onClick={() => void copy()}
             title={t("studentProfile.copy")}
             aria-label={t("studentProfile.copyField", { field: label })}
-            className="shrink-0 rounded-lg p-1.5 text-gray-400 transition hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-400"
+            className="shrink-0 flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1.5 text-emerald-700 transition
+              hover:bg-emerald-100 active:scale-95 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50"
           >
             <MdContentCopy className="text-base" />
+            <span className="text-xs font-bold">{t("studentProfile.copy")}</span>
           </button>
         )}
       </div>

@@ -22,6 +22,7 @@ import type {
   Rating,
   Recitation,
   RecitationType,
+  RecitationPeriod,
   Role,
   StaffUser,
   StatisticsDashboard,
@@ -374,8 +375,9 @@ export const statisticsApi = {
    * `department` فلتر عرضٍ للمدير العام وحده؛ الخادم يتجاهله لمدير القسم
    * فيبقى مقيَّداً بقسمه. `undefined` = كل الأقسام.
    */
-  dashboard: (department?: Department | null) =>
+  dashboard: (department?: Department | null, period?: RecitationPeriod) =>
     api.get<{ data: StatisticsDashboard }>("/statistics/dashboard", {
       department: department ?? undefined,
+      period,
     }),
 };

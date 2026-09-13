@@ -8,6 +8,7 @@ import { qk } from "./queryKeys";
 import type {
   AwqafStatus,
   Department,
+  RecitationPeriod,
   Halaqa,
   HalaqaStudent,
   Role,
@@ -389,10 +390,14 @@ export function useDeleteAwqafRecord() {
  * تجميعات الإحصاءات الشاملة. المسار محصور بالمدير على الخادم، فيُعطَّل
  * الاستعلام لغيره بدل إرسال طلب يُردّ بـ403 (نفس نهج useStaff).
  */
-export function useStatistics(department?: Department | null, enabled = true) {
+export function useStatistics(
+  department?: Department | null,
+  period: RecitationPeriod = "monthly",
+  enabled = true
+) {
   return useQuery({
-    queryKey: qk.statistics.dashboard(department),
-    queryFn: () => statisticsApi.dashboard(department),
+    queryKey: qk.statistics.dashboard(department, period),
+    queryFn: () => statisticsApi.dashboard(department, period),
     select: (res) => res.data,
     enabled,
   });

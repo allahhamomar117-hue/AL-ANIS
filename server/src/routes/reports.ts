@@ -223,9 +223,20 @@ reportsRouter.get(
             [date, ...sessionScope.params]
           );
 
-          const recScope = await scopeOn("halaqa_id");
-          const recitationsToday = await db().get<{ n: number }>(
-            `SELECT COUNT(*) AS n FROM recitations WHERE recited_at = ?${recScope.clause}`,
+          /*
+           * مجموع الصفحات لا عدد السجلّات: السجلّ الواحد قد يكون نصف صفحة
+           * أو سورة أو عدّة صفحات، فعدُّ السجلّات يقيس نشاط التسجيل لا
+           * مقدار المحفوظ — وكان الكرت يقول «8 تسميع» بينما تقول صفحة
+           * الإحصاءات «11 صفحة» عن اليوم نفسه.
+           *
+           * والتعبير هو recitationPagesExpr نفسه الذي تستعمله الإحصاءات
+           * ولوحة الصدارة، لا نسخة منه: رقمان يُفترض تطابقهما لا يجوز أن
+           * يُحسبا بتعبيرين. وهو يستعمل البادئة r. فالجدول يُسمّى هنا.
+           */
+          const recScope = await scopeOn("r.halaqa_id");
+          const recitationsToday = await db().get<{ pages: number | null }>(
+            `SELECT ROUND(CAST(COALESCE(SUM(${recitationPagesExpr()}), 0) AS numeric), 2) AS pages
+             FROM recitations r WHERE r.recited_at = ?${recScope.clause}`,
             [date, ...recScope.params]
           );
           const attendanceTotal = todayAttendance?.total ?? 0;
@@ -239,7 +250,8 @@ reportsRouter.get(
               ? Math.round((attendancePresent / attendanceTotal) * 100)
               : 0,
             presentToday: attendancePresent,
-            recitationsToday: recitationsToday?.n ?? 0,
+            /** مجموع صفحات اليوم — قد يكون كسرياً (نصف صفحة = 0.5). */
+            recitationPagesToday: Number(recitationsToday?.pages ?? 0),
           };
         })();
 

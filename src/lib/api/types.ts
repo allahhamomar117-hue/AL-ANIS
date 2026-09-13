@@ -199,7 +199,8 @@ export interface DashboardStats {
   halaqatRecordedToday?: number;
   attendanceRate?: number;
   presentToday?: number;
-  recitationsToday?: number;
+  /** مجموع صفحات اليوم لا عدد سجلّات التسميع؛ قد يكون كسرياً (نصف صفحة = 0.5). */
+  recitationPagesToday?: number;
   /** آخر النشاطات: متابعة تشغيلية، تصل لكل الأدوار ضمن نطاقها. */
   recentActivity: { kind: string; student: string; at: string; detail: string }[];
 }
@@ -280,8 +281,12 @@ export interface AwqafRecord {
 /* ==================== لوحة الإحصاءات ==================== */
 
 /** نقطة في السلسلة الشهرية للتسميع. الشهر بصيغة YYYY-MM. */
-export interface MonthlyRecitationPoint {
-  month: string;
+/** حبيبة سلسلة التسميع في صفحة الإحصاءات. */
+export type RecitationPeriod = "monthly" | "daily";
+
+export interface RecitationPoint {
+  /** 'YYYY-MM' في العرض الشهري و'YYYY-MM-DD' في اليومي. */
+  bucket: string;
   /** الصفحات محسوبة بأوزان جزء عمّ ونصف الصفحة — نفس قاعدة لوحة الصدارة. */
   pages: number;
   count: number;
@@ -306,8 +311,15 @@ export interface StatisticsDashboard {
     students: number;
     halaqat: number;
   };
-  /** متّصلة زمنياً: الأشهر الخالية تصل بأصفار فلا ينقطع الخطّ. */
-  monthlyRecitation: MonthlyRecitationPoint[];
+  /**
+   * سلسلة التسميع بالحبيبة المطلوبة، متّصلة زمنياً: الفجوات تُملأ بأصفار
+   * فلا ينقطع الخطّ. الحبيبة يعيدها الخادم فلا تُستنتج من شكل المفتاح،
+   * واليومي محصور بنافذة الأيام الأخيرة.
+   */
+  recitationSeries: {
+    period: RecitationPeriod;
+    points: RecitationPoint[];
+  };
   awqafStats: {
     /** أشهر السبر المسجّلة فقط — لا تُملأ الفجوات (السبر واقعة متقطّعة). */
     byMonth: (AwqafPeriodStats & { month: string })[];

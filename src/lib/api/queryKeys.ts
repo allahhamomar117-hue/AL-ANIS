@@ -37,8 +37,10 @@ export const qk = {
     all: ["statistics"] as const,
     // القسم جزء من المفتاح: تبديل الفلتر استعلامٌ آخر لا إبطالٌ للأول،
     // فتبقى نتيجة «كل الأقسام» في المخزن عند العودة إليها.
-    dashboard: (department?: string | null) =>
-      ["statistics", "dashboard", department ?? null] as const,
+    // والحبيبة كذلك: الشهري واليومي ردّان مختلفان من الخادم لا عرضان
+    // لنفس الرد، فيبقى كل منهما في المخزن عند التبديل بينهما.
+    dashboard: (department?: string | null, period?: string) =>
+      ["statistics", "dashboard", department ?? null, period ?? "monthly"] as const,
   },
   awqaf: {
     all: ["awqaf"] as const,

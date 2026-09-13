@@ -87,3 +87,20 @@ export function monthOf(expr: string): string {
     ? `to_char(${dateOf(expr)}, 'YYYY-MM')`
     : `strftime('%Y-%m', ${expr})`;
 }
+
+/**
+ * اليوم من تاريخ بصيغة 'YYYY-MM-DD' — للتجميع اليومي في الإحصاءات.
+ *   SQLite   : strftime('%Y-%m-%d', expr)
+ *   Postgres : to_char(expr::date, 'YYYY-MM-DD')
+ *
+ * التحويل الصريح إلى date لنفس سبب monthOf حرفياً: recited_at جاء نصّاً
+ * في قاعدة الإنتاج، و to_char لا تقبل نصّاً معاملاً أوّل.
+ *
+ * والنتيجة نصّ لا date: مفتاحُ تجميعٍ يُقارَن ويُرتَّب ويصل الواجهةَ
+ * بنفس شكل month، فيتعامل معهما المخطّط كسلسلة واحدة تتبدّل حبيبتها.
+ */
+export function dayOf(expr: string): string {
+  return db().dialect === "postgres"
+    ? `to_char(${dateOf(expr)}, 'YYYY-MM-DD')`
+    : `strftime('%Y-%m-%d', ${expr})`;
+}

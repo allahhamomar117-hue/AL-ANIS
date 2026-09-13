@@ -23,8 +23,12 @@ import {
 import { useAuth } from "../../context/authContext";
 import { useStatistics } from "../../lib/api/hooks";
 import { DEPARTMENTS } from "../../lib/api/types";
-import type { Department, StatisticsDashboard as Stats } from "../../lib/api/types";
-import { formatMonth } from "../../lib/format/date";
+import type {
+  Department,
+  RecitationPeriod,
+  StatisticsDashboard as Stats,
+} from "../../lib/api/types";
+import { formatMonth, formatShortDate } from "../../lib/format/date";
 import { EmptyState, ErrorState, LoadingState } from "../../shared/QueryState";
 
 /**
@@ -47,7 +51,14 @@ export default function StatisticsDashboard() {
   const [department, setDepartment] = useState<Department | null>(null);
   const active = isSuperAdmin ? department : null;
 
-  const stats = useStatistics(active);
+  /*
+   * حبيبة مخطّط التسميع حالةُ الصفحة لا حالةُ المخطّط، خلافاً لحبيبة
+   * الأوقاف: تلك تبدّل بين فرعين وصلا في الرد نفسه، وهذه تطلب من الخادم
+   * تجميعاً آخر — فلو سكنت داخل المخطّط لاحتاج الجلبَ بنفسه.
+   */
+  const [period, setPeriod] = useState<RecitationPeriod>("monthly");
+
+  const stats = useStatistics(active, period);
 
   return (
     <div
@@ -74,7 +85,7 @@ export default function StatisticsDashboard() {
         ) : stats.isError ? (
           <ErrorState error={stats.error} onRetry={() => void stats.refetch()} />
         ) : (
-          <StatisticsContent data={stats.data!} />
+          <StatisticsContent data={stats.data!} period={period} onPeriodChange={setPeriod} />
         )}
       </div>
     </div>
@@ -130,7 +141,15 @@ function DepartmentTabs({
   );
 }
 
-function StatisticsContent({ data }: { data: Stats }) {
+function StatisticsContent({
+  data,
+  period,
+  onPeriodChange,
+}: {
+  data: Stats;
+  period: RecitationPeriod;
+  onPeriodChange: (period: RecitationPeriod) => void;
+}) {
   const { t } = useTranslation();
   const { totals } = data;
 
@@ -164,7 +183,11 @@ function StatisticsContent({ data }: { data: Stats }) {
         />
       </div>
 
-      <RecitationChart points={data.monthlyRecitation} />
+      <RecitationChart
+        series={data.recitationSeries}
+        period={period}
+        onPeriodChange={onPeriodChange}
+      />
       <AwqafChart stats={data.awqafStats} />
     </>
   );
@@ -238,35 +261,87 @@ function ChartPanel({
 const AXIS_TICK = { fill: "var(--chart-axis)", fontSize: 12 };
 
 /**
- * معدّل التسميع الشهري — سلسلة واحدة، فلا صندوق دلالات (legend):
- * العنوان يسمّي المرسوم، وصندوقٌ بمربّع واحد يكرّره ويأكل المساحة.
+ * مفتاح السلسلة معروضاً على المحور.
+ *
+ * اليومي يُختصر إلى يوم/شهر لا سنة/شهر/يوم: تسعون علامةً كاملةً على محورٍ
+ * واحد تتراكب فلا تُقرأ، والسنة واحدة في نافذةٍ طولها ثلاثة أشهر فذكرها
+ * في كل علامة تكرار. والتفصيل الكامل يبقى في التلميح.
+ *
+ * والقصّ نصّي لا عبر Date: المفتاح 'YYYY-MM-DD' يومٌ تقويميّ لا لحظة،
+ * وتمريره بـ Date يُدخل المناطق الزمنية في رقمٍ لا شأن لها به.
  */
-function RecitationChart({ points }: { points: Stats["monthlyRecitation"] }) {
+function formatBucket(bucket: string, period: RecitationPeriod): string {
+  if (period === "monthly") return formatMonth(bucket);
+  const match = /^\d{4}-(\d{2})-(\d{2})$/.exec(bucket);
+  return match ? `${match[2]}/${match[1]}` : bucket;
+}
+
+/**
+ * معدّل التسميع — سلسلة واحدة، فلا صندوق دلالات (legend): العنوان يسمّي
+ * المرسوم، وصندوقٌ بمربّع واحد يكرّره ويأكل المساحة.
+ *
+ * والحبيبة تأتي من الأعلى لا من حالةٍ هنا: تبديلها يعيد الجلب (راجع
+ * StatisticsDashboard)، فالمخطّط يعرض ما وصل ويطلب التبديل وحسب.
+ */
+function RecitationChart({
+  series,
+  period,
+  onPeriodChange,
+}: {
+  series: Stats["recitationSeries"];
+  period: RecitationPeriod;
+  onPeriodChange: (period: RecitationPeriod) => void;
+}) {
   const { t } = useTranslation();
 
-  if (points.length === 0) {
+  /*
+   * العنوان والشرح يتبعان الحبيبة الواصلة مع البيانات لا الحبيبةَ
+   * المختارة: بينهما جلبٌ جارٍ، ولو تبع العنوانُ الاختيارَ لقال "اليومي"
+   * فوق نقاطٍ شهرية حتى يصل الرد.
+   */
+  const shown = series.period;
+
+  const toggle = (
+    <div className="flex shrink-0 gap-1 rounded-xl bg-gray-100 p-1 dark:bg-dark-light">
+      {(["monthly", "daily"] as const).map((option) => (
+        <button
+          key={option}
+          onClick={() => onPeriodChange(option)}
+          className={`rounded-lg px-3 py-1.5 text-sm font-bold transition ${
+            period === option
+              ? "bg-white text-gray-800 shadow dark:bg-dark dark:text-white"
+              : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
+          }`}
+        >
+          {t(`statistics.period.${option}`)}
+        </button>
+      ))}
+    </div>
+  );
+
+  const title = t(`statistics.recitationChart.title.${shown}`);
+  const subtitle = t(`statistics.recitationChart.subtitle.${shown}`);
+
+  if (series.points.length === 0) {
     return (
-      <ChartPanel
-        title={t("statistics.recitationChart.title")}
-        subtitle={t("statistics.recitationChart.subtitle")}
-      >
+      <ChartPanel title={title} subtitle={subtitle} action={toggle}>
         <EmptyState message={t("statistics.noRecitations")} icon="📖" />
       </ChartPanel>
     );
   }
 
   return (
-    <ChartPanel
-      title={t("statistics.recitationChart.title")}
-      subtitle={t("statistics.recitationChart.subtitle")}
-    >
+    <ChartPanel title={title} subtitle={subtitle} action={toggle}>
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={points} margin={{ top: 8, right: 16, bottom: 4, left: 0 }}>
+        <LineChart
+          data={series.points}
+          margin={{ top: 8, right: 16, bottom: 4, left: 0 }}
+        >
           {/* شبكة أفقية فقط وبخطّ شعري متّصل: مرجعٌ للقيم لا زخرفة */}
           <CartesianGrid stroke="var(--chart-grid)" strokeWidth={1} vertical={false} />
           <XAxis
-            dataKey="month"
-            tickFormatter={formatMonth}
+            dataKey="bucket"
+            tickFormatter={(bucket: string) => formatBucket(bucket, shown)}
             tick={AXIS_TICK}
             tickLine={false}
             axisLine={{ stroke: "var(--chart-grid)" }}
@@ -280,13 +355,17 @@ function RecitationChart({ points }: { points: Stats["monthlyRecitation"] }) {
             tickFormatter={formatNumber}
           />
           <Tooltip
-            content={<RecitationTooltip />}
+            content={<RecitationTooltip period={shown} />}
             cursor={{ stroke: "var(--chart-axis)", strokeWidth: 1 }}
           />
           {/*
            * خطّ 2px ونقاط نصف قطرها 4 (‏8px) بحلقة بلون السطح — الحلقة
            * جزء من هدف التأشير لا مجرّد فراغ، فتبقى النقطة قابلة
            * للإمساك حيث تتقاطع مع الخطّ.
+           *
+           * والنقاط تُطفأ في العرض اليومي: تسعون نقطةً متلاصقة تصير
+           * شريطاً سميكاً يُخفي الخطّ الذي جاءت لتؤكّده. وactiveDot باقٍ،
+           * فتظهر نقطة ما يُؤشَّر عليه وحدها.
            */}
           <Line
             type="monotone"
@@ -295,12 +374,16 @@ function RecitationChart({ points }: { points: Stats["monthlyRecitation"] }) {
             strokeWidth={2}
             strokeLinecap="round"
             strokeLinejoin="round"
-            dot={{
-              r: 4,
-              fill: "var(--chart-recitation)",
-              stroke: "var(--chart-surface)",
-              strokeWidth: 2,
-            }}
+            dot={
+              shown === "daily"
+                ? false
+                : {
+                  r: 4,
+                  fill: "var(--chart-recitation)",
+                  stroke: "var(--chart-surface)",
+                  strokeWidth: 2,
+                }
+            }
             activeDot={{
               r: 6,
               fill: "var(--chart-recitation)",
@@ -441,14 +524,21 @@ function TooltipBox({ title, rows }: { title: string; rows: [string, string][] }
   );
 }
 
-function RecitationTooltip({ active, payload }: TooltipProps) {
+function RecitationTooltip({
+  active,
+  payload,
+  period = "monthly",
+}: TooltipProps & { period?: RecitationPeriod }) {
   const { t } = useTranslation();
   if (!active || !payload?.length) return null;
 
-  const row = payload[0].payload as { month: string; pages: number; count: number };
+  const row = payload[0].payload as { bucket: string; pages: number; count: number };
+  // التلميح يحمل التاريخ كاملاً وإن اختُصر على المحور: هنا متّسع لسطر
   return (
     <TooltipBox
-      title={formatMonth(row.month)}
+      title={
+        period === "daily" ? formatShortDate(row.bucket) : formatMonth(row.bucket)
+      }
       rows={[
         [t("statistics.recitationChart.pages"), formatNumber(row.pages)],
         [t("statistics.recitationChart.count"), formatNumber(row.count)],

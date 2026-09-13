@@ -56,7 +56,7 @@ export default function Dashboard() {
           />
           <StatCard
             title={t("dashboard.stats.recitations.title")}
-            value={`${data.recitationsToday ?? 0} ${t("dashboard.stats.recitations.unit")}`}
+            value={`${data.recitationPagesToday ?? 0} ${t("dashboard.stats.recitations.unit")}`}
             note={t("dashboard.stats.recitations.note")}
             icon={<FaStar size={24} />}
           />

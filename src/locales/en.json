@@ -37,9 +37,9 @@
         "unit": "students"
       },
       "recitations": {
-        "title": "Recitations today",
-        "note": "recorded today",
-        "unit": "recitations"
+        "title": "Pages today",
+        "note": "total recited today",
+        "unit": "pages"
       }
     },
     "recentActivities": {
@@ -216,8 +216,8 @@
     "allStudents": "All Students",
     "studentName": "Student Name",
     "actions": "Actions",
-    "studentNumber": "Identifier •",
-    "searchPlaceholder": "Search by name or identifier",
+    "studentNumber": "Serial no •",
+    "searchPlaceholder": "Search by name or serial number",
     "noStudents": "No students in this halaqa",
     "total": "Total",
     "points": "Points",
@@ -314,7 +314,7 @@
   "studentProfile": {
     "copy": "Copy",
     "copyField": "Copy {{field}}",
-    "studentId": "Identifier",
+    "studentId": "Serial number",
     "points": "Points",
     "attendance": "Attendance",
     "halaqa": "Halaqa",
@@ -327,7 +327,7 @@
     },
     "fields": {
       "name": "Student Name",
-      "studentId": "Identifier",
+      "studentId": "Serial number",
       "birthDate": "Birth Date",
       "studentPhone": "Student mobile",
       "guardianPhone": "Guardian Phone"
@@ -684,8 +684,14 @@
       "studentsHint": "across {{count}} halaqat"
     },
     "recitationChart": {
-      "title": "Monthly recitation rate",
-      "subtitle": "Total pages recited each month",
+      "title": {
+        "monthly": "Monthly recitation rate",
+        "daily": "Daily recitation rate"
+      },
+      "subtitle": {
+        "monthly": "Total pages recited each month",
+        "daily": "Total pages recited each day over the last 90 days"
+      },
       "pages": "Pages",
       "count": "Recitations"
     },
@@ -697,6 +703,10 @@
     "grain": {
       "month": "Monthly",
       "year": "Yearly"
+    },
+    "period": {
+      "monthly": "Monthly",
+      "daily": "Daily"
     },
     "noRecitations": "No recitations recorded yet",
     "noAwqaf": "No exam records yet"

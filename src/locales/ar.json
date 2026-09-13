@@ -36,9 +36,9 @@
         "unit": "طالب"
       },
       "recitations": {
-        "title": "تسميع اليوم",
-        "note": "سجّل اليوم",
-        "unit": "تسميع"
+        "title": "صفحات اليوم",
+        "note": "مجموع ما سُمّع اليوم",
+        "unit": "صفحة"
       }
     },
     "recentActivities": {
@@ -219,8 +219,8 @@
     "allStudents": "كل الطلاب",
     "studentName": "اسم الطالب",
     "actions": "إجراءات",
-    "studentNumber": "الرقم التعريفي •",
-    "searchPlaceholder": "ابحث بالاسم أو الرقم التعريفي",
+    "studentNumber": "الرقم التسلسلي •",
+    "searchPlaceholder": "ابحث بالاسم أو الرقم التسلسلي",
     "noStudents": "لا يوجد طلاب في هذه الحلقة",
     "total": "الإجمالي",
     "points": "النقاط",
@@ -317,7 +317,7 @@
   "studentProfile": {
     "copy": "نسخ",
     "copyField": "نسخ {{field}}",
-    "studentId": "الرقم التعريفي",
+    "studentId": "الرقم التسلسلي",
     "points": "النقاط",
     "attendance": "نسبة الحضور",
     "halaqa": "الحلقة",
@@ -330,7 +330,7 @@
     },
     "fields": {
       "name": "اسم الطالب",
-      "studentId": "الرقم التعريفي",
+      "studentId": "الرقم التسلسلي",
       "birthDate": "تاريخ الميلاد",
       "studentPhone": "رقم جوال الطالب",
       "guardianPhone": "رقم ولي الأمر"
@@ -694,8 +694,14 @@
       "studentsHint": "موزّعون على {{count}} حلقة"
     },
     "recitationChart": {
-      "title": "معدّل التسميع الشهري",
-      "subtitle": "مجموع الصفحات المُسمّعة في كل شهر",
+      "title": {
+        "monthly": "معدّل التسميع الشهري",
+        "daily": "معدّل التسميع اليومي"
+      },
+      "subtitle": {
+        "monthly": "مجموع الصفحات المُسمّعة في كل شهر",
+        "daily": "مجموع الصفحات المُسمّعة في كل يوم خلال آخر ٩٠ يوماً"
+      },
       "pages": "الصفحات",
       "count": "عدد التلاوات"
     },
@@ -707,6 +713,10 @@
     "grain": {
       "month": "شهرياً",
       "year": "سنوياً"
+    },
+    "period": {
+      "monthly": "شهرياً",
+      "daily": "يومياً"
     },
     "noRecitations": "لا توجد تلاوات مسجّلة بعد",
     "noAwqaf": "لا توجد سجلّات سبر بعد"
