@@ -188,6 +188,28 @@ export interface AssignmentStudent {
   completedId: number | null;
 }
 
+/**
+ * سجلّ مقرَّر ليوم مضى، بمنجِزيه — تغذّي صفحة "سجل المقرَّرات".
+ *
+ * `students` هنا المنجِزون وحدهم، خلافاً لـ AssignmentSheet التي تحمل
+ * طلاب الحلقة كلّهم: تلك ورقةُ تسجيلٍ تحتاج غير المنجِز ليُؤشَّر عليه،
+ * وهذه عرضُ ما جرى.
+ */
+export interface AssignmentRecord {
+  id: number;
+  halaqaId: number;
+  halaqa: string;
+  title: string;
+  date: string;
+  students: {
+    id: number;
+    studentId: number;
+    name: string;
+    code: string;
+    avatarUrl: string | null;
+  }[];
+}
+
 export interface Recitation {
   id: number;
   studentId: number;

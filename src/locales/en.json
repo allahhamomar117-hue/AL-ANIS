@@ -726,7 +726,8 @@
   "assignmentGroups": {
     "title": "Assignments",
     "subtitle": "Choose a halaqa to record today's assignment and completions",
-    "empty": "No intensive-department halaqat in your scope"
+    "empty": "No intensive-department halaqat in your scope",
+    "recordButton": "Assignment records"
   },
   "assignmentsPage": {
     "navTitle": "Assignments",
@@ -736,14 +737,28 @@
     "date": "Date",
     "titleLabel": "Today's assignment title",
     "titlePlaceholder": "e.g. Memorize page 12, or revise Juz Amma",
-    "saveTitle": "Save assignment",
     "saved": "Assignment saved successfully",
-    "titleRequired": "Write and save the assignment title first to record student completions",
+    "titleRequired": "Write the assignment title first to enable saving",
     "pointsNotice": "Each completion awards {{points}} points automatically, deducted if undone",
     "recordedNotice": "Today's assignment already exists — saving updates its title",
     "studentsList": "Students",
     "done": "Done",
     "notDone": "Not yet",
-    "notice": "Each completion is saved the moment you tap the switch — no extra save needed"
+    "notice": "On save, points are granted to those added and withdrawn from those removed",
+    "save": "Save assignments",
+    "saving": "Saving…",
+    "markAll": "Mark all",
+    "clearAll": "Clear all"
+  },
+  "assignmentsRecords": {
+    "title": "Assignment records",
+    "selectHalaqa": "All halaqat",
+    "date": "Date",
+    "edit": "Edit",
+    "noRecords": "No assignments recorded yet",
+    "noCompletions": "Nobody completed the assignment that day",
+    "deleted": "Assignment record deleted and points reverted",
+    "confirmDeleteTitle": "Delete assignment record?",
+    "confirmDelete": "The assignment for {{date}} will be permanently deleted and its points withdrawn from every student who completed it."
   }
 }

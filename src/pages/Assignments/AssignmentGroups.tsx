@@ -35,13 +35,23 @@ export default function AssignmentGroups() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-dark-light px-4 sm:px-8 py-6 pt-20 md:pt-24 rtl transition-colors duration-300">
-      <div className="mb-6">
-        <h1 className="mb-1 text-2xl font-bold text-gray-800 dark:text-white sm:text-3xl">
-          {t("assignmentGroups.title")}
-        </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-300 sm:text-base">
-          {t("assignmentGroups.subtitle")}
-        </p>
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="mb-1 text-2xl font-bold text-gray-800 dark:text-white sm:text-3xl">
+            {t("assignmentGroups.title")}
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-300 sm:text-base">
+            {t("assignmentGroups.subtitle")}
+          </p>
+        </div>
+
+        <button
+          onClick={() => navigate("assignments-record")}
+          className="inline-flex w-full cursor-pointer items-center justify-center rounded-lg bg-primary
+            px-4 py-2 text-sm text-white shadow transition hover:bg-primary-dark sm:w-auto sm:text-base"
+        >
+          <span className="text-base">{t("assignmentGroups.recordButton")}</span>
+        </button>
       </div>
 
       {isLoading ? (

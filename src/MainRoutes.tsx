@@ -5,6 +5,7 @@ import AttendancePage from "./pages/Attendance/AttendancePage";
 import AttendanceGroups from "./pages/Attendance/AttendanceGroups";
 import AssignmentGroups from "./pages/Assignments/AssignmentGroups";
 import AssignmentsPage from "./pages/Assignments/AssignmentsPage";
+import AssignmentsRecords from "./pages/Assignments/AssignmentsRecords";
 import RecitationGroups from "./pages/Recitation/RecitationGroups";
 import Reports from "./pages/Reports/Reports";
 import RecitationPage from "./pages/Recitation/RecitationPage";
@@ -57,6 +58,9 @@ const MainRoutes = () => {
             (assertIntensiveHalaqa)؛ وصفحة الاختيار لا تعرض إلا حلقات
             المكثفة فلا يبلغ المستخدمُ حلقةً تُردّ عنه. */}
         <Route path="assignments-groups" element={<AssignmentGroups />} />
+        {/* السجلّ قبل :id — وإلا ابتلعه المسار المتغيّر فصار "assignments-record"
+            معرّفَ حلقة (NaN) وفُتحت ورقةٌ فارغة بدل الصفحة. */}
+        <Route path="assignments-groups/assignments-record" element={<AssignmentsRecords />} />
         <Route path="assignments-groups/:id" element={<AssignmentsPage />} />
 
         <Route path="recitation-groups" element={<RecitationGroups />} />

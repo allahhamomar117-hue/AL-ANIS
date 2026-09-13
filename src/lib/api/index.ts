@@ -4,8 +4,8 @@
  */
 import { api, setToken } from "./client";
 import type {
+  AssignmentRecord,
   AssignmentSheet,
-  AssignmentStudent,
   AttendanceSession,
   AwqafRecord,
   AwqafStatus,
@@ -229,33 +229,31 @@ export const attendanceApi = {
 /**
  * مسارات المقرَّرات — لحلقات المكثفة وحدها (الخادم يردّ 403 لغيرها).
  *
- * التسجيل والتراجع نداءان منفصلان لا نداء واحد بحالة: وجود صفّ الإنجاز
- * هو الحالة، فالتراجع حذفٌ لا تحديث. وهذا ما يجعل النقاط تُسحب كاملة بلا
- * حركة مقابلة تبقى في سجلّ الطالب.
+ * `save` هو طريق الكتابة الوحيد، ويحمل الورقة كاملة: العنوان وقائمة
+ * المنجِزين النهائية. من غاب عن القائمة يُسحب إنجازه ونقاطه في الخادم،
+ * فهي حالةٌ مطلوبة لا إضافةٌ على القائم — تماماً كحفظ الحضور.
  */
 export const assignmentsApi = {
   /** ورقة مقرَّر اليوم: عنوانه وطلاب الحلقة بحالة إنجاز كلٍّ منهم. */
   sheet: (halaqaId: number, date?: string) =>
     api.get<{ data: AssignmentSheet }>(`/assignments/halaqat/${halaqaId}`, { date }),
 
-  /** ينشئ مقرَّر اليوم أو يحدّث عنوانه — آمن للتكرار (مقرَّر واحد لليوم). */
-  save: (body: { halaqaId: number; title: string; date?: string }) =>
-    api.post<{ data: { id: number; halaqaId: number; title: string; date: string } }>(
-      "/assignments",
-      body
-    ),
+  /** حفظ الورقة كاملة — آمن للتكرار (مقرَّر واحد لكل حلقة في اليوم). */
+  save: (body: { halaqaId: number; title: string; date?: string; students: number[] }) =>
+    api.post<{ data: AssignmentRecord }>("/assignments", body),
 
-  /** تسجيل إنجاز طالب — يمنحه النقاط الثابتة. */
-  complete: (assignmentId: number, studentId: number) =>
-    api.post<{ data: AssignmentStudent[] }>(
-      `/assignments/${assignmentId}/students/${studentId}`
-    ),
+  /** سجلّ المقرَّرات السابقة مع منجِزي كلٍّ منها. */
+  list: (params?: {
+    halaqaId?: number;
+    from?: string;
+    to?: string;
+    limit?: number;
+    offset?: number;
+  }) => api.get<{ data: AssignmentRecord[] }>("/assignments", params),
 
-  /** التراجع عن الإنجاز — يسحب النقاط. */
-  uncomplete: (assignmentId: number, studentId: number) =>
-    api.delete<void>(`/assignments/${assignmentId}/students/${studentId}`),
+  record: (id: number) => api.get<{ data: AssignmentRecord }>(`/assignments/${id}`),
 
-  /** حذف مقرَّر اليوم كاملاً وإعادة نقاط كل من أنجزه. */
+  /** حذف سجلّ يوم كامل وإعادة نقاط كل من أنجزه. */
   remove: (assignmentId: number) => api.delete<void>(`/assignments/${assignmentId}`),
 };
 
