@@ -734,7 +734,7 @@
     "title": "Record Assignments",
     "back": "Back to halaqat",
     "titleLabel": "Today's assignment title",
-    "titlePlaceholder": "e.g. Memorize page 12, or revise Juz Amma",
+    "titlePlaceholder": "Example: Preparation from page 15 to 20",
     "saved": "Assignment saved successfully",
     "titleRequired": "Write the assignment title first to enable saving",
     "recordedNotice": "Today's assignment already exists — saving updates its title",
