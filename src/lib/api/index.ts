@@ -4,6 +4,8 @@
  */
 import { api, setToken } from "./client";
 import type {
+  AssignmentSheet,
+  AssignmentStudent,
   AttendanceSession,
   AwqafRecord,
   AwqafStatus,
@@ -220,6 +222,41 @@ export const attendanceApi = {
     api.delete<void>(`/attendance/sessions/${sessionId}/students/${studentId}`),
 
   removeSession: (sessionId: number) => api.delete<void>(`/attendance/sessions/${sessionId}`),
+};
+
+/* ==================== المقرَّرات (الواجبات) ==================== */
+
+/**
+ * مسارات المقرَّرات — لحلقات المكثفة وحدها (الخادم يردّ 403 لغيرها).
+ *
+ * التسجيل والتراجع نداءان منفصلان لا نداء واحد بحالة: وجود صفّ الإنجاز
+ * هو الحالة، فالتراجع حذفٌ لا تحديث. وهذا ما يجعل النقاط تُسحب كاملة بلا
+ * حركة مقابلة تبقى في سجلّ الطالب.
+ */
+export const assignmentsApi = {
+  /** ورقة مقرَّر اليوم: عنوانه وطلاب الحلقة بحالة إنجاز كلٍّ منهم. */
+  sheet: (halaqaId: number, date?: string) =>
+    api.get<{ data: AssignmentSheet }>(`/assignments/halaqat/${halaqaId}`, { date }),
+
+  /** ينشئ مقرَّر اليوم أو يحدّث عنوانه — آمن للتكرار (مقرَّر واحد لليوم). */
+  save: (body: { halaqaId: number; title: string; date?: string }) =>
+    api.post<{ data: { id: number; halaqaId: number; title: string; date: string } }>(
+      "/assignments",
+      body
+    ),
+
+  /** تسجيل إنجاز طالب — يمنحه النقاط الثابتة. */
+  complete: (assignmentId: number, studentId: number) =>
+    api.post<{ data: AssignmentStudent[] }>(
+      `/assignments/${assignmentId}/students/${studentId}`
+    ),
+
+  /** التراجع عن الإنجاز — يسحب النقاط. */
+  uncomplete: (assignmentId: number, studentId: number) =>
+    api.delete<void>(`/assignments/${assignmentId}/students/${studentId}`),
+
+  /** حذف مقرَّر اليوم كاملاً وإعادة نقاط كل من أنجزه. */
+  remove: (assignmentId: number) => api.delete<void>(`/assignments/${assignmentId}`),
 };
 
 /* ==================== التلاوة والتسميع ==================== */

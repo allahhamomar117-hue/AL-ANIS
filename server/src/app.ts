@@ -6,6 +6,7 @@ import morgan from "morgan";
 import { config } from "./config.js";
 import { ApiError, errorHandler } from "./lib/http.js";
 import { requireAuth } from "./middleware/auth.js";
+import { assignmentsRouter } from "./routes/assignments.js";
 import { attendanceRouter } from "./routes/attendance.js";
 import { awqafRouter } from "./routes/awqaf.js";
 import { authRouter } from "./routes/auth.js";
@@ -52,6 +53,10 @@ export function createApp() {
   app.use("/api/halaqat", requireAuth, halaqatRouter);
   app.use("/api/students", requireAuth, studentsRouter);
   app.use("/api/attendance", requireAuth, attendanceRouter);
+  // المقرَّرات: بلا حارس دور — الأستاذ نفسه يسجّلها. الحصر على قسم
+  // المكثفة مفروض داخل الراوتر (assertIntensiveHalaqa) لأنه قيدُ حلقةٍ
+  // لا قيدُ دور، ولا يُعرف إلا بعد قراءة معرّف الحلقة من الطلب.
+  app.use("/api/assignments", requireAuth, assignmentsRouter);
   app.use("/api/recitations", requireAuth, recitationsRouter);
   app.use("/api/reports", requireAuth, reportsRouter);
   app.use("/api/awqaf", requireAuth, awqafRouter);

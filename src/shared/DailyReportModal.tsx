@@ -361,6 +361,17 @@ function ReportSheet({ data, print }: { data: DailyReport; print?: boolean }) {
     return [...new Set(parts)].join(" · ");
   };
 
+  /**
+   * عمود المقرَّرات لحلقات المكثفة وحدها.
+   *
+   * القسم يُقرأ من الحلقة كما وصلت من الخادم، لا يُستنتج من وجود مقرَّر
+   * في البيانات: الحلقة المكثفة التي لم يُكتب لها مقرَّر اليوم يجب أن
+   * يظهر عمودها بشُرَط فارغة — فغيابه يقول "لا مقرَّرات هنا" بينما
+   * الحقيقة "لم يُسجَّل بعد".
+   */
+  const showAssignments = data.halaqa.department === "INTENSIVE";
+  const columnCount = showAssignments ? 5 : 4;
+
   /** ألوان الحالة داخل الورقة — بلا dark: لأن خلفية الورقة بيضاء في الوضعين. */
   const statusChip = (status: DailyReportStudent["status"]) => {
     if (!status) return "bg-gray-100 text-gray-500";
@@ -446,8 +457,27 @@ function ReportSheet({ data, print }: { data: DailyReport; print?: boolean }) {
         }
       >
         <table
-          className={`w-full border-collapse text-sm ${print ? "table-fixed" : "min-w-[520px]"}`}
+          className={`w-full border-collapse text-sm ${
+            print ? "table-fixed" : showAssignments ? "min-w-[660px]" : "min-w-[520px]"
+          }`}
         >
+          {/*
+            أعرضة صريحة لنسخة التصدير.
+            table-fixed يقسم العرض بالتساوي ما لم تُحدَّد، فإضافة عمود
+            خامس كانت تخنق عمودي "التسميع" و"المكافأة والحسم" معاً حتى
+            يلتفّ نصّهما على أسطر. والنسب هنا تعطي المساحة لما يحمل نصّاً
+            (الاسم والتسميع والمقرَّر) وتضيّق ما يحمل شارة قصيرة.
+          */}
+          {print && (
+            <colgroup>
+              <col style={{ width: showAssignments ? "22%" : "26%" }} />
+              <col style={{ width: showAssignments ? "13%" : "16%" }} />
+              <col style={{ width: showAssignments ? "20%" : "24%" }} />
+              <col style={{ width: showAssignments ? "23%" : "34%" }} />
+              {showAssignments && <col style={{ width: "22%" }} />}
+            </colgroup>
+          )}
+
           <thead>
             <tr className={print ? "bg-[#243447] text-white" : "bg-gray-100 text-gray-700"}>
               <th className={`text-start font-bold ${headEdge} ${cell}`}>
@@ -462,6 +492,11 @@ function ReportSheet({ data, print }: { data: DailyReport; print?: boolean }) {
               <th className={`text-start font-bold ${headEdge} ${headDivider} ${cell}`}>
                 {t("dailyReport.columns.recitation")}
               </th>
+              {showAssignments && (
+                <th className={`text-center font-bold ${headEdge} ${headDivider} ${cell}`}>
+                  {t("dailyReport.columns.assignments")}
+                </th>
+              )}
             </tr>
           </thead>
 
@@ -546,13 +581,31 @@ function ReportSheet({ data, print }: { data: DailyReport; print?: boolean }) {
                       <span className="text-gray-400">{t("dailyReport.noRecitation")}</span>
                     )}
                   </td>
+
+                  {/*
+                    المقرَّر: شارة خضراء بعنوانه إن أنجزه، وشرطة رمادية إن
+                    لم يُنجز. العنوان لا كلمة "أنجز" وحدها: وليّ الأمر
+                    يقرأ الورقة بلا سياق، و"أنجز المقرَّر" بلا ذكر ما هو
+                    لا يقول له شيئاً.
+                  */}
+                  {showAssignments && (
+                    <td className={`text-center ${rowEdge} ${rowDivider} ${cell}`}>
+                      {student.assignment ? (
+                        <span className="inline-block rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800">
+                          {student.assignment}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">{t("common.none")}</span>
+                      )}
+                    </td>
+                  )}
                 </tr>
               );
             })}
 
             {data.students.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-3 py-10 text-center text-sm text-gray-400">
+                <td colSpan={columnCount} className="px-3 py-10 text-center text-sm text-gray-400">
                   {t("allStudents.noStudents")}
                 </td>
               </tr>

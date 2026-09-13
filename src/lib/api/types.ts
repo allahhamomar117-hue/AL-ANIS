@@ -150,6 +150,44 @@ export interface AttendanceSheet {
   }[];
 }
 
+/* ==================== المقرَّرات (الواجبات) ==================== */
+
+/**
+ * ورقة مقرَّر اليوم لحلقة — لقسم المكثفة وحده.
+ *
+ * مقرَّر واحد لكل حلقة في اليوم (قيد UNIQUE على الخادم)، فالورقة تحرّره
+ * إن وُجد وتنشئه إن لم يوجد — كورقة الحضور تماماً.
+ */
+export interface AssignmentSheet {
+  halaqa: { id: number; name: string; teacher: string };
+  date: string;
+  /** null = لم يُكتب مقرَّر لهذا اليوم بعد. */
+  assignmentId: number | null;
+  /** عنوان المقرَّر، أو "" إن لم يوجد. */
+  title: string;
+  recorded: boolean;
+  /**
+   * نقاط الإنجاز الواحد كما يقرّرها الخادم.
+   *
+   * تُقرأ ولا تُكتب في الواجهة: رقمٌ مثبّت في نصّ الصفحة يصير كذباً صامتاً
+   * لحظة تغيير POINTS_ASSIGNMENT في الخادم.
+   */
+  pointsPerCompletion: number;
+  students: AssignmentStudent[];
+}
+
+export interface AssignmentStudent {
+  id: number;
+  code: string;
+  name: string;
+  avatarUrl: string | null;
+  /**
+   * معرّف صفّ الإنجاز — وجوده (لا قيمته) هو حالة "أنجز".
+   * null = لم يُنجز.
+   */
+  completedId: number | null;
+}
+
 export interface Recitation {
   id: number;
   studentId: number;
@@ -230,10 +268,20 @@ export interface DailyReportStudent {
     surahNumber: number | null;
     rating: Rating;
   }[];
+  /**
+   * عنوان المقرَّر الذي أنجزه الطالب اليوم، أو null إن لم يُنجز (أو لم
+   * يُكتب مقرَّر أصلاً). عمودٌ واحد بسيط لأن مقرَّر اليوم واحد بقيد
+   * UNIQUE على الخادم.
+   */
+  assignment: string | null;
 }
 
 export interface DailyReport {
-  halaqa: { id: number; name: string; teacher: string };
+  /**
+   * القسم يصل مع الحلقة لا يُستنتج في الواجهة: عليه يتوقّف ظهور عمود
+   * "المقرَّرات" — وهو ميزة خاصّة بـ INTENSIVE.
+   */
+  halaqa: { id: number; name: string; teacher: string; department: Department | null };
   date: string;
   /** هل سُجّل حضور هذا اليوم؟ */
   recorded: boolean;

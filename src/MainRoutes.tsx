@@ -3,6 +3,8 @@ import MainLayout from "./MainLayout";
 import Dashboard from "./pages/Dashboard/Dashboard";
 import AttendancePage from "./pages/Attendance/AttendancePage";
 import AttendanceGroups from "./pages/Attendance/AttendanceGroups";
+import AssignmentGroups from "./pages/Assignments/AssignmentGroups";
+import AssignmentsPage from "./pages/Assignments/AssignmentsPage";
 import RecitationGroups from "./pages/Recitation/RecitationGroups";
 import Reports from "./pages/Reports/Reports";
 import RecitationPage from "./pages/Recitation/RecitationPage";
@@ -49,6 +51,13 @@ const MainRoutes = () => {
         <Route path="attendance-groups/attendance-record" element={<AttendanceRecord />} />
         <Route path="attendance-groups" element={<AttendanceGroups />} />
         <Route path="attendance-groups/:id" element={<AttendancePage />} />
+
+        {/* المقرَّرات: بلا حارس دور — الأستاذ نفسه يسجّلها. والحصر على قسم
+            المكثفة قرارُ حلقةٍ لا قرارُ دور، فمكانه الخادم
+            (assertIntensiveHalaqa)؛ وصفحة الاختيار لا تعرض إلا حلقات
+            المكثفة فلا يبلغ المستخدمُ حلقةً تُردّ عنه. */}
+        <Route path="assignments-groups" element={<AssignmentGroups />} />
+        <Route path="assignments-groups/:id" element={<AssignmentsPage />} />
 
         <Route path="recitation-groups" element={<RecitationGroups />} />
         <Route path="recitation-groups/recitation-records" element={<RecitationRecords />} />

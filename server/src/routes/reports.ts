@@ -307,8 +307,15 @@ reportsRouter.get(
 
     const { date } = parse(z.object({ date: isoDate.default(() => today()) }), req.query);
 
-    const halaqa = await db().get<{ id: number; name: string; teacher: string }>(
-      `SELECT h.id, h.name, COALESCE(u.name,'') AS teacher
+    // القسم يصل الواجهةَ كي تقرّر عرض عمود "المقرَّرات" من عدمه: هو صفة
+    // الحلقة، فاستنتاجه في الواجهة من مصدر آخر يجعل عمودين لحقيقة واحدة.
+    const halaqa = await db().get<{
+      id: number;
+      name: string;
+      teacher: string;
+      department: string | null;
+    }>(
+      `SELECT h.id, h.name, COALESCE(u.name,'') AS teacher, h.department
        FROM halaqat h LEFT JOIN users u ON u.id = h.teacher_id WHERE h.id = ?`,
       [id]
     );
@@ -370,6 +377,24 @@ reportsRouter.get(
       [id, date]
     );
 
+    /*
+     * إنجازات مقرَّر اليوم — لقسم المكثفة عملياً.
+     *
+     * الاستعلام يُنفَّذ لكل الأقسام بلا شرط department: الحلقة غير المكثفة
+     * لا مقرَّرات لها أصلاً (الـ API يمنع إنشاءها)، فالنتيجة فارغة طبيعياً.
+     * وشرطٌ زائد هنا يكرّر قرار القسم في موضع ثانٍ يتقادم وحده.
+     *
+     * ومقرَّر اليوم واحد بقيد UNIQUE (halaqa_id, date)، فالطالب المنجِز
+     * له صفّ واحد لا أكثر — وعليه يبقى العمود حالةً بسيطة: أنجز أو لا.
+     */
+    const completions = await db().all<{ studentId: number; title: string }>(
+      `SELECT sa.student_id AS "studentId", a.title
+       FROM student_assignments sa
+       JOIN assignments a ON a.id = sa.assignment_id
+       WHERE a.halaqa_id = ? AND a.date = ?`,
+      [id, date]
+    );
+
     res.json({
       data: {
         halaqa,
@@ -379,6 +404,8 @@ reportsRouter.get(
           ...student,
           recitations: recitations.filter((r) => r.studentId === student.id),
           participationEntries: manualPoints.filter((p) => p.studentId === student.id),
+          /** عنوان المقرَّر المُنجز اليوم، أو null إن لم يُنجز. */
+          assignment: completions.find((c) => c.studentId === student.id)?.title ?? null,
         })),
       },
     });

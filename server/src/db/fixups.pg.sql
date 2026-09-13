@@ -253,3 +253,76 @@ CREATE INDEX IF NOT EXISTS idx_halaqat_department ON halaqat (department);
 UPDATE halaqat
 SET    stage = 'middle_high'
 WHERE  stage IN ('preparatory', 'secondary');
+
+-- @fixup نوع حركة نقاط: assignment
+-- ── نوع حركة نقاط: assignment ───────────────────────────────────────
+--
+-- نظير الترقية 015 لـ SQLite. تُكتب هنا لأن مسار Postgres لا يقرأ
+-- migrations/‎، و`CREATE TABLE IF NOT EXISTS` لا يعدّل قيداً على جدول
+-- قائم — فالقاعدة العاملة سترفض kind='assignment' بدون هذا، ويسقط أول
+-- تسجيل إنجاز بـ 23514.
+--
+-- نفس نمط كتلة awqaf أعلاه حرفياً: يُسقَط القيد ويُضاف موسَّعاً باسمه
+-- الصريح. والشرط على 'assignment' لا على 'awqaf': القاعدة التي مرّت
+-- بالكتلة السابقة تحمل قيداً فيه awqaf ولا assignment فيه، فالفحص على
+-- الاسم القديم وحده كان يعدّها مُصحَّحة فيبقى القيد ناقصاً.
+--
+-- التوسيع لا يُبطل أي صفّ قائم (القيم المسموحة تزداد فقط).
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'point_transactions_kind_check'
+      AND pg_get_constraintdef(oid) NOT LIKE '%assignment%'
+  ) THEN
+    ALTER TABLE point_transactions DROP CONSTRAINT point_transactions_kind_check;
+    RAISE NOTICE 'أُسقط قيد point_transactions_kind_check القديم';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'point_transactions_kind_check'
+  ) THEN
+    ALTER TABLE point_transactions
+      ADD CONSTRAINT point_transactions_kind_check
+      CHECK (kind IN ('manual', 'attendance', 'recitation',
+                      'adjustment', 'awqaf', 'assignment'));
+    RAISE NOTICE 'أُضيف قيد point_transactions_kind_check موسَّعاً بـ assignment';
+  END IF;
+END $$;
+
+-- @fixup المقرَّرات: الجدولان
+-- ── المقرَّرات (الواجبات): assignments و student_assignments ──────────
+--
+-- جدولان جديدان كلّياً، فـ`CREATE TABLE IF NOT EXISTS` في schema.pg.sql
+-- ينشئهما على القاعدة القائمة فعلاً — الشرط يمنع لمس الجدول الموجود لا
+-- إنشاء المفقود. فلماذا يُكرَّران هنا؟
+--
+-- لأن ملفّ المخطّط يُطبَّق كوحدة واحدة: لو سقطت عبارة سابقة فيه على قاعدة
+-- منحرفة، لم تصل العبارات التي بعدها — وهذه الكتلة تُطبَّق مستقلّة بعده،
+-- فتضمن وجود الجدولين مهما جرى قبلها. وهي لا-عملية في الحالة السويّة.
+--
+-- ⚠ القيد UNIQUE (halaqa_id, date) جزءٌ من تعريف الجدول لا فهرسٌ لاحق:
+--   عليه يقوم ON CONFLICT في POST /api/assignments، وبدونه يصمت الإدراج
+--   المتكرّر بدل أن يُحدّث العنوان.
+CREATE TABLE IF NOT EXISTS assignments (
+  id            INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  halaqa_id     INTEGER     NOT NULL REFERENCES halaqat (id) ON DELETE CASCADE,
+  title         TEXT        NOT NULL,
+  date          DATE        NOT NULL,
+  created_by    INTEGER     REFERENCES users (id) ON DELETE SET NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (halaqa_id, date)
+);
+CREATE INDEX IF NOT EXISTS idx_assignments_halaqa ON assignments (halaqa_id, date);
+
+CREATE TABLE IF NOT EXISTS student_assignments (
+  id            INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  assignment_id INTEGER     NOT NULL REFERENCES assignments (id) ON DELETE CASCADE,
+  student_id    INTEGER     NOT NULL REFERENCES students (id) ON DELETE CASCADE,
+  completed_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  recorded_by   INTEGER     REFERENCES users (id) ON DELETE SET NULL,
+  UNIQUE (assignment_id, student_id)
+);
+CREATE INDEX IF NOT EXISTS idx_student_assignments_student
+  ON student_assignments (student_id);

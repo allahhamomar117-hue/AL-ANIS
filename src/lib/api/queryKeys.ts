@@ -22,6 +22,10 @@ export const qk = {
     sheet: (halaqaId: number, date: string) => ["attendance", "sheet", halaqaId, date] as const,
     sessions: (params?: unknown) => ["attendance", "sessions", params ?? null] as const,
   },
+  assignments: {
+    all: ["assignments"] as const,
+    sheet: (halaqaId: number, date: string) => ["assignments", "sheet", halaqaId, date] as const,
+  },
   recitations: {
     all: ["recitations"] as const,
     list: (params?: unknown) => ["recitations", "list", params ?? null] as const,

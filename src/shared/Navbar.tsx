@@ -11,6 +11,7 @@ import {
   FaBookOpen,
   FaChartBar,
   FaClipboardCheck,
+  FaClipboardList,
   FaUserCircle,
   FaStar,
   FaFileAlt,
@@ -19,6 +20,7 @@ import {
 import QuickPointsModal from "./QuickPointsModal";
 import DailyReportModal from "./DailyReportModal";
 import { useAuth } from "../context/authContext";
+import { useIntensiveHalaqat } from "../lib/api/useIntensiveHalaqat";
 
 /**
  * تبويبات خارج دور المشرف التشغيلي: سجلّات الطلاب، ولوحة الصدارة
@@ -34,6 +36,13 @@ function Navbar() {
 
   const isArabic = lang === "ar";
   const { user: me, isSupervisor, canManageUsers, isSuperAdmin } = useAuth();
+
+  /*
+   * المقرَّرات ميزة قسم المكثفة، فالتبويب يظهر لمن بين حلقاته حلقةٌ منه.
+   * السؤال على الحلقات لا على قسم الحساب: المدرّس قد يجمع بين قسمين
+   * (راجع useIntensiveHalaqat).
+   */
+  const { hasAny: hasIntensive } = useIntensiveHalaqat();
 
   const [quickPoints, setQuickPoints] = useState(false);
   const [dailyReport, setDailyReport] = useState(false);
@@ -58,12 +67,24 @@ function Navbar() {
      * في سطر التبويب نفسه.
      */
     superAdminOnly?: boolean;
+    /**
+     * تبويب ميزةٍ لا تبويب دور: يظهر لمن يملك حلقة مكثفة، أيّاً كان دوره.
+     * منفصل عن الأعلام الثلاثة أعلاه لأنه يسأل عن الحلقات لا عن الحساب.
+     */
+    intensiveOnly?: boolean;
   }[] = [
     {
       key: "attendance",
       title: t("dashboard.attendance.title"),
       icon: FaClipboardCheck,
       path: "attendance-groups",
+    },
+    {
+      key: "assignments",
+      title: t("assignmentsPage.navTitle"),
+      icon: FaClipboardList,
+      path: "assignments-groups",
+      intensiveOnly: true,
     },
     {
       key: "recitation",
@@ -102,7 +123,8 @@ function Navbar() {
     (item) =>
       !(isSupervisor && SUPERVISOR_HIDDEN.has(item.key)) &&
       !(item.adminOnly && !canManageUsers) &&
-      !(item.superAdminOnly && !isSuperAdmin)
+      !(item.superAdminOnly && !isSuperAdmin) &&
+      !(item.intensiveOnly && !hasIntensive)
   );
 
   const isActive = (path: string) => location.pathname.includes(path);

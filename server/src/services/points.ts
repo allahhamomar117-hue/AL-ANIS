@@ -9,7 +9,16 @@ export type PointKind =
   | "recitation"
   | "adjustment"
   /** نجاح في سبر الأوقاف — reference_id هو معرّف سجلّ السبر. */
-  | "awqaf";
+  | "awqaf"
+  /**
+   * إنجاز مقرَّر (قسم المكثفة) — reference_id هو معرّف صفّ
+   * student_assignments لا معرّف المقرَّر.
+   *
+   * الفرق جوهري: المرجع هو صفّ الطالب الواحد، فالتراجع عن إنجازه
+   * revertPointsFor('assignment', id) بلا فلترة يدوية على student_id —
+   * خلافاً للحضور الذي مرجعه الجلسةُ المشتركة بين كل طلابها.
+   */
+  | "assignment";
 
 export interface PointEntry {
   studentId: number;

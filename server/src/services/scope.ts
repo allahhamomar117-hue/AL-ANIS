@@ -156,6 +156,31 @@ export async function assertHalaqaAccess(
   }
 }
 
+/**
+ * يرمي 403 إذا لم تكن الحلقة من قسم المكثفة.
+ *
+ * قيد ميزةٍ لا قيد نطاق: المقرَّرات (الواجبات) مبنيّة على إيقاع الدورة
+ * المكثفة وحدها، فلا تُعرض ولا تُسجَّل لغيرها. ولذلك هو مستقلّ عن
+ * assertHalaqaAccess ويُستدعى بعده لا بدلاً منه — ذاك يقول «هل الحلقة
+ * لك؟» وهذا يقول «هل تقبل هذه الميزة؟»، والخلط بينهما يجعل أحدهما
+ * يسقط بصمت متى تغيّر الآخر.
+ *
+ * والحصر هنا في الخادم لا في الواجهة وحدها: إخفاء الزر ترتيبُ شاشةٍ لا
+ * صلاحية، والمسار يُنادى بمعرّف حلقةٍ من قسم آخر مباشرةً.
+ */
+export async function assertIntensiveHalaqa(halaqaId: number): Promise<void> {
+  const row = await db().get<{ department: Department | null }>(
+    "SELECT department FROM halaqat WHERE id = ?",
+    [halaqaId]
+  );
+
+  if (!row) throw ApiError.notFound("الحلقة غير موجودة");
+
+  if (row.department !== "INTENSIVE") {
+    throw ApiError.forbidden("المقرَّرات متاحة لحلقات الدورة المكثفة وحدها");
+  }
+}
+
 /** يرمي 403 إذا كان الطالب خارج نطاق المستخدم (أو 404 إن لم يوجد). */
 export async function assertStudentAccess(
   user: AuthUser,

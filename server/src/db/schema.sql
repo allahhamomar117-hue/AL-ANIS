@@ -145,8 +145,9 @@ CREATE TABLE IF NOT EXISTS point_transactions (
   delta         INTEGER NOT NULL,                 -- موجب للإضافة وسالب للخصم
   reason        TEXT,
   kind          TEXT    NOT NULL DEFAULT 'manual'
-                        CHECK (kind IN ('manual', 'attendance', 'recitation', 'adjustment', 'awqaf')),
-  reference_id  INTEGER,                          -- معرّف التلاوة أو الجلسة المرتبطة
+                        CHECK (kind IN ('manual', 'attendance', 'recitation',
+                                        'adjustment', 'awqaf', 'assignment')),
+  reference_id  INTEGER,                          -- معرّف التلاوة أو الجلسة أو السبر أو الإنجاز
   created_by    INTEGER REFERENCES users (id) ON DELETE SET NULL,
   created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
 );
@@ -172,3 +173,37 @@ CREATE TABLE IF NOT EXISTS awqaf_records (
 );
 CREATE INDEX IF NOT EXISTS idx_awqaf_month ON awqaf_records (exam_month);
 CREATE INDEX IF NOT EXISTS idx_awqaf_student ON awqaf_records (student_id);
+
+-- ==================== المقرَّرات (الواجبات) ====================
+--
+-- خاصّة بقسم المكثفة. مقرَّر واحد لكل حلقة في اليوم — والقيد ليس تنظيماً
+-- شكلياً: بدونه ينال الطالب مضاعفات نقاط الإنجاز في اليوم الواحد فتختلّ
+-- لوحة الصدارة. الحصر على INTENSIVE مفروض في طبقة الـ API
+-- (assertIntensiveHalaqa)، إذ القسم صفةُ الحلقة لا صفةُ المقرَّر.
+CREATE TABLE IF NOT EXISTS assignments (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  halaqa_id     INTEGER NOT NULL REFERENCES halaqat (id) ON DELETE CASCADE,
+  title         TEXT    NOT NULL,                -- عنوان المقرَّر كما يكتبه الأستاذ
+  date          TEXT    NOT NULL,                -- YYYY-MM-DD
+  created_by    INTEGER REFERENCES users (id) ON DELETE SET NULL,
+  created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+  updated_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (halaqa_id, date)
+);
+CREATE INDEX IF NOT EXISTS idx_assignments_halaqa ON assignments (halaqa_id, date);
+
+-- إنجاز طالب لمقرَّر: وجود الصفّ = أنجز، وحذفه = تراجع. لا عمود منطقي —
+-- صفٌّ بـ false لا معنى له، ولا نقاطَ في الصفّ: قيمتها ثابتة في الإعدادات.
+--
+-- المعرّف الخاص (id) هو reference_id لحركة النقاط، فيصير سحبُ نقاط طالب
+-- واحد revertPointsFor('assignment', id) بلا فلترة يدوية على student_id.
+CREATE TABLE IF NOT EXISTS student_assignments (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  assignment_id INTEGER NOT NULL REFERENCES assignments (id) ON DELETE CASCADE,
+  student_id    INTEGER NOT NULL REFERENCES students (id) ON DELETE CASCADE,
+  completed_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+  recorded_by   INTEGER REFERENCES users (id) ON DELETE SET NULL,
+  UNIQUE (assignment_id, student_id)
+);
+CREATE INDEX IF NOT EXISTS idx_student_assignments_student
+  ON student_assignments (student_id);
