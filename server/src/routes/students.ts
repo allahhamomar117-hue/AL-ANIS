@@ -501,11 +501,11 @@ studentsRouter.post(
     const { data } = parse(z.object({ data: z.string().min(1) }), req.body);
 
     const previous = await avatarOf(id);
-    const url = saveAvatar(data);
+    const url = await saveAvatar(data);
 
     await db().run("UPDATE students SET avatar_url = ? WHERE id = ?", [url, id]);
     // بعد نجاح التحديث لا قبله: لو فشل الحفظ بقيت الصورة القديمة سليمة
-    deleteAvatar(previous);
+    await deleteAvatar(previous);
 
     res.status(201).json({ data: await db().get(`${SELECT_STUDENT} WHERE s.id = ?`, [id]) });
   })
@@ -520,7 +520,7 @@ studentsRouter.delete(
     const previous = await avatarOf(id);
 
     await db().run("UPDATE students SET avatar_url = NULL WHERE id = ?", [id]);
-    deleteAvatar(previous);
+    await deleteAvatar(previous);
 
     res.json({ data: await db().get(`${SELECT_STUDENT} WHERE s.id = ?`, [id]) });
   })

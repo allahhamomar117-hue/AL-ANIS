@@ -57,6 +57,20 @@ export const config = {
   seedDemoOnStart: process.env.SEED_DEMO_ON_START === "true",
   /** يعيد بناء بيانات العرض في كل إقلاع (يمسح القاعدة). */
   seedDemoForce: process.env.SEED_DEMO_FORCE === "true",
+  /**
+   * Cloudinary — مخزن صور الطلاب في الاستضافة.
+   *
+   * وجود المفاتيح الثلاثة معاً هو ما يفعّله؛ غيابها يُبقي الصور على قرص
+   * الخادم (uploadsDir أدناه) وهو ما يكفي محلياً. السرّ لا يُكتب في الكود:
+   * يُقرأ من البيئة وحدها لأنه يخوّل الرفع والحذف على الحساب كلّه.
+   */
+  cloudinary: {
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME?.trim() ?? "",
+    apiKey: process.env.CLOUDINARY_API_KEY?.trim() ?? "",
+    apiSecret: process.env.CLOUDINARY_API_SECRET?.trim() ?? "",
+    /** المجلّد داخل الحساب — يفصل صور الأنيس عن أي استعمال آخر له. */
+    folder: process.env.CLOUDINARY_FOLDER?.trim() || "anis/avatars",
+  },
   /** ملفات المستخدمين المرفوعة (صور الطلاب) بجوار ملف القاعدة. */
   uploadsDir: process.env.UPLOADS_DIR
     ? path.resolve(serverRoot, process.env.UPLOADS_DIR)

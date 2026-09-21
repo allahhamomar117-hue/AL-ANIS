@@ -28,6 +28,10 @@ export class ApiError extends Error {
   static conflict(message: string) {
     return new ApiError(409, message);
   }
+  /** عطل في خدمة خارجية نعتمد عليها (تخزين الصور مثلاً) لا في الطلب. */
+  static badGateway(message: string) {
+    return new ApiError(502, message);
+  }
 }
 
 /** يمرر أخطاء الدوال غير المتزامنة إلى معالج الأخطاء. */
