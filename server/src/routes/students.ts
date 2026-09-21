@@ -10,12 +10,10 @@ import {
   DAILY_MANUAL_LIMITS,
   dailyManualTotals,
 } from "../services/points.js";
-import type { AuthUser } from "../middleware/auth.js";
 import {
   applyScope,
   assertHalaqaAccess,
   assertStudentAccess,
-  departmentScope,
 } from "../services/scope.js";
 import { existingStudent, STUDENT_STATUSES } from "../services/studentSql.js";
 
@@ -54,26 +52,29 @@ const studentBody = z.object({
 });
 
 /**
- * يرمي 400 إذا ترك مديرُ قسمٍ الطالبَ بلا حلقة.
+ * يرمي 400 على أي طالب بلا حلقة — بلا استثناء لأحد.
  *
  * جدول students بلا عمود قسم: انتماء الطالب إلى قسمٍ يمرّ بحلقته وحدها
  * (accessibleHalaqaIds في services/scope.ts). فالطالب بلا حلقة لا يقع في
- * نطاق أي قسم — ينشئه مدير القسم ثم لا يجده في قائمته ولا يستطيع تعديله.
+ * نطاق أي قسم، ولا تعرضه أي شاشة: لا قائمة حلقة، ولا حضور، ولا تسميع،
+ * ولا صفحةَ «طلاب بلا حلقة» تذكّر بإسناده. يوجد في القاعدة ولا يُرى.
  *
- * وكان assertHalaqaAccess وحده يتكفّل بالمنع، لأن canAccessHalaqa تردّ
- * false على halaqaId = null لكل من له نطاق محدود. لكنها كانت تردّ برسالة
- * «هذه الحلقة خارج نطاق صلاحياتك» على حقلٍ تُرك فارغاً — فتقرأ كمنعِ
- * صلاحية عن إضافة الطلاب أصلاً، لا كحقلٍ ينقصه ملء. المنع نفسه يبقى،
- * والرسالة تقول ما ينقص.
+ * وكان المدير العام مستثنى بحجّة أنه يُسنده لاحقاً — وهي حجّة صحيحة
+ * نظرياً ولا سبيل إلى ممارستها: لا شاشة تعرض له هؤلاء الطلاب أصلاً.
  *
- * المدير العام مستثنى: الطالب بلا حلقة يبقى في نطاقه فيستطيع إسناده لاحقاً.
+ * القيد الآن ثلاثيّ الطبقات: الواجهة (PopupAddStudent)، وهذا الحارس،
+ * و NOT NULL في القاعدة (الترقية 016 و fixups.pg.sql). الأخيرة هي
+ * الضمانة الحقيقية — تشمل ما لم يمرّ بهذا المسار.
+ *
+ * والرسالة تقول ما ينقص: assertHalaqaAccess كانت تمنع الحالة نفسها
+ * (canAccessHalaqa تردّ false على null) لكن برسالة «خارج نطاق صلاحياتك»
+ * التي تُقرأ منعَ صلاحيةٍ لا حقلاً فارغاً.
  */
-function assertHalaqaGiven(user: AuthUser, halaqaId: number | null): void {
-  if (halaqaId !== null) return;
-  if (departmentScope(user) === null) return;   // مدير عام
+function assertHalaqaGiven(halaqaId: number | null | undefined): asserts halaqaId is number {
+  if (halaqaId !== null && halaqaId !== undefined) return;
 
   throw ApiError.badRequest(
-    "اختر حلقة للطالب — الطالب بلا حلقة لا يتبع قسماً فلا يظهر في قائمة قسمك"
+    "اختر حلقة للطالب — لا يُقبل طالب بلا حلقة: الحلقة هي ما يربطه بقسمه"
   );
 }
 
@@ -249,8 +250,8 @@ studentsRouter.post(
   requireStudentManager,
   asyncHandler(async (req, res) => {
     const body = parse(studentBody, req.body);
-    assertHalaqaGiven(req.user!, body.halaqa_id ?? null);
-    await assertHalaqaAccess(req.user!, body.halaqa_id ?? null);
+    assertHalaqaGiven(body.halaqa_id);
+    await assertHalaqaAccess(req.user!, body.halaqa_id);
     const code = body.code ?? (await nextStudentCode());
 
     const info = await db().run(
@@ -259,7 +260,7 @@ studentsRouter.post(
       [
         code,
         body.name,
-        body.halaqa_id ?? null,
+        body.halaqa_id,
         body.birth_date ?? null,
         body.student_phone ?? null,
         body.parent_phone ?? null,
@@ -286,10 +287,16 @@ studentsRouter.patch(
       req.body
     );
 
-    // نقل الطالب إلى حلقة أخرى يتطلب صلاحية على الحلقة الهدف أيضاً.
-    // ونزعُ الحلقة (null) إخراجٌ للطالب من نطاق مدير القسم، فيُمنع برسالته.
+    /*
+     * نقل الطالب إلى حلقة أخرى يتطلب صلاحية على الحلقة الهدف أيضاً.
+     * وتمرير null نزعٌ للحلقة — مرفوض كالإنشاء تماماً: القاعدة «لا طالب
+     * بلا حلقة» لا تُنقض بتعديلٍ بعد إنشاءٍ صحيح.
+     *
+     * الحقل المحذوف (undefined) شيء آخر: PATCH جزئيّ، وغيابُه يعني
+     * «لا تغيّرها» فيبقى الطالب على حلقته.
+     */
     if (body.halaqa_id !== undefined) {
-      assertHalaqaGiven(req.user!, body.halaqa_id);
+      assertHalaqaGiven(body.halaqa_id);
       await assertHalaqaAccess(req.user!, body.halaqa_id);
     }
 

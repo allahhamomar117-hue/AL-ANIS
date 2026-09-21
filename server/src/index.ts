@@ -43,7 +43,8 @@ async function seedDemoIfNeeded(): Promise<void> {
  * الدواء. المطلوب أن يتوقّف الإقلاع هنا برسالةٍ تقول ما يُفعل.
  *
  * ⚠ كل ترقية تضيف عموداً يعتمد عليه الكود: أضِف العمود إلى هذه القائمة
- *   في نفس الالتزام (commit)، لا بعده.
+ *   في نفس الالتزام (commit)، لا بعده. وإن كان المطلوب قيداً لا وجوداً،
+ *   فموضعه verifyBooleanColumns أو verifyNotNullColumns أدناه.
  */
 async function verifySchema(): Promise<void> {
   const required: Record<string, string[]> = {
@@ -101,6 +102,48 @@ async function verifySchema(): Promise<void> {
   }
 
   await verifyBooleanColumns();
+  await verifyNotNullColumns();
+}
+
+/**
+ * أعمدة يجب ألّا تقبل NULL.
+ *
+ * وجودُ العمود لا يكفي حين يكون المطلوب قيداً عليه. القيد يُطبَّق على
+ * Postgres من fixups.pg.sql، وفشلُ تصحيحٍ هناك غير قاتل بذاته
+ * (applyPgFixups يسجّل ويمضي) — فبلا هذا الفحص تعمل الخدمة على قاعدة
+ * بلا قيد، ويعود ما جاء القيد ليمنعه ممكناً من أي مسار لم يمرّ بحارس
+ * الـ API.
+ *
+ * students.halaqa_id تحديداً: طالب بلا حلقة لا يقع في نطاق أي قسم فلا
+ * تعرضه أي شاشة — يوجد في القاعدة ولا يُرى (راجع الترقية 016).
+ */
+async function verifyNotNullColumns(): Promise<void> {
+  if (db().dialect !== "postgres") return;
+
+  const required: [table: string, column: string][] = [["students", "halaqa_id"]];
+
+  const rows = await db().all<{ table_name: string; column_name: string; is_nullable: string }>(
+    `SELECT table_name, column_name, is_nullable
+     FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = 'students'`
+  );
+
+  const nullableOf = new Map(rows.map((r) => [`${r.table_name}.${r.column_name}`, r.is_nullable]));
+  const wrong = required.filter(([t, c]) => nullableOf.get(`${t}.${c}`) === "YES");
+
+  if (wrong.length === 0) return;
+
+  console.error("✖ أعمدة يجب أن تكون NOT NULL وما زالت تقبل NULL:");
+  for (const [t, c] of wrong) console.error(`    ${t}.${c}`);
+  console.error("");
+  console.error("  السبب: فشل تصحيح «students.halaqa_id إلزامية» في fixups.pg.sql —");
+  console.error("  راجع الخطأ المطبوع أعلاه.");
+  console.error("  الإصلاح اليدوي في محرّر SQL (Supabase)، بعد إسناد حلقة لكل طالب:");
+  console.error("");
+  console.error("    SELECT id, name FROM students WHERE halaqa_id IS NULL;");
+  console.error("    ALTER TABLE students ALTER COLUMN halaqa_id SET NOT NULL;");
+  console.error("");
+  process.exit(1);
 }
 
 /**

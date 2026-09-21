@@ -326,3 +326,70 @@ CREATE TABLE IF NOT EXISTS student_assignments (
 );
 CREATE INDEX IF NOT EXISTS idx_student_assignments_student
   ON student_assignments (student_id);
+
+-- @fixup students.halaqa_id إلزامية
+
+-- ── الحلقة إلزامية لكل طالب ─────────────────────────────────────────
+--
+-- نظير الترقية 016 على مسار Postgres. ملف المخطّط أعلن العمود NOT NULL
+-- لكنه كلّه `CREATE TABLE IF NOT EXISTS` فلا يلمس جدولاً قائماً — وقاعدة
+-- الإنتاج قائمة، فهذا الموضع هو الوحيد الذي يصحّحها.
+--
+-- المبرّر: students بلا عمود قسم، فانتماء الطالب إلى قسمٍ يمرّ بحلقته
+-- وحدها (accessibleHalaqaIds). وطالبٌ بلا حلقة لا يقع في نطاق أحد، ولا
+-- تعرضه أي شاشة — يوجد في القاعدة ولا يُرى.
+--
+-- الكتلة محروسة بـ information_schema فتصير لا-عمليّة بعد أول نجاح،
+-- وتُنفَّذ كاملةً أو لا شيء (كتلة DO واحدة = معاملة ضمنية واحدة).
+DO $$
+DECLARE
+  holding_id INTEGER;
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'students'
+      AND column_name = 'halaqa_id' AND is_nullable = 'YES'
+  ) THEN
+    RETURN;  -- القيد مطبَّق أصلاً
+  END IF;
+
+  /*
+   * الصفوف المعلَّقة تُسنَد إلى حلقة معطَّلة ظاهرة بدل إسقاط التصحيح:
+   * حلقة الطالب لا تُستنتج من بياناته، وإسقاط التصحيح يترك القاعدة بلا
+   * قيد إلى الأبد. المعطَّلة لا تظهر في قوائم الاختيار ولا تُحسب عاملة،
+   * فتبقى ظاهرة للمدير وحده ليصحّح الإسناد.
+   */
+  IF EXISTS (SELECT 1 FROM students WHERE halaqa_id IS NULL) THEN
+    SELECT id INTO holding_id FROM halaqat WHERE name = 'حلقة غير مُسندة';
+
+    IF holding_id IS NULL THEN
+      INSERT INTO halaqat (name, is_active) VALUES ('حلقة غير مُسندة', FALSE)
+      RETURNING id INTO holding_id;
+    END IF;
+
+    UPDATE students SET halaqa_id = holding_id WHERE halaqa_id IS NULL;
+  END IF;
+
+  ALTER TABLE students ALTER COLUMN halaqa_id SET NOT NULL;
+
+  -- SET NULL ← RESTRICT: محو حلقةٍ تحمل طلاباً يُرَدّ ولا يُفرّغ حقولهم.
+  -- اسم القيد يُقرأ من الكتالوج لا يُفترض: تسميته تختلف بين القواعد.
+  -- وحلقةٌ صريحة لا string_agg: ذاك يعيد NULL حين لا قيد، و EXECUTE NULL خطأ.
+  DECLARE
+    fk RECORD;
+  BEGIN
+    FOR fk IN
+      SELECT conname
+      FROM   pg_constraint
+      WHERE  conrelid  = 'students'::regclass
+        AND  contype   = 'f'
+        AND  confrelid = 'halaqat'::regclass
+    LOOP
+      EXECUTE format('ALTER TABLE students DROP CONSTRAINT %I', fk.conname);
+    END LOOP;
+  END;
+
+  ALTER TABLE students
+    ADD CONSTRAINT students_halaqa_id_fkey
+    FOREIGN KEY (halaqa_id) REFERENCES halaqat (id) ON DELETE RESTRICT;
+END $$;

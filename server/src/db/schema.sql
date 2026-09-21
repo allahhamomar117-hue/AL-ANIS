@@ -76,7 +76,10 @@ CREATE TABLE IF NOT EXISTS students (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
   code          TEXT    NOT NULL UNIQUE,          -- الرقم الأكاديمي مثل 2024001
   name          TEXT    NOT NULL,
-  halaqa_id     INTEGER REFERENCES halaqat (id) ON DELETE SET NULL,
+  -- إلزامية: جدول students بلا عمود قسم، فانتماء الطالب إلى قسمٍ يمرّ
+  -- بحلقته وحدها. وطالبٌ بلا حلقة لا يقع في نطاق أحد فلا يُرى في النظام.
+  -- RESTRICT لا SET NULL: محو حلقةٍ تحمل طلاباً يُرَدّ ولا يُفرّغ حقولهم.
+  halaqa_id     INTEGER NOT NULL REFERENCES halaqat (id) ON DELETE RESTRICT,
   birth_date    TEXT,
   student_phone TEXT,
   parent_phone  TEXT,
