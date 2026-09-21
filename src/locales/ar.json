@@ -270,7 +270,8 @@
     "nameRequired": "الاسم مطلوب",
     "halaqaRequired": "اختر حلقة — الطالب بلا حلقة لا يظهر في قائمة قسمك",
     "noHalaqatInDepartment": "لا توجد حلقات مُسنَدة إلى قسمك. أسنِد حلقاتك من «إدارة الحلقات» أولاً.",
-    "saving": "جارٍ الإضافة…"
+    "saving": "جارٍ الإضافة…",
+    "halaqaMissing": "يرجى ادخال الحلقة"
   },
   "popupDeductPoints": {
     "title": "خصم نقاط",
@@ -601,7 +602,7 @@
     "noStatus": "بلا تسجيل",
     "noRecitation": "لا تسميع اليوم",
     "page": "ص {{page}}",
-    "pageRange": "ص {{from}}–{{to}}",
+    "pageRange": "ص ⁦{{from}}–{{to}}⁩",
     "surah": "سورة {{surah}}",
     "share": "تحميل الصورة ومشاركتها",
     "sheetTitle": "تقرير حلقة {{halaqa}} اليومي",
@@ -720,7 +721,19 @@
       "daily": "يومياً"
     },
     "noRecitations": "لا توجد تلاوات مسجّلة بعد",
-    "noAwqaf": "لا توجد سجلّات سبر بعد"
+    "noAwqaf": "لا توجد سجلّات سبر بعد",
+    "attendanceChart": {
+      "title": "نسبة الحضور",
+      "subtitle": {
+        "monthly": "نسبة الحاضرين من المسجَّلين في كل شهر دوام",
+        "daily": "نسبة الحاضرين في كل يوم دوام خلال آخر ٩٠ يوماً — أيام العطل لا تظهر"
+      },
+      "rate": "نسبة الحضور",
+      "attended": "حضروا",
+      "absent": "غائبون",
+      "excused": "بعذر"
+    },
+    "noAttendance": "لا توجد جلسات حضور مسجّلة بعد"
   },
   "popupTransferStudents": {
     "title": "نقل الطلاب إلى حلقة أخرى",

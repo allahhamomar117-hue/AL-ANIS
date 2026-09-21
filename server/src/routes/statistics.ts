@@ -75,19 +75,6 @@ function nextMonth(month: string): string {
     : `${year}-${String(m + 1).padStart(2, "0")}`;
 }
 
-/**
- * اليوم التالي لـ 'YYYY-MM-DD' — لتوليد سلسلة الأيام المتصلة.
- *
- * يمرّ بـ Date بالتوقيت العالمي (Date.UTC) لا بحساب يدوي: أطوال الأشهر
- * والسنوات الكبيسة ليست مما يُعاد كتابته هنا. والتوقيت العالمي لا المحلي
- * حتى لا يقفز اليوم أو يتكرّر عند تحوّلات التوقيت الصيفي.
- */
-function nextDay(day: string): string {
-  const [year, m, d] = day.split("-").map(Number);
-  const next = new Date(Date.UTC(year, m - 1, d + 1));
-  return next.toISOString().slice(0, 10);
-}
-
 /** أول يوم في نافذة العرض اليومي، بصيغة 'YYYY-MM-DD'. */
 function windowStart(days: number): string {
   const start = new Date();
@@ -121,6 +108,28 @@ function fillGaps<T extends { bucket: string }>(
     filled.push(byBucket.get(b) ?? empty(b));
   }
   return filled;
+}
+
+/**
+ * يحاذي سلسلةً يومية على محورٍ من الأيام المعطاة، ويملأ الناقص بأصفار.
+ *
+ * بديلُ fillGaps في العرض اليومي لا نسخةٌ منه: ذاك يملأ كل يوم تقويمي
+ * بين الطرفين، فتدخل العطلُ المحورَ أصفاراً — وهي ليست «يوم دوام نتيجته
+ * صفر» بل يومٌ لا دوام فيه أصلاً، فوجودها يمدّ الخطّ على فراغ ويخفض
+ * المتوسّط البصري بلا معنى.
+ *
+ * والمحور اتحادُ أيام الدوام مع أيام السلسلة نفسها، لا أيام الدوام
+ * وحدها: تسميعٌ سُجّل في يومٍ بلا جلسة حضور واقعةٌ حدثت، وإسقاطه إخفاءُ
+ * بيانات لا تنظيفُ محور.
+ */
+function alignToDays<T extends { bucket: string }>(
+  rows: T[],
+  days: string[],
+  empty: (bucket: string) => T
+): T[] {
+  const byBucket = new Map(rows.map((row) => [row.bucket, row]));
+  const axis = [...new Set([...days, ...byBucket.keys()])].sort();
+  return axis.map((day) => byBucket.get(day) ?? empty(day));
 }
 
 /**
@@ -248,6 +257,81 @@ statisticsRouter.get(
         seriesParams
       );
 
+      // ── أيام الدوام الفعلية ───────────────────────────────────────
+      /*
+       * يوم دوام = يوم سُجّلت فيه جلسة حضور واحدة على الأقل. هذه هي
+       * القائمة التي يُبنى عليها محور العرض اليومي في المخطّطين، فلا
+       * تظهر العطل أعمدةً فارغة.
+       *
+       * تُجلب في العرض اليومي وحده: الشهري لا يحتاجها، وأشهرُه متّصلة
+       * أصلاً فيبقى fillGaps عليه كما كان.
+       */
+      const attendanceWindowWhere = [...sessionWhere];
+      const attendanceWindowParams = [...sessionParams];
+      if (daily) {
+        attendanceWindowWhere.push("s.date >= ?");
+        attendanceWindowParams.push(windowStart(DAILY_WINDOW_DAYS));
+      }
+
+      const workingDays = daily
+        ? (
+            await db().all<{ day: string }>(
+              `SELECT DISTINCT ${dayOf("s.date")} AS day
+               FROM attendance_sessions s ${whereOf(attendanceWindowWhere)}
+               ORDER BY day`,
+              attendanceWindowParams
+            )
+          ).map((row) => row.day)
+        : [];
+
+      // ── سلسلة الحضور: حاضر/متأخّر مقابل المسجَّلين ────────────────
+      /*
+       * المقياس نفسه الذي تعرضه لوحة الصدارة: المتأخّر حاضرٌ متأخّر لا
+       * غائب (IN ('present','late'))، والنسبة من المسجَّلين في الجلسة لا
+       * من طلاب المركز — فيوم حضرت فيه حلقة واحدة يُقاس بطلابها.
+       *
+       * التجميع من attendance_entries موصولةً بالجلسة: النطاق والتاريخ
+       * كلاهما على الجلسة، والحالة على القيد.
+       */
+      const attendanceBucket = daily ? dayOf("s.date") : monthOf("s.date");
+
+      const attendanceSeriesRows = await db().all<{
+        bucket: string;
+        attended: number;
+        absent: number;
+        excused: number;
+        total: number;
+      }>(
+        `SELECT ${attendanceBucket} AS bucket,
+                SUM(CASE WHEN e.status IN ('present','late') THEN 1 ELSE 0 END) AS attended,
+                SUM(CASE WHEN e.status = 'absent'  THEN 1 ELSE 0 END) AS absent,
+                SUM(CASE WHEN e.status = 'excused' THEN 1 ELSE 0 END) AS excused,
+                COUNT(*) AS total
+         FROM attendance_entries e
+         JOIN attendance_sessions s ON s.id = e.session_id
+         ${whereOf(attendanceWindowWhere)}
+         GROUP BY ${attendanceBucket}
+         ORDER BY bucket`,
+        attendanceWindowParams
+      );
+
+      /*
+       * النسبة تُحسب هنا لا في SQL: القسمة على صفر تختلف بين اللهجتين،
+       * والبسط والمقام موجودان في الصفّ أصلاً فلا جولة قاعدة إضافية.
+       */
+      const attendancePoints = attendanceSeriesRows.map((row) => {
+        const total = Number(row.total);
+        const attended = Number(row.attended);
+        return {
+          bucket: row.bucket,
+          attended,
+          absent: Number(row.absent),
+          excused: Number(row.excused),
+          total,
+          rate: total ? Math.round((attended / total) * 100) : 0,
+        };
+      });
+
       // ── الأوقاف شهرياً وسنوياً ────────────────────────────────────
       /*
        * exam_month نصّ 'YYYY-MM' في اللهجتين (لا عمود تاريخ)، فالسنة تُقتطع
@@ -310,15 +394,35 @@ statisticsRouter.get(
            */
           recitationSeries: {
             period,
-            points: fillGaps(
-              seriesRows.map((row) => ({
+            /*
+             * الشهري يُملأ بالأصفار (fillGaps) واليومي يُحاذى على أيام
+             * الدوام (alignToDays): الشهر الفارغ شهرٌ وُجد ولم يُسمَّع
+             * فيه، أمّا يوم العطلة فلم يكن يوم دوام أصلاً.
+             */
+            points: (() => {
+              const rows = seriesRows.map((row) => ({
                 bucket: row.bucket,
                 pages: Number(row.pages),
                 count: Number(row.count),
-              })),
-              daily ? nextDay : nextMonth,
-              (bucket) => ({ bucket, pages: 0, count: 0 })
-            ),
+              }));
+              const empty = (bucket: string) => ({ bucket, pages: 0, count: 0 });
+
+              return daily
+                ? alignToDays(rows, workingDays, empty)
+                : fillGaps(rows, nextMonth, empty);
+            })(),
+          },
+          /*
+           * سلسلة الحضور بنفس حبيبة التسميع: المخطّطان يُقرآن معاً
+           * ("هل انخفض التسميع لأن الحضور انخفض؟")، وحبيبتان مختلفتان
+           * على الصفحة الواحدة تُبطل المقارنة.
+           *
+           * ولا تُملأ فجواتها إطلاقاً: كل صفّ فيها يومُ دوامٍ أو شهرُ
+           * دوامٍ وقع فعلاً، وما لا جلسة فيه ليس صفراً بل لا شيء.
+           */
+          attendanceSeries: {
+            period,
+            points: attendancePoints,
           },
           /*
            * أشهر الأوقاف لا تُملأ بالأصفار خلافاً للتسميع.

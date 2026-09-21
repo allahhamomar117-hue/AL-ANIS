@@ -20,6 +20,7 @@ import {
   FaChartLine,
   FaUsers,
 } from "react-icons/fa";
+import { Area, AreaChart } from "recharts";
 import { useAuth } from "../../context/authContext";
 import { useStatistics } from "../../lib/api/hooks";
 import { DEPARTMENTS } from "../../lib/api/types";
@@ -185,6 +186,16 @@ function StatisticsContent({
 
       <RecitationChart
         series={data.recitationSeries}
+        period={period}
+        onPeriodChange={onPeriodChange}
+      />
+      {/*
+        مخطّط الحضور تحت مخطّط التسميع مباشرةً وبنفس الحبيبة: القراءة
+        المقصودة منهما مقارنةٌ رأسية ("هل نزل التسميع لأن الحضور نزل؟")،
+        وفصلُهما بمخطّط الأوقاف بينهما يُبطلها.
+      */}
+      <AttendanceChart
+        series={data.attendanceSeries}
         period={period}
         onPeriodChange={onPeriodChange}
       />
@@ -398,6 +409,137 @@ function RecitationChart({
 }
 
 /**
+ * نسبة الحضور عبر أيام الدوام.
+ *
+ * ── لماذا مساحة لا خطّ؟ ──────────────────────────────────────────────
+ * النسبة مقياس محصور بين 0 و100، والمساحة تحت الخطّ تُظهر الامتلاء من
+ * هذا السقف بلمحة — وهو ما يُقرأ من مخطّط حضور. مخطّط التسميع خطٌّ لأن
+ * الصفحات مقياس مفتوح لا سقف له تُملأ نحوه مساحة.
+ *
+ * والمحور صفوفُ الرد كما وصلت: الخادم لا يضع فيها إلا يوماً أو شهراً
+ * سُجّلت فيه جلسة فعلاً، فالعطل غائبة عن المحور لا مرسومةً أصفاراً.
+ *
+ * الحبيبة مشتركة مع مخطّط التسميع عمداً — مفتاح واحد يبدّل الاثنين
+ * فيبقيان قابلَين للمقارنة، ولأن الرد يحملهما معاً في الطلب نفسه.
+ */
+function AttendanceChart({
+  series,
+  period,
+  onPeriodChange,
+}: {
+  series: Stats["attendanceSeries"];
+  period: RecitationPeriod;
+  onPeriodChange: (period: RecitationPeriod) => void;
+}) {
+  const { t } = useTranslation();
+
+  // كما في مخطّط التسميع: العنوان يتبع الحبيبة الواصلة لا المختارة
+  const shown = series.period;
+
+  const toggle = (
+    <div className="flex shrink-0 gap-1 rounded-xl bg-gray-100 p-1 dark:bg-dark-light">
+      {(["monthly", "daily"] as const).map((option) => (
+        <button
+          key={option}
+          onClick={() => onPeriodChange(option)}
+          className={`rounded-lg px-3 py-1.5 text-sm font-bold transition ${
+            period === option
+              ? "bg-white text-gray-800 shadow dark:bg-dark dark:text-white"
+              : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
+          }`}
+        >
+          {t(`statistics.period.${option}`)}
+        </button>
+      ))}
+    </div>
+  );
+
+  const title = t("statistics.attendanceChart.title");
+  const subtitle = t(`statistics.attendanceChart.subtitle.${shown}`);
+
+  if (series.points.length === 0) {
+    return (
+      <ChartPanel title={title} subtitle={subtitle} action={toggle}>
+        <EmptyState message={t("statistics.noAttendance")} icon="🗓️" />
+      </ChartPanel>
+    );
+  }
+
+  return (
+    <ChartPanel title={title} subtitle={subtitle} action={toggle}>
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={series.points} margin={{ top: 8, right: 16, bottom: 4, left: 0 }}>
+          {/*
+            تدرّج رأسي من لون المخطّط إلى الشفافية: يُثقل قاعدة المساحة
+            ويُخفّ عند الخطّ، فلا تنافس التعبئةُ الخطَّ الذي يحمل القيمة.
+          */}
+          <defs>
+            <linearGradient id="attendanceFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--chart-attendance)" stopOpacity={0.35} />
+              <stop offset="100%" stopColor="var(--chart-attendance)" stopOpacity={0.02} />
+            </linearGradient>
+          </defs>
+
+          <CartesianGrid stroke="var(--chart-grid)" strokeWidth={1} vertical={false} />
+          <XAxis
+            dataKey="bucket"
+            tickFormatter={(bucket: string) => formatBucket(bucket, shown)}
+            tick={AXIS_TICK}
+            tickLine={false}
+            axisLine={{ stroke: "var(--chart-grid)" }}
+            minTickGap={16}
+          />
+          {/*
+            المحور مثبَّت على 0–100 لا مقيس على البيانات: نسبةٌ تتراوح بين
+            88٪ و92٪ على محورٍ مَرِن تبدو تذبذباً عنيفاً، وعلى محور النسبة
+            الكامل تبدو ما هي عليه — استقراراً عالياً.
+          */}
+          <YAxis
+            domain={[0, 100]}
+            ticks={[0, 25, 50, 75, 100]}
+            tick={AXIS_TICK}
+            tickLine={false}
+            axisLine={false}
+            width={44}
+            tickFormatter={(value: number) => `${value}%`}
+          />
+          <Tooltip
+            content={<AttendanceTooltip period={shown} />}
+            cursor={{ stroke: "var(--chart-axis)", strokeWidth: 1 }}
+          />
+          <Area
+            type="monotone"
+            dataKey="rate"
+            stroke="var(--chart-attendance)"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="url(#attendanceFill)"
+            // النقاط تُطفأ في اليومي لنفس سبب مخطّط التسميع: تلاصقها يُخفي الخطّ
+            dot={
+              shown === "daily"
+                ? false
+                : {
+                  r: 4,
+                  fill: "var(--chart-attendance)",
+                  stroke: "var(--chart-surface)",
+                  strokeWidth: 2,
+                }
+            }
+            activeDot={{
+              r: 6,
+              fill: "var(--chart-attendance)",
+              stroke: "var(--chart-surface)",
+              strokeWidth: 2,
+            }}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </ChartPanel>
+  );
+}
+
+/**
  * ناجحو الأوقاف — نفس المقياس بحبيبتين زمنيّتين، يبدّل بينهما مفتاح.
  *
  * لا يُخلط الشهري بالسنوي على محور واحد: عمود سنةٍ بجانب عمود شهرٍ
@@ -542,6 +684,43 @@ function RecitationTooltip({
       rows={[
         [t("statistics.recitationChart.pages"), formatNumber(row.pages)],
         [t("statistics.recitationChart.count"), formatNumber(row.count)],
+      ]}
+    />
+  );
+}
+
+/**
+ * النسبة مرسومة، والأعداد التي وراءها في التلميح: 90٪ من عشرة غير 90٪ من
+ * مئة، والمخطّط وحده لا يفرّق بينهما.
+ */
+function AttendanceTooltip({
+  active,
+  payload,
+  period = "monthly",
+}: TooltipProps & { period?: RecitationPeriod }) {
+  const { t } = useTranslation();
+  if (!active || !payload?.length) return null;
+
+  const row = payload[0].payload as {
+    bucket: string;
+    attended: number;
+    absent: number;
+    excused: number;
+    total: number;
+    rate: number;
+  };
+
+  return (
+    <TooltipBox
+      title={period === "daily" ? formatShortDate(row.bucket) : formatMonth(row.bucket)}
+      rows={[
+        [t("statistics.attendanceChart.rate"), `${formatNumber(row.rate)}%`],
+        [
+          t("statistics.attendanceChart.attended"),
+          `${formatNumber(row.attended)} / ${formatNumber(row.total)}`,
+        ],
+        [t("statistics.attendanceChart.absent"), formatNumber(row.absent)],
+        [t("statistics.attendanceChart.excused"), formatNumber(row.excused)],
       ]}
     />
   );

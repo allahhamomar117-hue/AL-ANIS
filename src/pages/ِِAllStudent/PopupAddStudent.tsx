@@ -19,14 +19,20 @@ export function PopupAddStudent({ onClose, defaultHalaqaId }: AddStudentPopupPro
   const { isSuperAdmin } = useAuth();
 
   /*
-   * الحلقة إلزامية لمدير القسم: انتماء الطالب إلى قسمٍ يمرّ بحلقته وحدها
-   * (لا عمود قسم في students)، فطالبٌ بلا حلقة يسقط خارج نطاق مُنشئه فور
-   * إنشائه. الخادم يمنعها في assertHalaqaGiven، والشرط هنا ليُقال ذلك قبل
-   * ملء النموذج لا بعد إرساله.
+   * ── الحلقة إلزامية لكل من يضيف طالباً — المدير العام معه ──────────
    *
-   * والمدير العام يبقى له الخيار: الطالب بلا حلقة يظل في نطاقه فيسنده متى شاء.
+   * كانت مُعفاة عنه بحجّة أن الطالب بلا حلقة يبقى في نطاقه فيُسنده لاحقاً.
+   * وهي حجّة صحيحة نظرياً ومكلفة عملياً: لا شيء في الواجهة يعرض «طلاباً
+   * بلا حلقة»، فالطالب الذي يُنشأ هكذا لا يظهر في قوائم الحلقات ولا في
+   * الحضور ولا في التسميع — يوجد في القاعدة ولا يُرى، ولا شيء يذكّر
+   * بإسناده.
+   *
+   * انتماء الطالب إلى قسمٍ يمرّ بحلقته وحدها (لا عمود قسم في students)،
+   * فالحلقة ليست حقلاً إضافياً بل موضعُ الطالب في النظام كلّه.
+   *
+   * isSuperAdmin ما زال يُقرأ: القائمة الفارغة تعني لمدير القسم شيئاً
+   * آخر (راجع رسالة noHalaqatInDepartment أدناه).
    */
-  const halaqaRequired = !isSuperAdmin;
 
   const [name, setName] = useState("");
   const [halaqaId, setHalaqaId] = useState<number | "">(defaultHalaqaId ?? "");
@@ -42,19 +48,32 @@ export function PopupAddStudent({ onClose, defaultHalaqaId }: AddStudentPopupPro
   const studentPhoneOk = phoneAcceptable(studentPhone);
   const parentPhoneOk = phoneAcceptable(parentPhone);
 
+  /** الشرط الحاكم (راجع الشرح أعلى الملف). */
+  const halaqaMissing = halaqaId === "";
+
   const valid =
     name.trim().length > 0 &&
-    !(halaqaRequired && halaqaId === "") &&
+    !halaqaMissing &&
     studentPhoneOk &&
     parentPhoneOk;
 
+  /*
+   * زرّ الإضافة يبقى قابلاً للضغط حين تنقص الحلقة، ويردّ بتنبيه.
+   *
+   * تعطيله كان يمنع الإضافة فعلاً لكنه لا يقول لماذا: يضغط المستخدم فلا
+   * يحدث شيء، ولا شيء يربط الجمود بالحقل الناقص. والتنبيه يسمّي النقص.
+   */
   const handleAdd = async () => {
+    if (halaqaMissing) {
+      notify(t("popupAddStudent.halaqaMissing"), "error");
+      return;
+    }
     if (!valid) return;
 
     try {
       await createStudent.mutateAsync({
         name: name.trim(),
-        halaqa_id: halaqaId === "" ? null : halaqaId,
+        halaqa_id: halaqaId,
         birth_date: birthDate || null,
         student_phone: studentPhone || null,
         parent_phone: parentPhone || null,
@@ -122,13 +141,12 @@ export function PopupAddStudent({ onClose, defaultHalaqaId }: AddStudentPopupPro
             موجودة لكن بلا قسم مُسنَد (halaqat.department = NULL لكل حلقة
             سابقة للترقية 012)، فلا تدخل نطاقه. الرسالة تدلّ على الإصلاح.
           */}
-          {halaqaRequired && halaqat.length === 0 ? (
+          {!isSuperAdmin && halaqat.length === 0 ? (
             <p className="mt-1 text-xs font-bold text-red-600 dark:text-red-400">
               {t("popupAddStudent.noHalaqatInDepartment")}
             </p>
           ) : (
-            halaqaRequired &&
-            halaqaId === "" && (
+            halaqaMissing && (
               <p className="mt-1 text-xs text-gray-400">
                 {t("popupAddStudent.halaqaRequired")}
               </p>
@@ -191,7 +209,8 @@ export function PopupAddStudent({ onClose, defaultHalaqaId }: AddStudentPopupPro
 
           <button
             onClick={handleAdd}
-            disabled={!valid || createStudent.isPending}
+            // نقصُ الحلقة لا يعطّل الزرّ — handleAdd يردّ عليه بتنبيه
+            disabled={(!valid && !halaqaMissing) || createStudent.isPending}
             className="px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition disabled:opacity-50"
           >
             {createStudent.isPending ? t("popupAddStudent.saving") : t("popupAddStudent.add")}

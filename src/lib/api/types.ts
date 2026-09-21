@@ -362,6 +362,20 @@ export interface RecitationPoint {
   count: number;
 }
 
+/** نقطة على مخطّط الحضور — يوم دوام أو شهر دوام وقع فعلاً. */
+export interface AttendancePoint {
+  /** 'YYYY-MM' في العرض الشهري و'YYYY-MM-DD' في اليومي. */
+  bucket: string;
+  /** حاضر أو متأخّر — نفس تعريف لوحة الصدارة. */
+  attended: number;
+  absent: number;
+  excused: number;
+  /** المسجَّلون في جلسات ذلك اليوم/الشهر. */
+  total: number;
+  /** نسبة مئوية صحيحة (0–100)، محسوبة على الخادم. */
+  rate: number;
+}
+
 export interface AwqafPeriodStats {
   passed: number;
   nominated: number;
@@ -389,6 +403,16 @@ export interface StatisticsDashboard {
   recitationSeries: {
     period: RecitationPeriod;
     points: RecitationPoint[];
+  };
+  /**
+   * سلسلة الحضور بنفس حبيبة التسميع.
+   *
+   * لا تُملأ فجواتها: كل نقطة يومُ دوامٍ أو شهرُ دوامٍ سُجّلت فيه جلسة
+   * فعلاً، فالعطل لا تدخل المحور أصفاراً.
+   */
+  attendanceSeries: {
+    period: RecitationPeriod;
+    points: AttendancePoint[];
   };
   awqafStats: {
     /** أشهر السبر المسجّلة فقط — لا تُملأ الفجوات (السبر واقعة متقطّعة). */

@@ -61,6 +61,7 @@ body {
  */
 :root {
   --chart-recitation: #059669;
+  --chart-attendance: #b45309;
   --chart-awqaf: #2a78d6;
   --chart-grid: #e5e7eb;
   --chart-axis: #6b7280;
@@ -69,6 +70,7 @@ body {
 
 .dark {
   --chart-recitation: #1baf7a;
+  --chart-attendance: #f59e0b;
   --chart-awqaf: #3987e5;
   --chart-grid: #3a3a3a;
   --chart-axis: #9ca3af;

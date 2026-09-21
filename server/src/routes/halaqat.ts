@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db, tx, type SqlParam } from "../db/index.js";
 import { ApiError, asyncHandler, parse } from "../lib/http.js";
 import { departmentInput, idParam } from "../lib/schemas.js";
+import { sortByNatural } from "../lib/sort.js";
 import { requireRole } from "../middleware/auth.js";
 import {
   applyScope,
@@ -115,8 +116,14 @@ halaqatRouter.get(
     // المدرّس لا يرى إلا حلقاته
     await applyScope(req.user!, "h.id", where, params);
 
-    const sql = `${SELECT_HALAQA} ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY h.name`;
-    res.json({ data: await db().all(sql, params) });
+    /*
+     * بلا ORDER BY: الترتيب طبيعيّ (numeric) يجريه compareNatural بعد
+     * الجلب — راجع lib/sort.ts لسبب خروجه من SQL.
+     */
+    const sql = `${SELECT_HALAQA} ${where.length ? `WHERE ${where.join(" AND ")}` : ""}`;
+    const rows = await db().all<{ name: string }>(sql, params);
+
+    res.json({ data: sortByNatural(rows, (h) => h.name ?? "") });
   })
 );
 

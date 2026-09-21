@@ -52,7 +52,15 @@ reportsRouter.get(
     const q = parse(
       rangeSchema.extend({
         type: z.enum(["points", "attendance", "recitation"]).default("points"),
-        limit: z.coerce.number().int().min(1).max(100).default(20),
+        /*
+         * بلا حدّ أعلى وبلا قيمة افتراضية: صفحة التقارير تعرض كل الطلاب،
+         * وسقف المئة كان يقصّ الترتيب صامتاً عند مركزٍ أكبر منه — فيظهر
+         * الجدول كاملاً وليس فيه من تجاوز المئة، بلا ما يدلّ على القصّ.
+         *
+         * والغياب يعني «الكل» لا عشرين: الصفحةُ النداءُ الوحيد لهذا
+         * المسار، والترتيب مقيَّد بنطاق المستخدم وبالدورة الجارية أصلاً.
+         */
+        limit: z.coerce.number().int().min(1).optional(),
       }),
       req.query
     );
@@ -159,8 +167,11 @@ reportsRouter.get(
         : q.type === "attendance"
           ? "attendance"
           : "recitationPages";
-    sql += ` ORDER BY "${orderColumn}" DESC, s.name ASC LIMIT ?`;
-    params.push(q.limit);
+    sql += ` ORDER BY "${orderColumn}" DESC, s.name ASC`;
+    if (q.limit !== undefined) {
+      sql += " LIMIT ?";
+      params.push(q.limit);
+    }
 
     const rows = await db().all<Record<string, unknown>>(sql, params);
 
