@@ -37,7 +37,20 @@ import { fileURLToPath } from "node:url";
 import { closeDb, db, initDb, tx } from "./index.js";
 import { hashPassword, verifyPassword } from "../lib/password.js";
 
-const serverRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+/**
+ * مسار هذا الملف — بصيغة تصمد في البيئتين.
+ *
+ * يُشتقّ منه جذر مجلّد server.
+ * حين يحزّم esbuild (Netlify Functions) هذه الوحدة إلى CommonJS يختفي
+ * import.meta فتصير import.meta.url غير معرَّفة، فيسقط fileURLToPath بـ
+ * ERR_INVALID_ARG_TYPE عند الإقلاع — أي 502 فور أول طلب. فنقرأ __filename
+ * إن وُجد (مخرَج CJS) ونعود إلى import.meta.url في تشغيل ESM العادي.
+ */
+const _filename =
+  typeof __filename !== "undefined" ? __filename : fileURLToPath(import.meta.url || "file:///");
+const _dirname = typeof __dirname !== "undefined" ? __dirname : path.dirname(_filename);
+
+const serverRoot = path.resolve(_dirname, "..", "..");
 const DEFAULT_FILE = path.join(serverRoot, "passwords.local.json");
 
 /** أدنى طول مقبول — نفس ما يفرضه مسار إنشاء المستخدم. */

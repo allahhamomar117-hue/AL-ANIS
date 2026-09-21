@@ -4,7 +4,20 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const here = path.dirname(fileURLToPath(import.meta.url));
+/**
+ * مسار هذا الملف — بصيغة تصمد في البيئتين.
+ *
+ * يُشتقّ منه كل مسار في هذا الملف: المخطّط وملف القاعدة وبناء الواجهة.
+ * حين يحزّم esbuild (Netlify Functions) هذه الوحدة إلى CommonJS يختفي
+ * import.meta فتصير import.meta.url غير معرَّفة، فيسقط fileURLToPath بـ
+ * ERR_INVALID_ARG_TYPE عند الإقلاع — أي 502 فور أول طلب. فنقرأ __filename
+ * إن وُجد (مخرَج CJS) ونعود إلى import.meta.url في تشغيل ESM العادي.
+ */
+const _filename =
+  typeof __filename !== "undefined" ? __filename : fileURLToPath(import.meta.url || "file:///");
+const _dirname = typeof __dirname !== "undefined" ? __dirname : path.dirname(_filename);
+
+const here = _dirname;
 const serverRoot = path.resolve(here, "..");
 
 export const config = {

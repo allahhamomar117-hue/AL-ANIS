@@ -24,7 +24,20 @@ import { db, initDb, type DbDriver } from "./driver.js";
 export { db, initDb, closeDb } from "./driver.js";
 export type { DbDriver, RunResult, SqlParam } from "./driver.js";
 
-const here = path.dirname(fileURLToPath(import.meta.url));
+/**
+ * مسار هذا الملف — بصيغة تصمد في البيئتين.
+ *
+ * يُشتقّ منه مجلّد ترقيات SQLite.
+ * حين يحزّم esbuild (Netlify Functions) هذه الوحدة إلى CommonJS يختفي
+ * import.meta فتصير import.meta.url غير معرَّفة، فيسقط fileURLToPath بـ
+ * ERR_INVALID_ARG_TYPE عند الإقلاع — أي 502 فور أول طلب. فنقرأ __filename
+ * إن وُجد (مخرَج CJS) ونعود إلى import.meta.url في تشغيل ESM العادي.
+ */
+const _filename =
+  typeof __filename !== "undefined" ? __filename : fileURLToPath(import.meta.url || "file:///");
+const _dirname = typeof __dirname !== "undefined" ? __dirname : path.dirname(_filename);
+
+const here = _dirname;
 const migrationsDir = path.join(here, "migrations");
 
 /** ترتيب الترقيات: اسم الملف يبدأ برقمه (001_…‎). */
