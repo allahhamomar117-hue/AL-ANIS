@@ -1,16 +1,32 @@
 # ── الأنيس | إعدادات نشر Netlify ─────────────────────────────────────
-[build]
-  command = "npm ci && npm run build"
-  publish = "dist"
+# الواجهة (Vite) والـ API (Express كدالة) على نطاق واحد.
 
-# نفس قواعد public/_redirects، مكتوبة هنا أيضاً كتوثيق صريح.
-# (Netlify يدمج الاثنين، وقواعد netlify.toml لها الأسبقية.)
+[build]
+  # ترتيب الأوامر مقصود: الواجهة أولاً إلى dist، ثم اعتماديات الخادم
+  # وبناؤه إلى server/dist — وهو ما تستورده الدالة في netlify/functions.
+  command = "npm ci && npm run build && npm --prefix server ci && npm --prefix server run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[functions]
+  node_bundler = "esbuild"
+  # better-sqlite3 وحدة أصليّة لا تُحزَّم. الدالة تعمل على Postgres وحده،
+  # فاستثناؤها يمنع فشل البناء دون أن يُفقد شيئاً مستعملاً.
+  external_node_modules = ["better-sqlite3"]
+
+# طلبات الـ API تُعاد كتابتها داخلياً إلى الدالة.
+# force = true ضرورية: بدونها يفوز أي ملف ثابت يصادف نفس المسار.
 [[redirects]]
   from = "/api/*"
-  to = "https://al-anis-production.up.railway.app/api/:splat"
+  to = "/.netlify/functions/api/:splat"
   status = 200
   force = true
 
+# بقية المسارات تُخدَم من index.html ليعمل توجيه React (SPA).
+# يجب أن تبقى الأخيرة: أول قاعدة مطابقة هي التي تُنفَّذ.
 [[redirects]]
   from = "/*"
   to = "/index.html"

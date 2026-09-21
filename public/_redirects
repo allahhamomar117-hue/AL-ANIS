@@ -1,10 +1,9 @@
 # ── الأنيس | توجيه Netlify ───────────────────────────────────────────
+# نسخة مطابقة لقواعد netlify.toml (الأخير له الأسبقية عند الاختلاف).
 # الترتيب مهم: أول قاعدة تطابق هي التي تُنفَّذ.
 
-# 1) طلبات الـ API تُمرَّر (proxy) إلى خادم Railway.
-#    الحالة 200 = إعادة كتابة داخلية: يبقى العنوان في المتصفح على نطاق
-#    Netlify فلا يوجد CORS ولا preflight إطلاقاً.
-/api/*  https://al-anis-production.up.railway.app/api/:splat  200
+# 1) الـ API → دالة Netlify التي تلفّ خادم Express.
+/api/*  /.netlify/functions/api/:splat  200!
 
-# 2) بقية المسارات تُخدَم من index.html ليعمل توجيه React (SPA).
-/*      /index.html                                            200
+# 2) بقية المسارات → index.html ليتولّاها React Router.
+/*      /index.html                     200

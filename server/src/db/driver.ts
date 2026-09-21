@@ -19,7 +19,13 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import Database from "better-sqlite3";
+/**
+ * better-sqlite3 وحدة أصليّة (.node) لا تُحزَّم داخل Netlify Function،
+ * ووجودها كاستيراد ساكن يُسقط البناء هناك حتى مع DATABASE_URL مضبوطاً.
+ * فالنوع وحده يُستورد ساكناً (يُمحى عند الترجمة) والوحدة نفسها تُحمَّل
+ * كسولاً داخل createSqliteDriver — كما يُحمَّل pg في المسار المقابل.
+ */
+import type Database from "better-sqlite3";
 import { config } from "../config.js";
 
 export type SqlParam = string | number | bigint | boolean | null | Buffer;
@@ -87,10 +93,11 @@ function toSqliteParams(params: SqlParam[]): SqlParam[] {
   return params.map((p) => (typeof p === "boolean" ? (p ? 1 : 0) : p));
 }
 
-function createSqliteDriver(): DbDriver {
+async function createSqliteDriver(): Promise<DbDriver> {
   fs.mkdirSync(path.dirname(config.dbFile), { recursive: true });
 
-  const database = new Database(config.dbFile);
+  const { default: SqliteDatabase } = await import("better-sqlite3");
+  const database = new SqliteDatabase(config.dbFile);
   database.pragma("journal_mode = WAL");
   database.pragma("foreign_keys = ON");
 
@@ -328,7 +335,7 @@ export async function initDb(): Promise<DbDriver> {
     instance = await createPostgresDriver(config.databaseUrl);
   } else {
     console.log(`🗄  قاعدة البيانات: SQLite (${config.dbFile})`);
-    instance = createSqliteDriver();
+    instance = await createSqliteDriver();
   }
 
   return instance;
