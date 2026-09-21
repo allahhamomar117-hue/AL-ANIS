@@ -493,7 +493,7 @@
   "staff": {
     "department": "Department",
     "noDepartment": "All departments (super admin)",
-    "departmentLocked": "The account joins your department automatically",
+    "departmentLocked": "Departments are assigned automatically from your own scope",
     "allDepartments": "All departments",
     "title": "Staff management",
     "subtitle": "Teacher and supervisor accounts: add and edit",
@@ -542,7 +542,9 @@
     "deleteConfirm": "The account of {{name}} will be permanently removed from the system.",
     "deleteWarning": "This cannot be undone. Attendance, recitation and points records are kept but lose their recorder, and the halaqat lose their teacher.",
     "deleting": "Deleting…",
-    "deleted": "{{name}} account permanently deleted"
+    "deleted": "{{name}} account permanently deleted",
+    "departments": "Departments",
+    "allDepartmentsHint": "No selection = the whole institute — this account becomes a super admin"
   },
   "halaqatAdmin": {
     "department": "Department",

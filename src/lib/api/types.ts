@@ -9,8 +9,11 @@ export type Role = "ADMIN" | "SUPERVISOR" | "TEACHER";
  * يحدّد من يرى ماذا — والمكثفة لا مقابل لها في المراحل.
  *
  * دلالة `null` تختلف بين الحقلين:
- *   AuthUser.department / StaffUser.department  ⇒ مدير عام، نطاقه المعهد كلّه.
- *   Halaqa.department                            ⇒ حلقة لم يُسنَد لها قسم بعد.
+ *   AuthUser.departments / StaffUser.departments (فارغة) ⇒ مدير عام.
+ *   Halaqa.department (null)                              ⇒ حلقة بلا قسم بعد.
+ *
+ * ولا تلتبس الحالتان: أقسام الحساب قائمةٌ فارغُها أوسعُ نطاق، وقسم
+ * الحلقة قيمةٌ مفردة فراغُها أضيقُه (لا يراها إلا المدير العام).
  */
 export const DEPARTMENTS = ["PRIMARY", "MIDDLE_HIGH", "INTENSIVE"] as const;
 export type Department = (typeof DEPARTMENTS)[number];
@@ -27,8 +30,13 @@ export interface AuthUser {
   phone_number: string | null;
   country_code: string;
   role: Role;
-  /** قسم الإداري — null يعني المدير العام (يرى الأقسام كلها). */
-  department: Department | null;
+  /**
+   * أقسام الإداري.
+   *
+   * الفارغة = المعهد كلّه (المدير العام)، لا «بلا قسم» — راجع رأس
+   * server/src/services/scope.ts. والمدرّس لا تعنيه: نطاقه حلقاته.
+   */
+  departments: Department[];
   /** حلقة المدرّس الافتراضية — null للمدير والمشرف (يريان الجميع). */
   halaqa_id: number | null;
   halaqa_name: string | null;
@@ -315,8 +323,11 @@ export interface StaffUser {
   name: string;
   username: string | null;
   role: Role;
-  /** قسم الحساب — null يعني نطاق المعهد كلّه (مدير عام). */
-  department: Department | null;
+  /**
+   * أقسام الحساب (علاقة متعدّد إلى متعدّد منذ الترقية 017).
+   * الفارغة = نطاق المعهد كلّه (مدير عام)، لا «بلا قسم».
+   */
+  departments: Department[];
   isActive: number;
   createdAt: string;
   hasPassword: number;

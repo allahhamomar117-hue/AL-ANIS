@@ -54,7 +54,8 @@ export default function PopupDepartmentManagerForm({ onClose }: { onClose: () =>
    * الأقسام. عمليةٌ مشروعة، لكنها ليست ما يقصده من فتح هذه النافذة
    * غالباً — فتُقال قبل الحفظ لا بعده.
    */
-  const narrowsSuperAdmin = selected?.role === "ADMIN" && selected.department === null;
+  const narrowsSuperAdmin =
+    selected?.role === "ADMIN" && selected.departments.length === 0;
 
   const departmentChosen = isSuperAdmin ? department !== "" : true;
   const valid = userId !== "" && departmentChosen && !updateUser.isPending;
@@ -68,8 +69,16 @@ export default function PopupDepartmentManagerForm({ onClose }: { onClose: () =>
       await updateUser.mutateAsync({
         id: selected.id,
         role: "ADMIN",
-        // مطويّ لا مُمرّراً كـ undefined: القسم قرار الخادم لمدير القسم
-        ...(dept !== undefined ? { department: dept } : {}),
+        /*
+         * قسمٌ واحد في قائمة: هذه النافذة تصنع «مدير قسم» بعينه، فالمفرد
+         * هو معناها. والحقل صار قائمةً منذ الترقية 017، فيُلفّ لا يُبدَّل
+         * معناه — وإسنادُ أقسامٍ عدّة لحسابٍ واحد بابُه نافذةُ تعديل
+         * الحساب، حيث تُعرض حالته الحالية قبل تغييرها.
+         *
+         * ومطويّ لا مُمرَّراً كـ undefined: الأقسام قرارُ الخادم لمدير
+         * القسم (departmentsToSend تُعيد له undefined).
+         */
+        ...(dept ? { departments: [dept] } : {}),
       });
       // useUpdateUser تُبطل مفاتيح الكادر، فتتحدّث القائمة خلف النافذة وحدها
       notify(t("staff.managerAssigned", { name: selected.name }));
@@ -135,8 +144,10 @@ export default function PopupDepartmentManagerForm({ onClose }: { onClose: () =>
                     الأسماء ولا يُعرف ما الذي سيغيّره الحفظ.
                   */}
                   {member.name} — {t(`roles.${member.role}`)}
-                  {member.department
-                    ? ` · ${t(`departments.${member.department}`)}`
+                  {member.departments.length > 0
+                    ? ` · ${member.departments
+                        .map((d) => t(`departments.${d}`))
+                        .join("، ")}`
                     : ` · ${t("staff.allDepartments")}`}
                 </option>
               ))}

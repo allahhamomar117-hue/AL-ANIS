@@ -10,9 +10,16 @@
  *     TEACHER    : حلقاته المسندة إليه (teacher_halaqat) والحلقات التي هو
  *                  أستاذها الأساسي (halaqat.teacher_id)، وطلاب تلك الحلقات.
  *
- *   القسم (department) — على مَن يفعله؟ (للإداريين وحدهم)
- *     NULL  ⇒ المعهد كامل — المدير العام.
- *     قيمة  ⇒ حلقات ذلك القسم وطلابها وتقاريره — مدير القسم.
+ *   الأقسام (departments) — على مَن يفعله؟ (للإداريين وحدهم)
+ *     []      ⇒ المعهد كامل — المدير العام.
+ *     [A]     ⇒ حلقات قسمٍ واحد وطلابها وتقاريره — مدير القسم.
+ *     [A, B]  ⇒ قسمان معاً — المشرف الذي يخدم أكثر من قسم.
+ *
+ *   والقائمة الفارغة تعني «الكل» لا «لا شيء»: هي الترجمة الحرفية لـ
+ *   department = NULL قبل الترقية 017، فمن كان مديراً عاماً بقي كذلك
+ *   بلا صفٍّ في الجدول الوسيط ولا تدخّل. ولو عنت الفارغةُ «بلا صلاحية»
+ *   لوجب عَلَمٌ منفصل للمدير العام — عمودُ صلاحياتٍ جديد، خطؤه يمنح
+ *   المعهد كلّه أو يسلبه.
  *
  * ولهذا لا يوجد دور SUPER_ADMIN: لو كان القسم دوراً لتضاعفت الأدوار مع
  * كل قسم جديد (ADMIN×3، SUPERVISOR×3…)، ولوجب تعديل كل
@@ -42,18 +49,22 @@ export function canManageUsers(user: AuthUser): boolean {
 
 /** مدير عام: إداريّ بلا قسم — يرى المعهد كاملاً. */
 export function isSuperAdmin(user: AuthUser): boolean {
-  return isAdmin(user) && user.department === null;
+  return isAdmin(user) && user.departments.length === 0;
 }
 
 /**
- * قسم المستخدم إن كان نطاقه محصوراً به، وإلا `null`.
+ * أقسام المستخدم إن كان نطاقه محصوراً بها، وإلا `null` (بلا قيد).
  *
- * تُعيد null للمدرّس أيضاً وإن كان له عمود قسم: نطاقه حلقاته المسندة لا
- * قسمه، وإضافة قيد القسم فوق ذلك تحجب عنه حلقة أُسندت إليه من قسم آخر
- * (المدرّس المشترك بين قسمين حالة واقعية، لا شذوذ بيانات).
+ * تُعيد null في حالتين لا تلتبسان: المدير العام (قائمته فارغة = الكل)،
+ * والمدرّس — نطاقه حلقاته المسندة لا أقسامه، وإضافة قيد القسم فوق ذلك
+ * تحجب عنه حلقة أُسندت إليه من قسم آخر (المدرّس المشترك بين قسمين حالة
+ * واقعية، لا شذوذ بيانات).
+ *
+ * فالقيمة المُعادة غير فارغة أبداً: إمّا null أو قائمة فيها قسم فأكثر.
  */
-export function departmentScope(user: AuthUser): Department | null {
-  return isAdmin(user) ? user.department : null;
+export function departmentScope(user: AuthUser): Department[] | null {
+  if (!isAdmin(user)) return null;
+  return user.departments.length ? user.departments : null;
 }
 
 /**
@@ -65,7 +76,8 @@ export function departmentScope(user: AuthUser): Department | null {
  */
 export function canAccessDepartment(user: AuthUser, dept: Department | null): boolean {
   const scope = departmentScope(user);
-  return scope === null || scope === dept;
+  if (scope === null) return true;
+  return dept !== null && scope.includes(dept);
 }
 
 /** يرمي 403 إذا كان القسم خارج نطاق المستخدم. */
@@ -73,35 +85,6 @@ export function assertDepartmentAccess(user: AuthUser, dept: Department | null):
   if (!canAccessDepartment(user, dept)) {
     throw ApiError.forbidden("هذا القسم خارج نطاق صلاحياتك");
   }
-}
-
-/**
- * قيد SQL على عمود قسم مباشر (halaqat.department أو users.department).
- * يعيد `null` لمن لا قيد عليه.
- *
- * للاستعمال حيث لا يوجد halaqa_id يُفلتَر عليه — أبرزه قائمة الكادر في
- * /api/users: مدير القسم يرى كادر قسمه وحده.
- */
-export function departmentFilter(
-  user: AuthUser,
-  column: string
-): { sql: string; params: string[] } | null {
-  const scope = departmentScope(user);
-  if (scope === null) return null;
-  return { sql: `${column} = ?`, params: [scope] };
-}
-
-/** يضيف قيد القسم إلى مصفوفتَي الشروط والمعاملات إن لزم. */
-export function applyDepartmentScope(
-  user: AuthUser,
-  column: string,
-  where: string[],
-  params: unknown[]
-): void {
-  const filter = departmentFilter(user, column);
-  if (!filter) return;
-  where.push(filter.sql);
-  params.push(...filter.params);
 }
 
 /**
@@ -118,8 +101,8 @@ export async function accessibleHalaqaIds(user: AuthUser): Promise<number[] | nu
     if (scope === null) return null;
 
     const rows = await db().all<{ id: number }>(
-      "SELECT id FROM halaqat WHERE department = ?",
-      [scope]
+      `SELECT id FROM halaqat WHERE department IN (${scope.map(() => "?").join(", ")})`,
+      scope
     );
     return rows.map((r) => r.id);
   }
@@ -303,5 +286,5 @@ export function viewAsDepartment(
   department: Department | null | undefined
 ): AuthUser {
   if (!department || !isSuperAdmin(user)) return user;
-  return { ...user, department };
+  return { ...user, departments: [department] };
 }

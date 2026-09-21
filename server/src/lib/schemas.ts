@@ -34,6 +34,18 @@ export const departmentInput = z
   .transform((value) => (value === "" ? null : value));
 
 /**
+ * قائمة أقسام الحساب (الجدول الوسيط user_departments).
+ *
+ * الفارغة مقبولة وتعني «المعهد كلّه» — لا تُرفض ولا تُعامَل نقصاً
+ * (راجع رأس services/scope.ts). والتكرار يُطوى هنا لا في الإدراج، فيصل
+ * المسارَ ما سيُكتب حرفياً. والترتيب على DEPARTMENTS لا على ما أرسله
+ * العميل، فيبقى العرض ثابتاً.
+ */
+export const departmentsInput = z
+  .array(department)
+  .transform((list) => department.options.filter((d) => list.includes(d)));
+
+/**
  * نمط رقم الجوال السوري: عشر خانات تبدأ بـ 09.
  *
  * مُصدَّر ليبقى مصدراً واحداً — الواجهة تعرّف نظيره في src/lib/phone.ts،

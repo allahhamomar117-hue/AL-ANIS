@@ -20,8 +20,8 @@ import {
 } from "../../lib/api/hooks";
 import type { Department, Role, StaffUser } from "../../lib/api/types";
 import { useAuth } from "../../context/authContext";
-import { departmentToSend } from "../../lib/department";
-import DepartmentField from "../../shared/DepartmentField";
+import { departmentsToSend } from "../../lib/department";
+import DepartmentsField from "../../shared/DepartmentsField";
 import { useToast } from "../../shared/toast/toastContext";
 
 /** الحدّ الأدنى عند الإنشاء (يفرضه الخادم على /users). */
@@ -58,13 +58,14 @@ export default function PopupStaffForm({
   const [visible, setVisible] = useState(false);
   const [role, setRole] = useState<Role>(editing?.role ?? initialRole);
   /**
-   * القسم. يُهيّأ من الحساب المُعدَّل، وفارغاً عند الإنشاء.
+   * الأقسام. تُهيّأ من الحساب المُعدَّل، وفارغةً عند الإنشاء.
    *
-   * مدير القسم لا يقرأه ولا يكتبه — departmentToSend تُعيد له undefined
-   * فيملأه الخادم. الحالة موجودة على أي حال كي لا ينقسم المسار إلى فرعين.
+   * مدير القسم لا يقرأها ولا يكتبها — departmentsToSend تُعيد له
+   * undefined فيملأها الخادم. الحالة موجودة على أي حال كي لا ينقسم
+   * المسار إلى فرعين.
    */
-  const [department, setDepartment] = useState<Department | "">(
-    editing?.department ?? ""
+  const [departments, setDepartments] = useState<Department[]>(
+    editing?.departments ?? []
   );
   const [isActive, setIsActive] = useState(editing ? editing.isActive === 1 : true);
   /** null = لم يلمس المستخدم الرقاقات بعد، فالمعروض هو الإسناد الحالي. */
@@ -129,19 +130,19 @@ export default function PopupStaffForm({
     try {
       if (isEdit && editing) {
         /*
-         * القسم يُطوى في الجسم فقط حين تكون له قيمة تُرسل: مدير القسم
-         * تُعيد له departmentToSend القيمة undefined، ولو مُرّرت كمفتاح
+         * الأقسام تُطوى في الجسم فقط حين تكون لها قيمة تُرسل: مدير القسم
+         * تُعيد له departmentsToSend القيمة undefined، ولو مُرّرت كمفتاح
          * صريح لَسَرَتْ في JSON.stringify كغياب — وهو ما نريده — لكن
          * الطيّ المشروط يجعل النية ظاهرة في الكود لا مستنتَجة منه.
          */
-        const dept = departmentToSend(department, isSuperAdmin);
+        const depts = departmentsToSend(departments, isSuperAdmin);
 
         await updateUser.mutateAsync({
           id: editing.id,
           name: name.trim(),
           username: username.trim(),
           role,
-          ...(dept !== undefined ? { department: dept } : {}),
+          ...(depts !== undefined ? { departments: depts } : {}),
           ...(canToggleActive ? { is_active: isActive } : {}),
           // الإرسال استبدال كامل، والقائمة محمّلة بالإسناد الحالي فلا يضيع منها شيء.
           // لا تُرسل قبل وصول الإسناد كي لا يُمحى بقائمة فارغة.
@@ -154,14 +155,14 @@ export default function PopupStaffForm({
         }
         notify(t("staff.updated"));
       } else {
-        const dept = departmentToSend(department, isSuperAdmin);
+        const depts = departmentsToSend(departments, isSuperAdmin);
 
         await createUser.mutateAsync({
           name: name.trim(),
           username: username.trim(),
           password,
           role,
-          ...(dept !== undefined ? { department: dept } : {}),
+          ...(depts !== undefined ? { departments: depts } : {}),
           halaqaIds: needsHalaqat ? halaqaIds : [],
         });
         notify(t("staff.created"));
@@ -256,19 +257,18 @@ export default function PopupStaffForm({
         </div>
 
         {/*
-          القسم — للأدوار الثلاثة لا للإداريين وحدهم.
+          الأقسام — للأدوار الثلاثة لا للإداريين وحدهم.
 
-          نطاق المدرّس حلقاته لا قسمه، لكن users.department هو ما يقرّر
-          ظهوره في قائمة كادر مدير قسمه: مدرّس بلا قسم لا يراه مدير قسمه
-          ولا يستطيع تعديله، فيبدو الحساب مفقوداً.
+          نطاق المدرّس حلقاته لا أقسامه، لكن user_departments هو ما يقرّر
+          ظهوره في قائمة كادر مدير قسمه: مدرّس بلا أقسام لا يراه مدير
+          قسمه ولا يستطيع تعديله، فيبدو الحساب مفقوداً.
         */}
-        <DepartmentField
-          value={department}
-          onChange={setDepartment}
-          label={t("staff.department")}
-          emptyLabel={t("staff.noDepartment")}
+        <DepartmentsField
+          value={departments}
+          onChange={setDepartments}
+          label={t("staff.departments")}
+          emptyHint={t("staff.allDepartmentsHint")}
           lockedHint={t("staff.departmentLocked")}
-          className={fieldClass}
         />
 
         {/* كلمة المرور — مطلوبة عند الإنشاء، اختيارية عند التعديل */}

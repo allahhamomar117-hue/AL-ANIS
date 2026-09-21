@@ -393,3 +393,36 @@ BEGIN
     ADD CONSTRAINT students_halaqa_id_fkey
     FOREIGN KEY (halaqa_id) REFERENCES halaqat (id) ON DELETE RESTRICT;
 END $$;
+
+-- @fixup أقسام الحساب: جدول وسيط
+
+-- ── الحساب يخدم أقساماً متعدّدة ─────────────────────────────────────
+--
+-- نظير الترقية 017 على مسار Postgres. الجدول نفسه أنشأه ملفّ المخطّط
+-- (CREATE TABLE IF NOT EXISTS)، وما يخصّ هذه الكتلة هو نقل العمود
+-- القديم وحذفه — وهو ما لا يفعله ملفّ المخطّط أبداً على جدول قائم.
+--
+-- الحارس وجودُ العمود نفسه: بعد أول نجاح يختفي فتصير الكتلة لا-عمليّة.
+--
+-- المدير العام (department = NULL) لا يُنقل له صفّ، فتصير قائمته فارغة
+-- وهي تعني «المعهد كلّه» — ترجمةٌ حرفية لسلوكه القائم.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'users'
+      AND column_name = 'department'
+  ) THEN
+    RETURN;  -- النقل تمّ سابقاً
+  END IF;
+
+  INSERT INTO user_departments (user_id, department)
+  SELECT id, department FROM users WHERE department IS NOT NULL
+  ON CONFLICT (user_id, department) DO NOTHING;
+
+  /*
+   * الحذف في المعاملة نفسها: إبقاء العمود يترك مصدرَين للحقيقة الواحدة،
+   * وهو ما أوقع هذا المشروع من قبل حين انحرف عمود department عن المخطّط.
+   */
+  ALTER TABLE users DROP COLUMN department;
+END $$;

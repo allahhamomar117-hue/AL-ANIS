@@ -15,10 +15,15 @@ export interface AuthUser {
   name: string;
   role: Role;
   /**
-   * قسم الإداري. `null` = المعهد كامل (المدير العام)، وقيمة = ذلك القسم
-   * وحده (مدير القسم). لا معنى له للمدرّس — نطاقه حلقاته المسندة إليه.
+   * أقسام الإداري (الجدول الوسيط user_departments).
+   *
+   * القائمة الفارغة = المعهد كامل (المدير العام)، وقسم فأكثر = تلك
+   * الأقسام وحدها. لا معنى لها للمدرّس — نطاقه حلقاته المسندة إليه.
+   *
+   * مرتّبة دائماً بترتيب DEPARTMENTS: القائمة تُعرض للمستخدم وتدخل في
+   * مقارنات، وترتيبٌ يتبع ما تصادف في القاعدة يجعل الشاشة تتبدّل بلا سبب.
    */
-  department: Department | null;
+  departments: Department[];
 }
 
 declare global {
@@ -49,12 +54,14 @@ export const requireAuth = asyncHandler(async (req: Request, _res: Response, nex
     return next(ApiError.unauthorized("رمز الدخول غير صالح أو منتهي"));
   }
 
-  const user = await db().get<AuthUser>(
-    "SELECT id, name, role, department FROM users WHERE id = ? AND is_active = TRUE",
+  const row = await db().get<Omit<AuthUser, "departments">>(
+    "SELECT id, name, role FROM users WHERE id = ? AND is_active = TRUE",
     [Number(payload.sub)]
   );
 
-  if (!user) return next(ApiError.unauthorized("المستخدم غير موجود"));
+  if (!row) return next(ApiError.unauthorized("المستخدم غير موجود"));
+
+  const user: AuthUser = { ...row, departments: await loadDepartments(row.id) };
 
   // دور غير معروف (بيانات قديمة أو معدّلة يدوياً) يُعامل كأقلّ صلاحية
   // بدل أن ينهار أول فحص صلاحيات يعتمد عليه
@@ -66,20 +73,19 @@ export const requireAuth = asyncHandler(async (req: Request, _res: Response, nex
   /*
    * قسم غير معروف (بيانات قديمة أو معدّلة يدوياً) يُرفض الطلب لأجله.
    *
-   * كان يُعامل كـ null بحجّة أن حجب كل شيء عن مدير يبدو عطلاً في النظام
-   * لا في البيانات. والحجّة خاطئة، لأن `null` هنا ليست «بلا قسم» بل هي
-   * نطاق المعهد كامل: أي انحرافٍ في نصّ القسم — حرفٌ زائد، أو اسم عربي
-   * كُتب مكان المفتاح — كان يرقّي مدير القسم إلى مدير عام صامتاً. وهذا
-   * فشلٌ مفتوح في عمود صلاحيات، وهو أسوأ ما يكون الفشل.
+   * لا يُسقَط صامتاً، لأن إسقاطه قد يُفرغ القائمة — والفارغة هنا ليست
+   * «بلا قسم» بل نطاق المعهد كامل: أي انحرافٍ في نصّ القسم (حرفٌ زائد،
+   * أو اسم عربي كُتب مكان المفتاح) كان يرقّي مدير القسم إلى مدير عام
+   * صامتاً. وهذا فشلٌ مفتوح في صلاحية، وهو أسوأ ما يكون الفشل.
    *
-   * والرفض يخصّ الإداريين وحدهم: نطاق المدرّس حلقاته المسندة لا قسمه
-   * (departmentScope تُعيد له null على أي حال)، فقيمةٌ فاسدة في عموده لا
+   * والرفض يخصّ الإداريين وحدهم: نطاق المدرّس حلقاته المسندة لا أقسامه
+   * (departmentScope تُعيد له null على أي حال)، فقيمةٌ فاسدة عنده لا
    * تمنحه شيئاً — وحجب الدخول عنه عقوبةٌ على انحراف لا أثر له.
    */
-  if (user.department !== null && !DEPARTMENTS.includes(user.department)) {
-    console.warn(
-      `[auth] قسم غير معروف "${user.department}" للمستخدم ${user.id}`
-    );
+  const unknown = user.departments.filter((d) => !DEPARTMENTS.includes(d));
+  if (unknown.length) {
+    console.warn(`[auth] أقسام غير معروفة ${unknown.join("، ")} للمستخدم ${user.id}`);
+
     if (user.role === "ADMIN" || user.role === "SUPERVISOR") {
       return next(
         ApiError.forbidden(
@@ -87,12 +93,33 @@ export const requireAuth = asyncHandler(async (req: Request, _res: Response, nex
         )
       );
     }
-    user.department = null;
+    user.departments = [];
   }
 
   req.user = user;
   next();
 });
+
+/**
+ * أقسام المستخدم من الجدول الوسيط، مرتَّبةً بترتيب DEPARTMENTS.
+ *
+ * الترتيب هنا لا في SQL: ترتيب القاعدة أبجديّ على النصّ فيعطي
+ * INTENSIVE قبل PRIMARY، وترتيب DEPARTMENTS هو ترتيب المعهد المقصود —
+ * وعليه تُعرض الرقاقات في الجدول، فلا تتبدّل مواضعها بين حسابٍ وآخر.
+ */
+export async function loadDepartments(userId: number): Promise<Department[]> {
+  const rows = await db().all<{ department: Department }>(
+    "SELECT department FROM user_departments WHERE user_id = ?",
+    [userId]
+  );
+
+  const owned = new Set(rows.map((r) => r.department));
+  const known = DEPARTMENTS.filter((d) => owned.has(d));
+
+  // ما لا يعرفه DEPARTMENTS يُلحَق كما هو ليراه فحص الانحراف أعلاه
+  const strange = [...owned].filter((d) => !DEPARTMENTS.includes(d));
+  return [...known, ...strange];
+}
 
 /** يقصر الوصول على أدوار معيّنة. يُستخدم بعد requireAuth. */
 export function requireRole(...roles: Role[]) {
@@ -129,7 +156,7 @@ export function requireSuperAdmin(
   next: NextFunction
 ): void {
   if (!req.user) return next(ApiError.unauthorized());
-  if (req.user.role !== "ADMIN" || req.user.department !== null) {
+  if (req.user.role !== "ADMIN" || req.user.departments.length !== 0) {
     return next(ApiError.forbidden("هذه العملية للمدير العام وحده"));
   }
   next();

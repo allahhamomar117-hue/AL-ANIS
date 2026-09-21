@@ -127,8 +127,10 @@ export default function StaffPage() {
                       كلّها قسمُه، فالرقاقة على كل صفّ ضجيج لا تمييز.
                     */}
                     {isSuperAdmin &&
-                      (member.department ? (
-                        <DepartmentBadge department={member.department} />
+                      (member.departments.length > 0 ? (
+                        member.departments.map((dept) => (
+                          <DepartmentBadge key={dept} department={dept} />
+                        ))
                       ) : (
                         <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-bold text-gray-600 dark:bg-gray-700 dark:text-gray-300">
                           {t("staff.allDepartments")}

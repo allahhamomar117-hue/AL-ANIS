@@ -3,13 +3,13 @@ import { z } from "zod";
 import { db, tx, type SqlParam } from "../db/index.js";
 import { groupConcat } from "../db/sqlfn.js";
 import { ApiError, asyncHandler, parse } from "../lib/http.js";
-import { departmentInput, idParam, userRole } from "../lib/schemas.js";
+import { department, departmentsInput, idParam, userRole } from "../lib/schemas.js";
 import type { AuthUser, Department } from "../middleware/auth.js";
-import { requireUserManager } from "../middleware/auth.js";
+import { loadDepartments, requireUserManager } from "../middleware/auth.js";
 import {
-  applyDepartmentScope,
   assertDepartmentAccess,
   assertHalaqaAccess,
+  canAccessDepartment,
   departmentScope,
 } from "../services/scope.js";
 import { hashPassword } from "../lib/password.js";
@@ -23,19 +23,23 @@ export const usersRouter = Router();
  * هذا هو المكافئ لسياسة RLS على جدول users: المشرف يرى كل بيانات الحلقات
  * والطلاب، لكنه لا ينشئ حساباً ولا يبدّل دوراً ولا يعيد ضبط كلمة مرور.
  *
- * ── القسم ────────────────────────────────────────────────────────────
- * هذا الجدول لا يمرّ بطبقة الحلقات: انتماء الحساب إلى قسمٍ منصوصٌ في
- * users.department نفسه، فالقيد هنا مباشر (applyDepartmentScope) لا
- * مطويّ في accessibleHalaqaIds كبقية الجداول.
+ * ── الأقسام ──────────────────────────────────────────────────────────
+ * هذا الجدول لا يمرّ بطبقة الحلقات: انتماء الحساب إلى أقسامه منصوصٌ في
+ * الجدول الوسيط user_departments، فالقيد هنا مباشر (استعلام فرعي على
+ * الوسيط) لا مطويّ في accessibleHalaqaIds كبقية الجداول.
  *
  * ولذلك وجب الحرس صراحةً على كل مسار كتابة. القاعدتان:
- *   1. الهدف داخل قسم المُنفِّذ — وإلا 403.
- *   2. القسم المُسنَد داخل قسم المُنفِّذ — وإلا 403.
+ *   1. الهدف يقاطع أقسام المُنفِّذ — وإلا 403.
+ *   2. كل قسم يُسنَد داخل أقسام المُنفِّذ — وإلا 403.
  *
  * والثانية ليست تكراراً للأولى، بل هي ما يمنع تصعيد الصلاحية: بدونها
- * يضبط مديرُ قسمٍ department لنفسه على NULL فيصير مديراً عاماً بطلب
- * PATCH واحد. القاعدة نفسها تمنع نقل موظّف إلى قسم آخر، وتمنع إنشاء مدير
- * عام جديد — لأن NULL قيمةٌ خارج نطاقه كسائر الأقسام.
+ * يُفرّغ مديرُ قسمٍ قائمةَ أقسامه فيصير مديراً عاماً بطلب PATCH واحد —
+ * فالقائمة الفارغة تعني «المعهد كلّه» (راجع رأس services/scope.ts).
+ * القاعدة نفسها تمنع نقل موظّف إلى قسم آخر، وتمنع إنشاء مدير عام جديد.
+ *
+ * ⚠ ومن هنا جاء رفضُ القائمة الفارغة صراحةً في resolveDepartments:
+ *   الفارغة ليست «بلا قسم» بل أوسعُ نطاق في النظام، فلا تمرّ على
+ *   assertDepartmentAccess لأن الحلقة لا تدور على شيء فلا تفحص شيئاً.
  */
 usersRouter.use(requireUserManager);
 
@@ -44,7 +48,9 @@ usersRouter.use(requireUserManager);
  * (‏GROUP_CONCAT مقابل string_agg) واللهجة لا تُعرف إلا بعد فتح الاتصال.
  */
 const selectUser = (): string => `
-  SELECT u.id, u.name, u.username, u.role, u.department,
+  SELECT u.id, u.name, u.username, u.role,
+         (SELECT ${groupConcat("ud.department", ",")} FROM user_departments ud
+           WHERE ud.user_id = u.id) AS "departmentsRaw",
          u.is_active AS "isActive",
          u.created_at AS "createdAt",
          (u.password_hash IS NOT NULL) AS "hasPassword",
@@ -63,7 +69,24 @@ const selectUser = (): string => `
   FROM users u
 `;
 
-const byId = (id: number) => db().get(`${selectUser()} WHERE u.id = ?`, [id]);
+/**
+ * يحوّل النصّ المدموج من الاستعلام إلى مصفوفة مرتَّبة، ويحذف الحقل الخام.
+ *
+ * الدمج في SQL لا استعلامٌ ثانٍ لكل صفّ: قائمة الكادر تُقرأ دفعةً واحدة،
+ * واستعلامٌ لكل مستخدم يجعلها N+1. والترتيب على department.options لا
+ * على ما تصادف في القاعدة، فلا تتبدّل مواضع الرقاقات بين صفٍّ وآخر.
+ */
+function withDepartments<T extends Record<string, unknown>>(row: T) {
+  const { departmentsRaw, ...rest } = row as T & { departmentsRaw?: string | null };
+  const owned = new Set((departmentsRaw ?? "").split(",").filter(Boolean));
+
+  return { ...rest, departments: department.options.filter((d) => owned.has(d)) };
+}
+
+const byId = async (id: number) => {
+  const row = await db().get<Record<string, unknown>>(`${selectUser()} WHERE u.id = ?`, [id]);
+  return row ? withDepartments(row) : row;
+};
 
 /**
  * يرمي 403 إذا كان الحساب الهدف خارج قسم المُنفِّذ (و404 إن لم يوجد).
@@ -74,13 +97,20 @@ const byId = (id: number) => db().get(`${selectUser()} WHERE u.id = ?`, [id]);
 async function assertUserInScope(actor: AuthUser, id: number): Promise<void> {
   if (departmentScope(actor) === null) return;   // مدير عام
 
-  const target = await db().get<{ department: Department | null }>(
-    "SELECT department FROM users WHERE id = ?",
-    [id]
-  );
-  if (!target) throw ApiError.notFound("المستخدم غير موجود");
+  const exists = await db().get<{ id: number }>("SELECT id FROM users WHERE id = ?", [id]);
+  if (!exists) throw ApiError.notFound("المستخدم غير موجود");
 
-  assertDepartmentAccess(actor, target.department);
+  /*
+   * التقاطع لا التطابق: الهدف قد يخدم قسمين والمُنفِّذ واحداً منهما، وهو
+   * من كادره في ذلك القسم. واشتراطُ التطابق كان سيُخرج كلّ حسابٍ مشترك
+   * من يد مديرَي قسميه معاً.
+   *
+   * والهدف بلا أقسام (مدير عام) لا يقاطع شيئاً فيُردّ — وهو المقصود.
+   */
+  const target = await loadDepartments(id);
+  if (!target.some((d) => canAccessDepartment(actor, d))) {
+    throw ApiError.forbidden("هذا الحساب خارج نطاق صلاحياتك");
+  }
 }
 
 /**
@@ -113,14 +143,45 @@ function assertMayGrantAdmin(
   throw ApiError.forbidden("تعيين المديرين للمدير العام وحده");
 }
 
-function resolveDepartment(
+/**
+ * الأقسام التي ستُكتب للحساب، بعد التحقق من أن كلاً منها داخل نطاق المُنفِّذ.
+ *
+ * `fallback` أقسامُ الحساب الحالية في التعديل، وأقسامُ المُنفِّذ في
+ * الإنشاء — فالحساب الذي ينشئه مدير قسمٍ ينضمّ إلى أقسامه تلقائياً بلا
+ * حقل يُملأ، كما كان قبل الترقية 017.
+ */
+function resolveDepartments(
   actor: AuthUser,
-  requested: Department | null | undefined,
-  fallback: Department | null
-): Department | null {
+  requested: Department[] | undefined,
+  fallback: Department[]
+): Department[] {
   if (requested === undefined) return fallback;
-  assertDepartmentAccess(actor, requested);
+
+  /*
+   * القائمة الفارغة = المعهد كلّه، وهي أوسع نطاق في النظام — فلا يمنحها
+   * إلا من يملكها. لولا هذا السطر لصار مدير القسم مديراً عاماً بإرسال
+   * departments: [] وحدها، لأن الحلقة أدناه لا تدور على شيء فلا تفحص
+   * شيئاً. هذه هي ثغرة التصعيد التي حلّت محلّ department = NULL.
+   */
+  if (requested.length === 0 && departmentScope(actor) !== null) {
+    throw ApiError.forbidden("لا يمكنك منح حسابٍ نطاق المعهد كاملاً");
+  }
+
+  for (const dept of requested) assertDepartmentAccess(actor, dept);
   return requested;
+}
+
+/** مزامنة كاملة لأقسام الحساب. يجب أن تُستدعى داخل معاملة. */
+async function syncUserDepartments(userId: number, departments: Department[]): Promise<void> {
+  await db().run("DELETE FROM user_departments WHERE user_id = ?", [userId]);
+
+  for (const dept of departments) {
+    await db().run(
+      `INSERT INTO user_departments (user_id, department) VALUES (?, ?)
+       ON CONFLICT (user_id, department) DO NOTHING`,
+      [userId, dept]
+    );
+  }
 }
 
 /**
@@ -190,15 +251,33 @@ usersRouter.get(
       params.push(q.role);
     }
 
-    // مدير القسم يرى كادر قسمه وحده. المدير العام (department = NULL) لا
-    // يظهر له أيضاً: حسابٌ نطاقه المعهد كلّه ليس من كادر قسمٍ بعينه.
-    applyDepartmentScope(req.user!, "u.department", where, params);
+    /*
+     * مدير القسم يرى كادر أقسامه — بالتقاطع: من يخدم قسمه وقسماً آخر
+     * يظهر له، فهو من كادره في قسمه.
+     *
+     * استعلام فرعي لا JOIN: الوصل يكرّر صفّ الحساب بعدد أقسامه المطابقة
+     * فيظهر مرّتين في القائمة.
+     *
+     * والمدير العام لا يظهر لمدير القسم: لا صفّ له في الوسيط أصلاً فلا
+     * يطابقه EXISTS — وهو المقصود، إذ حسابٌ نطاقه المعهد كلّه ليس من
+     * كادر قسمٍ بعينه.
+     */
+    const scope = departmentScope(req.user!);
+    if (scope !== null) {
+      where.push(
+        `EXISTS (SELECT 1 FROM user_departments ud
+                  WHERE ud.user_id = u.id
+                    AND ud.department IN (${scope.map(() => "?").join(", ")}))`
+      );
+      params.push(...scope);
+    }
 
     const sql = `${selectUser()}
       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
       ORDER BY CASE u.role WHEN 'ADMIN' THEN 0 WHEN 'SUPERVISOR' THEN 1 ELSE 2 END, u.name`;
 
-    res.json({ data: await db().all(sql, params) });
+    const rows = await db().all<Record<string, unknown>>(sql, params);
+    res.json({ data: rows.map(withDepartments) });
   })
 );
 
@@ -215,7 +294,7 @@ usersRouter.post(
         username: z.string().trim().min(3),
         password: z.string().min(4),
         role: userRole.default("TEACHER"),
-        department: departmentInput.optional(),
+        departments: departmentsInput.optional(),
         halaqaIds: z.array(z.number().int().positive()).default([]),
       }),
       req.body
@@ -224,10 +303,10 @@ usersRouter.post(
     await assertUsernameFree(body.username);
     assertMayGrantAdmin(req.user!, body.role, null);
 
-    const department = resolveDepartment(
+    const departments = resolveDepartments(
       req.user!,
-      body.department,
-      departmentScope(req.user!)
+      body.departments,
+      departmentScope(req.user!) ?? []
     );
 
     // الحلقات المسندة تُفحص واحدة واحدة: مدير القسم لا يسند حلقة قسم آخر
@@ -239,10 +318,12 @@ usersRouter.post(
       const info = await db().run(
         // بلا هاتف: العمود يقبل NULL منذ ترقية 006، وكل NULL مميّز في
         // القاعدتين فلا يتضارب مع القيد الفريد (country_code, phone_number).
-        `INSERT INTO users (name, username, password_hash, role, department)
-         VALUES (?, ?, ?, ?, ?)`,
-        [body.name, body.username, hashPassword(body.password), body.role, department]
+        `INSERT INTO users (name, username, password_hash, role)
+         VALUES (?, ?, ?, ?)`,
+        [body.name, body.username, hashPassword(body.password), body.role]
       );
+
+      await syncUserDepartments(Number(info.lastInsertRowid), departments);
 
       for (const halaqaId of body.halaqaIds ?? []) {
         await db().run(
@@ -328,7 +409,7 @@ usersRouter.patch(
         username: z.string().trim().min(3).optional(),
         password: z.string().min(4).optional(),
         role: userRole.optional(),
-        department: departmentInput.optional(),
+        departments: departmentsInput.optional(),
         is_active: z.boolean().optional(),
         halaqaIds: z.array(z.number().int().positive()).optional(),
       }),
@@ -342,16 +423,16 @@ usersRouter.patch(
       password_hash: string | null;
       phone_number: string | null;
       role: string;
-      department: Department | null;
       is_active: number;
     }>("SELECT * FROM users WHERE id = ?", [id]);
     if (!current) throw ApiError.notFound("المستخدم غير موجود");
 
-    assertDepartmentAccess(req.user!, current.department);
-    const nextDepartment = resolveDepartment(
+    await assertUserInScope(req.user!, id);
+
+    const nextDepartments = resolveDepartments(
       req.user!,
-      body.department,
-      current.department
+      body.departments,
+      await loadDepartments(id)
     );
 
     if (body.username) await assertUsernameFree(body.username, id);
@@ -383,18 +464,20 @@ usersRouter.patch(
       await db().run(
         `UPDATE users
             SET name = ?, username = ?, password_hash = ?,
-                role = ?, department = ?, is_active = ?
+                role = ?, is_active = ?
           WHERE id = ?`,
         [
           body.name ?? current.name,
           body.username ?? current.username,
           body.password ? hashPassword(body.password) : current.password_hash,
           nextRole,
-          nextDepartment,
           nextActive,
           id,
         ]
       );
+
+      // القائمة المرسلة هي الحالة النهائية للأقسام، لا إضافة عليها
+      await syncUserDepartments(id, nextDepartments);
 
       // القائمة المرسلة هي الحالة النهائية للنطاق، لا إضافة عليه
       if (body.halaqaIds) await syncUserHalaqat(id, body.halaqaIds);

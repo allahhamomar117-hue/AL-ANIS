@@ -62,16 +62,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // المشرف يرى كل البيانات كالمدير (نطاق القراءة)؛ لكنه لا يدير
       // حسابات الكادر ولا سجلّات الطلاب — دوره تشغيلي يومي
       /*
-       * القسم يخصّ الإداريين وحدهم — يطابق departmentScope على الخادم.
-       * المدرّس يُعاد له null لأن نطاقه حلقاته المسندة لا قسمه.
+       * الأقسام تخصّ الإداريين وحدهم — يطابق departmentScope على الخادم.
+       * المدرّس تُعاد له فارغةً لأن نطاقه حلقاته المسندة لا أقسامه.
        */
-      department:
+      departments:
         user?.role === "ADMIN" || user?.role === "SUPERVISOR"
-          ? user.department
-          : null,
+          ? user.departments
+          : [],
       isSuperAdmin:
         (user?.role === "ADMIN" || user?.role === "SUPERVISOR") &&
-        user.department === null,
+        user.departments.length === 0,
       isAdmin: user?.role === "ADMIN" || user?.role === "SUPERVISOR",
       isTeacher: user?.role === "TEACHER",
       isSupervisor: user?.role === "SUPERVISOR",

@@ -181,14 +181,24 @@ halaqatRouter.post(
     await assertNameFree(body.name);
 
     /*
-     * مدير القسم ينشئ في قسمه وحده، ويُملأ تلقائياً إن لم يُرسله. والمدير
-     * العام يرسله صراحةً — و null منه مقبول لأن نطاقه المعهد كلّه.
+     * الحلقة تتبع قسماً واحداً، والمُنشئ قد يخدم أكثر من قسم (الترقية
+     * 017). فالاستنتاج التلقائي لا يصحّ إلا حين لا لَبس فيه:
+     *
+     *   المدير العام (بلا قيد) ⇒ null — نطاقه المعهد كلّه.
+     *   قسم واحد                ⇒ هو، فيُملأ بلا حقل يُملأ كما كان.
+     *   قسمان فأكثر             ⇒ 400: أيّهما؟ اختيارُ الأول عنه تخمينٌ
+     *                              يضع الحلقة في قسم لم يقصده، ولا شيء
+     *                              في الشاشة يكشف الخطأ بعدها.
      */
     const scope = departmentScope(req.user!);
     if (body.department !== undefined) {
       assertDepartmentAccess(req.user!, body.department);
+    } else if (scope !== null && scope.length > 1) {
+      throw ApiError.badRequest("اختر قسم الحلقة — حسابك يخدم أكثر من قسم");
     }
-    const department = body.department !== undefined ? body.department : scope;
+
+    const department =
+      body.department !== undefined ? body.department : scope === null ? null : scope[0];
 
     const info = await db().run(
       `INSERT INTO halaqat (name, teacher_id, stage, department, schedule_time, location)

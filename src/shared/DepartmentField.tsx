@@ -42,15 +42,24 @@ export default function DepartmentField({
   className: string;
 }) {
   const { t } = useTranslation();
-  // القسم من السياق لا من user.department خاماً: المدرّس له عمود قسم
-  // أيضاً، لكن نطاقه حلقاته لا قسمه
-  const { department: scope, isSuperAdmin } = useAuth();
+  /*
+    * القسم من السياق لا من user.departments خاماً: المدرّس له أقسام أيضاً
+    * لكن نطاقه حلقاته لا أقسامه.
+    *
+    * والحلقة تتبع قسماً واحداً بينما الحساب صار يخدم عدّة (الترقية 017)،
+    * فالرقاقة تُعرض حين لا لبس — أي حين يخدم المُنشئ قسماً واحداً. وحين
+    * يخدم أكثر لا يصحّ افتراض أيّها، والخادم نفسه يردّ 400 يطلب الاختيار
+    * (راجع POST /api/halaqat)، فتُعرض له القائمة ليختار.
+    */
+  const { departments, isSuperAdmin } = useAuth();
+  const scope = departments.length === 1 ? departments[0] : null;
+  const mustChoose = !isSuperAdmin && departments.length > 1;
 
   const labelClass =
     "mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300";
 
-  // مدير القسم: القسم محسوم، فلا قائمة تُعرض
-  if (!isSuperAdmin) {
+  // مدير القسم بقسم واحد: القسم محسوم، فلا قائمة تُعرض
+  if (!isSuperAdmin && !mustChoose) {
     return (
       <div>
         <label className={labelClass}>{label}</label>
@@ -76,8 +85,12 @@ export default function DepartmentField({
         }
         className={className}
       >
-        <option value="">{emptyLabel}</option>
-        {DEPARTMENTS.map((option) => (
+        {/*
+          «بلا قسم» للمدير العام وحده: هي قيمة تخرج عن نطاق مدير القسم
+          (الخادم يردّها بـ403)، ومن يخدم أقساماً يختار من بينها لا منها.
+        */}
+        {isSuperAdmin && <option value="">{emptyLabel}</option>}
+        {(isSuperAdmin ? DEPARTMENTS : departments).map((option) => (
           <option key={option} value={option}>
             {t(`departments.${option}`)}
           </option>

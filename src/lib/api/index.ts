@@ -328,13 +328,17 @@ export const usersApi = {
   list: (params?: { role?: Role; includeInactive?: boolean }) =>
     api.get<{ data: StaffUser[] }>("/users", params),
 
-  /** department مُغفَل يعني «اتركه للخادم» — راجع الملاحظة في halaqatApi.create. */
+  /**
+   * departments مُغفَلة تعني «اتركها للخادم» — راجع الملاحظة في
+   * halaqatApi.create. والقائمة الفارغة ليست إغفالاً: هي طلبُ نطاق
+   * المعهد كاملاً، ولا يقبلها الخادم إلا من المدير العام.
+   */
   create: (body: {
     name: string;
     username: string;
     password: string;
     role?: Role;
-    department?: Department | null;
+    departments?: Department[];
     halaqaIds?: number[];
   }) => api.post<{ data: StaffUser }>("/users", body),
 
@@ -345,7 +349,7 @@ export const usersApi = {
       username: string;
       password: string;
       role: Role;
-      department: Department | null;
+      departments: Department[];
       is_active: boolean;
       halaqaIds: number[];
     }>

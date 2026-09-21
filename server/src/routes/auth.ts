@@ -4,9 +4,8 @@ import { config } from "../config.js";
 import { db } from "../db/index.js";
 import { nowExpr, nowPlusMinutes } from "../db/sqlfn.js";
 import { ApiError, asyncHandler, parse } from "../lib/http.js";
-import { requireAuth, signToken } from "../middleware/auth.js";
+import { loadDepartments, requireAuth, signToken } from "../middleware/auth.js";
 import { verifyPassword } from "../lib/password.js";
-import type { Department } from "../middleware/auth.js";
 import { accessibleHalaqaIds } from "../services/scope.js";
 
 export const authRouter = Router();
@@ -55,14 +54,15 @@ async function publicUser(id: number) {
     phone_number: string | null;
     country_code: string;
     role: "ADMIN" | "SUPERVISOR" | "TEACHER";
-    department: Department | null;
   }>(
-    `SELECT u.id, u.name, u.username, u.phone_number, u.country_code, u.role, u.department
+    `SELECT u.id, u.name, u.username, u.phone_number, u.country_code, u.role
      FROM users u WHERE u.id = ?`,
     [id]
   );
 
   if (!user) throw ApiError.notFound("المستخدم غير موجود");
+
+  const departments = await loadDepartments(user.id);
 
   /*
    * حلقات المدرّس، أو حلقات القسم لمدير القسم؛ وتبقى فارغة للمدير العام
@@ -74,7 +74,7 @@ async function publicUser(id: number) {
       id: user.id,
       name: user.name,
       role: user.role,
-      department: user.department,
+      departments,
     })) ?? [];
 
   const halaqat = halaqaIds.length
@@ -87,6 +87,7 @@ async function publicUser(id: number) {
 
   return {
     ...user,
+    departments,
     /** الحلقة الافتراضية للمدرّس — عليها تُفتح الصفحات مباشرة. */
     halaqa_id: halaqat[0]?.id ?? null,
     halaqa_name: halaqat[0]?.name ?? null,

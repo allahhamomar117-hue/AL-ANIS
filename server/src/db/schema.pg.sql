@@ -19,16 +19,24 @@ CREATE TABLE IF NOT EXISTS users (
   country_code  TEXT        NOT NULL DEFAULT '963',
   role          TEXT        NOT NULL DEFAULT 'TEACHER'
                             CHECK (role IN ('ADMIN', 'SUPERVISOR', 'TEACHER')),
-  -- نطاق الإداري: NULL = المعهد كامل (مدير عام)، وقيمة = قسم واحد
-  -- PRIMARY | MIDDLE_HIGH | INTENSIVE. لا يعني المدرّس.
-  department    TEXT        CHECK (department IS NULL
-                                   OR department IN ('PRIMARY', 'MIDDLE_HIGH', 'INTENSIVE')),
+  -- نطاق الإداري في جدول user_departments أدناه، لا في عمود هنا.
   fcm_token     TEXT,
   is_active     BOOLEAN     NOT NULL DEFAULT TRUE,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (country_code, phone_number)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users (username);
+
+-- أقسام الحساب — علاقة متعدّد إلى متعدّد (الترقية 017).
+-- القائمة الفارغة = المعهد كلّه (المدير العام)، وليست «بلا صلاحية».
+CREATE TABLE IF NOT EXISTS user_departments (
+  user_id    INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  department TEXT    NOT NULL
+                     CHECK (department IN ('PRIMARY', 'MIDDLE_HIGH', 'INTENSIVE')),
+  PRIMARY KEY (user_id, department)
+);
+CREATE INDEX IF NOT EXISTS idx_user_departments_user
+  ON user_departments (user_id);
 
 -- رموز التحقق المؤقتة (OTP)
 CREATE TABLE IF NOT EXISTS otp_codes (

@@ -48,9 +48,15 @@ async function seedDemoIfNeeded(): Promise<void> {
  */
 async function verifySchema(): Promise<void> {
   const required: Record<string, string[]> = {
-    users: ["username", "password_hash", "role", "department"],
+    users: ["username", "password_hash", "role"],
     halaqat: ["department"],
     teacher_halaqat: ["user_id", "halaqa_id"],
+    /*
+     * نطاق الإداري كلّه هنا منذ الترقية 017 (لا عمود users.department).
+     * غيابُه لا يعني نقصَ حقلٍ بل انهيارَ طبقة الصلاحيات: loadDepartments
+     * تسقط في كل طلب، فلا يدخل أحد.
+     */
+    user_departments: ["user_id", "department"],
   };
 
   const missing: string[] = [];
@@ -91,8 +97,12 @@ async function verifySchema(): Promise<void> {
       console.error("  الإصلاح العاجل: نفّذ الكتلة الناقصة يدوياً في محرّر SQL");
       console.error("  (Railway/Supabase)، ثم أعد تشغيل الخدمة:");
       console.error("");
-      console.error("    ALTER TABLE users   ADD COLUMN IF NOT EXISTS department TEXT;");
       console.error("    ALTER TABLE halaqat ADD COLUMN IF NOT EXISTS department TEXT;");
+      console.error("");
+      console.error("    CREATE TABLE IF NOT EXISTS user_departments (");
+      console.error("      user_id    INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,");
+      console.error("      department TEXT    NOT NULL,");
+      console.error("      PRIMARY KEY (user_id, department));");
       console.error("");
     } else {
       console.error("  شغّل: npm run db:migrate ثم npm run db:seed");
