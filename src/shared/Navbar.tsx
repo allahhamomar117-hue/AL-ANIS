@@ -24,9 +24,10 @@ import { useIntensiveHalaqat } from "../lib/api/useIntensiveHalaqat";
 
 /**
  * تبويبات خارج دور المشرف التشغيلي: سجلّات الطلاب، ولوحة الصدارة
- * والإحصاءات العامة. تُحذف من شريطه كلياً — لا تعطيل ولا تظليل.
+ * والإحصاءات العامة، والمقرَّرات — إدارتها للمدير وأستاذ المكثفة وحدهما.
+ * تُحذف من شريطه كلياً — لا تعطيل ولا تظليل.
  */
-const SUPERVISOR_HIDDEN = new Set(["students", "reports"]);
+const SUPERVISOR_HIDDEN = new Set(["students", "reports", "assignments"]);
 
 function Navbar() {
   const navigate = useNavigate();
