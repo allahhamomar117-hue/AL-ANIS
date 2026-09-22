@@ -81,17 +81,17 @@ function Navbar() {
       path: "attendance-groups",
     },
     {
+      key: "recitation",
+      title: t("dashboard.recitation.title"),
+      icon: FaBookOpen,
+      path: "recitation-groups",
+    },
+    {
       key: "assignments",
       title: t("assignmentsPage.navTitle"),
       icon: FaClipboardList,
       path: "assignments-groups",
       intensiveOnly: true,
-    },
-    {
-      key: "recitation",
-      title: t("dashboard.recitation.title"),
-      icon: FaBookOpen,
-      path: "recitation-groups",
     },
     {
       key: "students",
