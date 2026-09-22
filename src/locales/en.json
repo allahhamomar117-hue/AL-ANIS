@@ -113,7 +113,10 @@
     "empty": "No students on this day",
     "selectHalaqa": "Select halaqa",
     "noSessions": "No attendance sessions recorded",
-    "deleting": "Deleting…"
+    "deleting": "Deleting…",
+    "deleteSession": "Delete session",
+    "deleteSessionConfirm": "This permanently deletes {{date}} for {{halaqa}} with all {{count}} attendance records, and reverts the attendance points awarded that day. This cannot be undone.",
+    "sessionDeleted": "Session deleted"
   },
   "popupAttendance": {
     "title": "Add Student to Attendance",

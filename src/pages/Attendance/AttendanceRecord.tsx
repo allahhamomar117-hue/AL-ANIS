@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FaTrashAlt } from "react-icons/fa";
 import PopupAttendanceRecord from "./PopupAttendanceRecord";
+import ConfirmDialog from "../../shared/ConfirmDialog";
+import { useToast } from "../../shared/toast/toastContext";
 import { attendanceApi } from "../../lib/api";
 import { qk } from "../../lib/api/queryKeys";
 import { useHalaqat } from "../../lib/api/hooks";
@@ -14,10 +17,13 @@ export default function AttendanceRecord() {
   const queryClient = useQueryClient();
 
   const [activeSession, setActiveSession] = useState<number | null>(null);
+  /** الجلسة المنتظِرة تأكيد الحذف — خطوة ثانية، فالحذف لا رجعة فيه. */
+  const [deleting, setDeleting] = useState<number | null>(null);
   const [halaqaId, setHalaqaId] = useState<number | "">("");
 
   const { data: halaqat = [] } = useHalaqat();
   const current = useCurrentHalaqa();
+  const { notify } = useToast();
 
   const params = {
     halaqaId: current.isTeacher ? current.halaqaId : halaqaId === "" ? undefined : halaqaId,
@@ -37,6 +43,27 @@ export default function AttendanceRecord() {
       void queryClient.invalidateQueries({ queryKey: qk.attendance.all });
       void queryClient.invalidateQueries({ queryKey: qk.students.all });
       void queryClient.invalidateQueries({ queryKey: qk.reports.all });
+    },
+  });
+
+  /**
+   * إلغاء يوم الدوام كلّه — للجلسة التي فُتحت بالخطأ.
+   *
+   * الخادم يحذف الصفّ الأب فتتالى CASCADE على قيود الحضور، ويُرجع نقاط
+   * الحضور الممنوحة قبل الحذف (revertPointsFor) — فلا يبقى للطالب رصيد
+   * من يوم لم يقع.
+   *
+   * والإحصاءات تُبطَل معها: حذفُ يومٍ يغيّر متوسط الحضور والمخطّطات، فلو
+   * بقيت مخزَّنة لأظهرت الصفحةُ الأخرى اليومَ المحذوف حتى إعادة التحميل.
+   */
+  const removeSession = useMutation({
+    mutationFn: (sessionId: number) => attendanceApi.removeSession(sessionId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.attendance.all });
+      void queryClient.invalidateQueries({ queryKey: qk.students.all });
+      void queryClient.invalidateQueries({ queryKey: qk.reports.all });
+      void queryClient.invalidateQueries({ queryKey: qk.statistics.all });
+      notify(t("attendanceRecord.sessionDeleted"));
     },
   });
 
@@ -63,9 +90,11 @@ export default function AttendanceRecord() {
         </select>
         )}
 
-        {removeStudent.isError && (
+        {(removeStudent.isError || removeSession.isError) && (
           <p className="rounded-xl bg-red-50 dark:bg-red-900/20 px-4 py-3 text-sm font-bold text-red-700 dark:text-red-400">
-            {removeStudent.error instanceof Error ? removeStudent.error.message : t("state.error")}
+            {(removeStudent.error ?? removeSession.error) instanceof Error
+              ? (removeStudent.error ?? removeSession.error)!.message
+              : t("state.error")}
           </p>
         )}
 
@@ -92,12 +121,30 @@ export default function AttendanceRecord() {
                   </p>
                 </div>
 
-                <button
-                  onClick={() => setActiveSession(session.id)}
-                  className="text-sm px-3 py-1 rounded-lg bg-primary text-white hover:bg-primary-dark transition shrink-0"
-                >
-                  {t("attendanceRecord.addStudent")}
-                </button>
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    onClick={() => setActiveSession(session.id)}
+                    className="text-sm px-3 py-1 rounded-lg bg-primary text-white hover:bg-primary-dark transition"
+                  >
+                    {t("attendanceRecord.addStudent")}
+                  </button>
+
+                  {/*
+                    أيقونة لا نصّ: الترويسة ضيّقة على الجوال وفيها زرّ
+                    نصّي أصلاً، وزرٌّ نصّي ثانٍ بلونٍ مضادّ يزاحمه فيُضغط
+                    أحدهما مكان الآخر. والعنوان في title و aria-label.
+                  */}
+                  <button
+                    onClick={() => setDeleting(session.id)}
+                    disabled={removeSession.isPending}
+                    title={t("attendanceRecord.deleteSession")}
+                    aria-label={t("attendanceRecord.deleteSession")}
+                    className="rounded-lg border border-red-500 p-2 text-red-600 transition
+                      hover:bg-red-50 disabled:opacity-50 dark:hover:bg-red-900/30"
+                  >
+                    <FaTrashAlt className="text-sm" />
+                  </button>
+                </div>
               </div>
 
               {/* قائمة الطلاب */}
@@ -155,6 +202,33 @@ export default function AttendanceRecord() {
           onClose={() => setActiveSession(null)}
         />
       )}
+
+      {/*
+        الرسالة تحمل التاريخ وعدد الطلاب: «هل تحذف هذا اليوم؟» وحدها لا
+        تكفي حين تتشابه البطاقات، والعدد يقول للمستخدم ما سيفقده فعلاً.
+      */}
+      {deleting !== null &&
+        (() => {
+          const session = sessions.data?.find((s) => s.id === deleting);
+          if (!session) return null;
+
+          return (
+            <ConfirmDialog
+              title={t("attendanceRecord.deleteSession")}
+              message={t("attendanceRecord.deleteSessionConfirm", {
+                date: formatDate(session.date, i18n.language),
+                halaqa: session.halaqa,
+                count: session.students.length,
+              })}
+              confirmLabel={t("common.delete")}
+              onConfirm={() => {
+                removeSession.mutate(deleting);
+                setDeleting(null);
+              }}
+              onCancel={() => setDeleting(null)}
+            />
+          );
+        })()}
     </div>
   );
 }

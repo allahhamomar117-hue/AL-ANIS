@@ -30,6 +30,7 @@ import { asyncHandler, logSqlError, parse } from "../lib/http.js";
 import { departmentInput } from "../lib/schemas.js";
 import { requireStudentManager } from "../middleware/auth.js";
 import { recitationPagesExpr } from "../services/recitationSql.js";
+import { countedSession } from "../services/attendanceSql.js";
 import { applyScope, applyStudentScope, viewAsDepartment } from "../services/scope.js";
 import { visibleStudent } from "../services/studentSql.js";
 
@@ -156,7 +157,13 @@ statisticsRouter.get(
       const recitParams: SqlParam[] = [];
       await applyScope(user, "r.halaqa_id", recitWhere, recitParams);
 
-      const sessionWhere: string[] = [];
+      /*
+       * الجلسة الفارغة ليست يوم دوام (راجع services/attendanceSql.ts).
+       * الشرط في القيد المشترك لا في كل تجميعة، فيرثه عدُّ الأيام وعدُّ
+       * الجلسات وقائمةُ أيام الدوام معاً — ونسيانُه في واحدة منها يعني
+       * محوراً فيه يومٌ لا بيانات وراءه.
+       */
+      const sessionWhere: string[] = [countedSession("s")];
       const sessionParams: SqlParam[] = [];
       await applyScope(user, "s.halaqa_id", sessionWhere, sessionParams);
 

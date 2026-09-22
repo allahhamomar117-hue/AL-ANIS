@@ -6,6 +6,7 @@ import { nowExpr } from "../db/sqlfn.js";
 import { ApiError, asyncHandler, parse } from "../lib/http.js";
 import { attendanceStatus, idParam, isoDate, pagination, today } from "../lib/schemas.js";
 import { addPoints, revertPointsFor } from "../services/points.js";
+import { countedSession } from "../services/attendanceSql.js";
 import { applyScope, assertHalaqaAccess } from "../services/scope.js";
 import { visibleStudent } from "../services/studentSql.js";
 import type { AuthUser } from "../middleware/auth.js";
@@ -88,6 +89,13 @@ attendanceRouter.get(
     // المدرّس لا يرى إلا جلسات حلقاته
     await applyScope(req.user!, "a.halaqa_id", where, params);
 
+    /*
+     * الجلسة الفارغة لا تُعرض: هي هيكلٌ بقي بعد حذف قيوده (راجع
+     * services/attendanceSql.ts). عرضُها بطاقةً مكتوباً فيها «لا يوجد
+     * طلاب» يجعل المستخدم يظنّ اليوم مسجَّلاً وناقصاً، وهو غير مسجَّل.
+     */
+    where.push(countedSession("a"));
+
     const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
     const sessions = await db().all<SessionRow>(
@@ -141,6 +149,23 @@ attendanceRouter.get(
       [session?.id ?? -1, halaqaId]
     );
 
+    /*
+     * «مسجَّل» = فيه قيد حضور واحد على الأقل، لا مجرّد وجود صفّ الجلسة:
+     * الهيكل الفارغ يومٌ لم يُسجَّل، وقولُ الشاشة إنه مسجَّل يخفي عن
+     * المستخدم أن عليه الحفظ.
+     *
+     * و sessionId يُعاد على أي حال: الحفظ اللاحق يجب أن يُحدّث الصفّ
+     * القائم لا أن ينشئ ثانياً فيسقط على القيد UNIQUE (halaqa_id, date).
+     */
+    const recorded = session
+      ? Boolean(
+          await db().get<{ id: number }>(
+            "SELECT id FROM attendance_entries WHERE session_id = ? LIMIT 1",
+            [session.id]
+          )
+        )
+      : false;
+
     res.json({
       data: {
         halaqa,
@@ -148,7 +173,7 @@ attendanceRouter.get(
         sessionId: session?.id ?? null,
         teacherStatus: session?.teacherStatus ?? "present",
         notes: session?.notes ?? null,
-        recorded: Boolean(session),
+        recorded,
         students,
       },
     });

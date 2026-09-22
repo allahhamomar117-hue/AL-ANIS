@@ -5,6 +5,7 @@ import { dateOf } from "../db/sqlfn.js";
 import { ApiError, asyncHandler, parse } from "../lib/http.js";
 import { idParam, isoDate, today } from "../lib/schemas.js";
 import { denySupervisor } from "../middleware/auth.js";
+import { countedSession } from "../services/attendanceSql.js";
 import { assertHalaqaAccess, assertStudentAccess, halaqaFilter } from "../services/scope.js";
 import { surahByNumber } from "../lib/surahs.js";
 import { recitationPagesExpr } from "../services/recitationSql.js";
@@ -230,7 +231,9 @@ reportsRouter.get(
 
           const sessionScope = await scopeOn("halaqa_id");
           const recordedHalaqat = await db().get<{ n: number }>(
-            `SELECT COUNT(*) AS n FROM attendance_sessions WHERE date = ?${sessionScope.clause}`,
+            // الهيكل الفارغ ليس حلقةً سجّلت حضورها اليوم
+   `SELECT COUNT(*) AS n FROM attendance_sessions a
+              WHERE a.date = ? AND ${countedSession("a")}${sessionScope.clause}`,
             [date, ...sessionScope.params]
           );
 
@@ -283,7 +286,7 @@ reportsRouter.get(
        SELECT 'attendance' AS kind, COALESCE(h.name, '') AS student, a.created_at AS at,
               'تسجيل حضور ' || a.date AS detail, NULL AS "surahNumber"
        FROM attendance_sessions a LEFT JOIN halaqat h ON h.id = a.halaqa_id
-       WHERE 1 = 1${actAttScope.clause}
+       WHERE ${countedSession("a")}${actAttScope.clause}
        ORDER BY at DESC LIMIT 10`,
       [...actRecScope.params, ...actAttScope.params]
     );
@@ -333,7 +336,8 @@ reportsRouter.get(
     if (!halaqa) throw ApiError.notFound("الحلقة غير موجودة");
 
     const session = await db().get<{ id: number }>(
-      "SELECT id FROM attendance_sessions WHERE halaqa_id = ? AND date = ?",
+      `SELECT a.id FROM attendance_sessions a
+        WHERE a.halaqa_id = ? AND a.date = ? AND ${countedSession("a")}`,
       [id, date]
     );
 
@@ -452,7 +456,7 @@ reportsRouter.get(
               SUM(CASE WHEN a.teacher_status = 'absent' THEN 1 ELSE 0 END) AS "teacherAbsences"
        FROM attendance_sessions a
        LEFT JOIN attendance_entries e ON e.session_id = a.id
-       WHERE ${att.where.join(" AND ")}`,
+       WHERE ${att.where.join(" AND ")} AND ${countedSession("a")}`,
       att.params
     );
 

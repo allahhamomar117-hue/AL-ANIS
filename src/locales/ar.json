@@ -116,7 +116,10 @@
     "empty": "لا يوجد طلاب في هذا اليوم",
     "selectHalaqa": "اختر الحلقة",
     "noSessions": "لا توجد جلسات حضور مسجّلة",
-    "deleting": "جارٍ الحذف…"
+    "deleting": "جارٍ الحذف…",
+    "deleteSession": "إلغاء الجلسة",
+    "deleteSessionConfirm": "سيُحذف يوم {{date}} من {{halaqa}} نهائياً بكل سجلات حضوره ({{count}})، وتُسترجع نقاط الحضور الممنوحة فيه. لا يمكن التراجع.",
+    "sessionDeleted": "أُلغيت الجلسة"
   },
   "popupAttendance": {
     "title": "إضافة طالب للحضور",
