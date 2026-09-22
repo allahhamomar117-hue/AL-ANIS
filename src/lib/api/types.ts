@@ -70,6 +70,8 @@ export interface Halaqa {
   scheduleTime: string | null;
   location: string | null;
   isActive: number;
+  /** ترتيب العرض اليدوي — 0 يعني «لم يُرتَّب بعد» فيسقط إلى ترتيب الاسم. */
+  sortOrder: number;
   students: number;
 }
 

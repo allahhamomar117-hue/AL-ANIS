@@ -65,10 +65,14 @@ CREATE TABLE IF NOT EXISTS halaqat (
   -- العام. الإنشاء الجديد يوجبه في POST /api/halaqat.
   department    TEXT,
   is_active     INTEGER NOT NULL DEFAULT 1,
+  -- ترتيب العرض اليدوي (الترقية 018). 0 = لم يُرتَّب بعد، فيسقط إلى
+  -- الترتيب الطبيعي بالاسم — راجع sortHalaqat في routes/halaqat.ts.
+  sort_order    INTEGER NOT NULL DEFAULT 0,
   created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_halaqat_teacher ON halaqat (teacher_id);
 CREATE INDEX IF NOT EXISTS idx_halaqat_department ON halaqat (department);
+CREATE INDEX IF NOT EXISTS idx_halaqat_sort_order ON halaqat (sort_order);
 
 -- إسناد المدرّسين إلى الحلقات (مدرّس واحد يمكن أن يُسند إلى أكثر من حلقة).
 -- نطاق رؤية المدرّس = حلقاته هنا + الحلقة التي هو أستاذها الأساسي (halaqat.teacher_id).

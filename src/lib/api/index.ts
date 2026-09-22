@@ -110,6 +110,13 @@ export const halaqatApi = {
   /** تعطيل الحلقة. reassignTo تنقل طلابها إلى حلقة أخرى (يطلبها الخادم إن كان فيها طلاب). */
   remove: (id: number, params?: { reassignTo?: number }) =>
     api.delete<void>(`/halaqat/${id}`, params),
+
+  /**
+   * حفظ ترتيب العرض اليدوي. `ids` القائمةُ كاملةً بالترتيب المطلوب —
+   * الخادم يُنزل عليها 1..n (راجع PATCH /api/halaqat/order).
+   */
+  reorder: (ids: number[]) =>
+    api.patch<{ data: { ordered: number } }>("/halaqat/order", { ids }),
 };
 
 /* ==================== الطلاب والنقاط ==================== */

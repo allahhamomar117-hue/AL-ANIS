@@ -49,7 +49,7 @@ async function seedDemoIfNeeded(): Promise<void> {
 async function verifySchema(): Promise<void> {
   const required: Record<string, string[]> = {
     users: ["username", "password_hash", "role"],
-    halaqat: ["department"],
+    halaqat: ["department", "sort_order"],
     teacher_halaqat: ["user_id", "halaqa_id"],
     /*
      * نطاق الإداري كلّه هنا منذ الترقية 017 (لا عمود users.department).
@@ -98,6 +98,10 @@ async function verifySchema(): Promise<void> {
       console.error("  (Railway/Supabase)، ثم أعد تشغيل الخدمة:");
       console.error("");
       console.error("    ALTER TABLE halaqat ADD COLUMN IF NOT EXISTS department TEXT;");
+      console.error("");
+      console.error(
+        "    ALTER TABLE halaqat ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;"
+      );
       console.error("");
       console.error("    CREATE TABLE IF NOT EXISTS user_departments (");
       console.error("      user_id    INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,");

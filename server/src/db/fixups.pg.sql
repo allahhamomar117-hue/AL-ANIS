@@ -426,3 +426,19 @@ BEGIN
    */
   ALTER TABLE users DROP COLUMN department;
 END $$;
+
+-- @fixup ترتيب الحلقات اليدوي: عمود sort_order
+
+-- ── نظير الترقية 018 على مسار Postgres ──────────────────────────────
+--
+-- ملفّ المخطّط لا يضيف عموداً إلى جدول قائم (`CREATE TABLE IF NOT EXISTS`
+-- مشروط بالجدول لا بأعمدته)، وقاعدة الإنتاج قائمة. فبلا هذه الكتلة
+-- يقلع الخادم ثم يسقط عند أول استعلام حلقات بـ
+-- `column "sort_order" does not exist` — وهو ما أوقف الإنتاج من قبل
+-- بعمود department حرفياً.
+--
+-- DEFAULT 0 = «لم يُرتَّب بعد»: الصفوف القائمة تبقى على ترتيبها الطبيعي
+-- بالاسم حتى أوّل سحبٍ من المدير. والفهرس مشروط بالعمود ضمناً لأنه بعده
+-- في الكتلة نفسها.
+ALTER TABLE halaqat ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;
+CREATE INDEX IF NOT EXISTS idx_halaqat_sort_order ON halaqat (sort_order);

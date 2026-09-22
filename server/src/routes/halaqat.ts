@@ -3,7 +3,7 @@ import { z } from "zod";
 import { db, tx, type SqlParam } from "../db/index.js";
 import { ApiError, asyncHandler, parse } from "../lib/http.js";
 import { departmentInput, idParam } from "../lib/schemas.js";
-import { sortByNatural } from "../lib/sort.js";
+import { compareNatural } from "../lib/sort.js";
 import { requireRole } from "../middleware/auth.js";
 import {
   applyScope,
@@ -57,11 +57,32 @@ const SELECT_HALAQA = `
          h.stage,
          h.department,
          h.is_active                        AS "isActive",
+         h.sort_order                       AS "sortOrder",
          (SELECT COUNT(*) FROM students s
            WHERE s.halaqa_id = h.id AND ${visibleStudent("s")}) AS students
   FROM halaqat h
   LEFT JOIN users u ON u.id = h.teacher_id
 `;
+
+/**
+ * ترتيب العرض — الترتيب اليدوي أولاً، ثم الطبيعي بالاسم.
+ *
+ * sort_order = 0 تعني «لم يُرتَّب بعد» (الترقية 018)، فصفوفٌ لم يمسّها
+ * المدير تتساوى عنده جميعاً فيفصل بينها الاسم — أي الترتيب نفسه الذي كان
+ * قبل الترقية حرفياً. وأوّل سحبٍ يُنزل أرقاماً من 1 فتتقدّم المرتَّبة.
+ *
+ * والفرز هنا لا في SQL لأن مقارنة الأسماء يجب أن تكون طبيعية (numeric)
+ * وموحَّدة بين SQLite و Postgres — راجع lib/sort.ts. والقائمة عشرات
+ * الصفوف لا آلافها.
+ */
+function sortHalaqat<T extends { name?: string | null; sortOrder?: number | null }>(
+  rows: T[]
+): T[] {
+  return [...rows].sort(
+    (a, b) =>
+      (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || compareNatural(a.name ?? "", b.name ?? "")
+  );
+}
 
 /** توحيد الاسم للمقارنة والتخزين: تُقصّ الأطراف وتُجمع المسافات المتكررة. */
 function cleanName(name: string): string {
@@ -117,13 +138,70 @@ halaqatRouter.get(
     await applyScope(req.user!, "h.id", where, params);
 
     /*
-     * بلا ORDER BY: الترتيب طبيعيّ (numeric) يجريه compareNatural بعد
-     * الجلب — راجع lib/sort.ts لسبب خروجه من SQL.
+     * بلا ORDER BY: الترتيب يجريه sortHalaqat بعد الجلب — اليدويّ
+     * (sort_order) ثم الطبيعيّ بالاسم، ولا يُفرَض أيّهما في SQL (راجع
+     * lib/sort.ts لسبب خروج المقارنة الطبيعية منه).
      */
     const sql = `${SELECT_HALAQA} ${where.length ? `WHERE ${where.join(" AND ")}` : ""}`;
-    const rows = await db().all<{ name: string }>(sql, params);
+    const rows = await db().all<{ name: string; sortOrder: number }>(sql, params);
 
-    res.json({ data: sortByNatural(rows, (h) => h.name ?? "") });
+    res.json({ data: sortHalaqat(rows) });
+  })
+);
+
+/**
+ * PATCH /api/halaqat/order — حفظ ترتيب العرض اليدوي.
+ *
+ * الحمل `{ ids: [...] }`: قائمة معرّفات بالترتيب المطلوب، تُنزَّل عليها
+ * الأرقام 1..n. والقائمة كاملةٌ لا فارقاً — إرسال الحركة وحدها يوجب على
+ * الخادم إعادة حساب ما بينها، والواجهة تعرف الترتيب النهائي أصلاً.
+ *
+ * ── لماذا قبل "/:id"؟ ───────────────────────────────────────────────
+ * Express يطابق بالترتيب، و"order" نصٌّ يبتلعه "/:id" لو سبقه — فيصل
+ * الطلب إلى معالج الحلقة المفردة ويسقط في idParam. الموضع هنا شرطُ عمل
+ * لا ترتيبَ قراءة.
+ *
+ * ── النطاق ──────────────────────────────────────────────────────────
+ * كل معرّف يمرّ بـ assertHalaqaAccess: مدير قسمٍ يرتّب حلقاته وحدها، ولا
+ * يزحزح حلقةً لا يراها بتمرير معرّفها في القائمة.
+ *
+ * وترقيم المرسَل وحده يعني أن حلقات قسمٍ آخر تبقى على 0 فتتقدّم قائمةَ
+ * المدير العام حتى يرتّبها هو مرّة — وهو ما يصحّحه سحبٌ واحد، أهون من
+ * إعادة ترقيم صفوفٍ خارج نطاق الطالب.
+ *
+ * الترقيم يبدأ من 1 لا 0: الصفر محجوز لمعنى «لم يُرتَّب بعد».
+ */
+halaqatRouter.patch(
+  "/order",
+  requireRole("ADMIN"),
+  asyncHandler(async (req, res) => {
+    const { ids } = parse(
+      z.object({
+        ids: z.array(z.number().int().positive()).min(1, "أرسل قائمة الحلقات بالترتيب المطلوب"),
+      }),
+      req.body
+    );
+
+    // معرّف مكرّر يعطي الحلقة رقمين، فالأخير يغلب والترتيب يخرج غير الذي
+    // رآه المستخدم على شاشته. الردّ أوضح من قبولٍ يُنتج ترتيباً آخر.
+    if (new Set(ids).size !== ids.length) {
+      throw ApiError.badRequest("قائمة الترتيب فيها معرّف مكرّر");
+    }
+
+    for (const id of ids) {
+      const exists = await db().get("SELECT 1 FROM halaqat WHERE id = ?", [id]);
+      if (!exists) throw ApiError.notFound(`الحلقة ${id} غير موجودة`);
+      await assertHalaqaAccess(req.user!, id);
+    }
+
+    // معاملة واحدة: ترتيبٌ نصفُه قديم ونصفُه جديد أسوأ من ترتيبٍ لم يُحفظ
+    await tx(async () => {
+      for (const [index, id] of ids.entries()) {
+        await db().run("UPDATE halaqat SET sort_order = ? WHERE id = ?", [index + 1, id]);
+      }
+    });
+
+    res.json({ data: { ordered: ids.length } });
   })
 );
 

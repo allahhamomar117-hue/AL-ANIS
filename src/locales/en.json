@@ -579,7 +579,16 @@
     "chooseTarget": "Choose target halaqa",
     "noTargetHalaqa": "No other active halaqa to move students to. Add one first.",
     "stage": "Educational stage",
-    "noStage": "No stage"
+    "noStage": "No stage",
+    "reorderHint": "Drag a card by its handle to reorder the halaqat, or use the arrows. The order applies across the whole site.",
+    "dragHandle": "Drag to reorder",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "saveOrder": "Save order",
+    "savingOrder": "Saving order…",
+    "resetOrder": "Undo",
+    "orderSaved": "Order saved",
+    "orderDirty": "Order not saved yet"
   },
   "halaqaStages": {
     "primary": "Primary",

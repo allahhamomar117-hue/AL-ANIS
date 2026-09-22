@@ -353,7 +353,7 @@ usersRouter.get(
        WHERE h.teacher_id = ?
           OR EXISTS (SELECT 1 FROM teacher_halaqat th
                       WHERE th.user_id = ? AND th.halaqa_id = h.id)
-       ORDER BY h.name`,
+       ORDER BY h.sort_order, h.name`,
       [id, id, id]
     );
 
@@ -388,7 +388,7 @@ usersRouter.put(
       data: await db().all(
         `SELECT h.id, h.name FROM halaqat h
          JOIN teacher_halaqat th ON th.halaqa_id = h.id
-         WHERE th.user_id = ? ORDER BY h.name`,
+         WHERE th.user_id = ? ORDER BY h.sort_order, h.name`,
         [id]
       ),
     });

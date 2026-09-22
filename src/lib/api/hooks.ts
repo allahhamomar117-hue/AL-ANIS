@@ -67,6 +67,23 @@ export function useUpdateHalaqa() {
   });
 }
 
+/**
+ * حفظ ترتيب الحلقات اليدوي.
+ *
+ * الترتيب يُقرأ من useHalaqat في كل قائمة وزرّ فلترة في التطبيق، فإبطال
+ * qk.halaqat.all وحده يكفي لسريانه في الموقع كلّه — ولا يُبطَل شيء آخر
+ * لأن الترتيب لا يمسّ بياناً غيره.
+ */
+export function useReorderHalaqat() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: number[]) => halaqatApi.reorder(ids),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: qk.halaqat.all });
+    },
+  });
+}
+
 export function useDeleteHalaqa() {
   const qc = useQueryClient();
   return useMutation({

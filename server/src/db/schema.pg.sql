@@ -63,6 +63,9 @@ CREATE TABLE IF NOT EXISTS halaqat (
   department    TEXT        CHECK (department IS NULL
                                    OR department IN ('PRIMARY', 'MIDDLE_HIGH', 'INTENSIVE')),
   is_active     BOOLEAN     NOT NULL DEFAULT TRUE,
+  -- ترتيب العرض اليدوي (الترقية 018). 0 = لم يُرتَّب بعد، فيسقط إلى
+  -- الترتيب الطبيعي بالاسم — راجع sortHalaqat في routes/halaqat.ts.
+  sort_order    INTEGER     NOT NULL DEFAULT 0,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_halaqat_teacher ON halaqat (teacher_id);

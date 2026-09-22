@@ -14,15 +14,21 @@ type Operation = "add" | "deduct";
  * كنص فلا تظهر الرقاقات إطلاقاً.
  */
 const REASON_PRESETS: Record<Operation, string[]> = {
-  add: ["مكافأة بالدرس", "إتقان التسميع", "حسن الخلق"],
-  deduct: ["خروج من الدرس", "مشاغبة", "كثرة الكلام"],
+  add: ["مكافأة بالدرس", "مكافأة بالدرس الجماعي", "حسن الخلق"],
+  deduct: [
+    "خروج من الدرس",
+    "مشاغبة",
+    "كثرة الكلام",
+    "إساءة إلى أستاذ",
+    "إساءة إلى مشرف",
+  ],
 };
 
 /**
  * المقادير الجاهزة لكل عملية.
  *
- * الخصم مقصور على هذه القيم: الحقل يصبح للقراءة فقط في وضع الخصم،
- * فلا سبيل إلى مقدار آخر إلا من هذه الأزرار.
+ * على غير المدير لا سبيل إلى مقدار سواها: الحقل اليدوي محجوب عنه في
+ * الإضافة والخصم جميعاً. والمدير يكتب ما شاء في العمليتين.
  */
 const AMOUNT_PRESETS: Record<Operation, number[]> = {
   add: [5, 10, 20, 25],
@@ -76,10 +82,11 @@ export default function QuickPointsModal({
 
   /*
    * القفل يعني: لا حقل إدخال، والمقدار لا يكون إلا أحد الأزرار.
-   * يقفل الخصم دوماً، ويقفل كلّ شيء على غير المدير — والخادم يفرض فوق ذلك
+   * يقفل على غير المدير في العمليتين كلتيهما — والخادم يفرض فوق ذلك
    * حدّاً يومياً (25 إضافةً و10 خصماً للطالب الواحد) على غير المدير.
+   * أما المدير فيكتب المقدار يدوياً إضافةً كان أو خصماً.
    */
-  const amountLocked = operation === "deduct" || !canTypeAmount;
+  const amountLocked = !canTypeAmount;
   const presets = AMOUNT_PRESETS[operation];
 
   const positive = typeof amount === "number" && amount > 0;
@@ -120,14 +127,14 @@ export default function QuickPointsModal({
 
   /**
    * تبديل نوع العملية. السبب المُختار من رقاقات العملية السابقة يُمسح،
-   * وإلا بقي "إتقان التسميع" مكتوباً في خصم — وهو أسوأ من حقل فارغ.
+   * وإلا بقي "حسن الخلق" مكتوباً في خصم — وهو أسوأ من حقل فارغ.
    */
   const switchOperation = (next: Operation) => {
     setOperation(next);
     if (REASON_PRESETS[operation].includes(reason)) setReason("");
-    // مقدار كُتب يدوياً في الإضافة لا يجوز أن يتسلّل إلى الخصم المقيَّد
+    // مقدار كُتب يدوياً لا يجوز أن يتسلّل إلى عمليةٍ مقيَّدة بالأزرار
     if (typeof amount === "number" && !AMOUNT_PRESETS[next].includes(amount)) {
-      setAmount(next === "deduct" || !canTypeAmount ? "" : amount);
+      setAmount(canTypeAmount ? amount : "");
     }
   };
 
