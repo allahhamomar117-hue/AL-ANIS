@@ -239,18 +239,22 @@
       "all": "All"
     }
   },
+  "pointsReasons": {
+    "lessonReward": "Lesson reward",
+    "groupLessonReward": "Group lesson reward",
+    "goodManners": "Good manners",
+    "leftLesson": "Left the lesson",
+    "disruption": "Disruptive behaviour",
+    "tooMuchTalking": "Excessive talking",
+    "insultedTeacher": "Disrespect to a teacher",
+    "insultedSupervisor": "Disrespect to a supervisor"
+  },
   "popupAddPoints": {
     "title": "Add Points",
     "student": "Student",
     "amount": "Amount",
     "reason": "Reason",
-    "reasonPlaceholder": "Enter reason for adding points",
-    "reasonPresets": [
-      "Lesson reward",
-      "Excellent recitation",
-      "Good manners",
-      "Late to halaqa"
-    ],
+    "reasonPlaceholder": "Optional – e.g. Group lesson reward",
     "cancel": "Cancel",
     "save": "Save",
     "currentBalance": "Current balance",
@@ -455,7 +459,7 @@
     "noStudents": "No students in your scope",
     "amount": "Points",
     "reason": "Reason",
-    "reasonPlaceholder": "Optional — e.g. excellent recitation",
+    "reasonPlaceholder": "Optional – e.g. Group lesson reward",
     "save": "Save",
     "close": "Close",
     "done": "Done: {{name}} ({{delta}}) — balance is now {{balance}}",

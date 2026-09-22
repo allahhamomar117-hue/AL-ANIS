@@ -242,18 +242,22 @@
       "all": "الكل"
     }
   },
+  "pointsReasons": {
+    "lessonReward": "مكافأة بالدرس",
+    "groupLessonReward": "مكافأة بالدرس الجماعي",
+    "goodManners": "حسن الخلق",
+    "leftLesson": "خروج من الدرس",
+    "disruption": "مشاغبة",
+    "tooMuchTalking": "كثرة الكلام",
+    "insultedTeacher": "إساءة إلى أستاذ",
+    "insultedSupervisor": "إساءة إلى مشرف"
+  },
   "popupAddPoints": {
     "title": "إضافة نقاط",
     "student": "الطالب",
     "amount": "الكمية",
     "reason": "السبب",
-    "reasonPlaceholder": "اكتب سبب إضافة النقاط",
-    "reasonPresets": [
-      "مكافأة بالدرس",
-      "مكافأة بالدرس الجماعي",
-      "حسن الخلق",
-      "تأخر عن الحلقة"
-    ],
+    "reasonPlaceholder": "اختياري – مثل: مكافأة بالدرس الجماعي",
     "cancel": "إلغاء",
     "save": "حفظ",
     "currentBalance": "الرصيد الحالي",
@@ -457,7 +461,7 @@
     "noStudents": "لا يوجد طلاب في نطاقك",
     "amount": "عدد النقاط",
     "reason": "السبب",
-    "reasonPlaceholder": "اختياري — مثل: إتقان التسميع",
+    "reasonPlaceholder": "اختياري – مثل: مكافأة بالدرس الجماعي",
     "save": "حفظ",
     "close": "إغلاق",
     "done": "تم: {{name}} ({{delta}}) — الرصيد الآن {{balance}}",

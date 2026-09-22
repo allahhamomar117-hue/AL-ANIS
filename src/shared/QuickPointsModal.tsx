@@ -4,25 +4,16 @@ import { useTranslation } from "react-i18next";
 import { FaMinus, FaPlus, FaStar } from "react-icons/fa";
 import { useAuth } from "../context/authContext";
 import { useAddPoints, useDeductPoints, useHalaqat, useStudents } from "../lib/api/hooks";
+import { reasonPresets, type PointsOperation } from "../lib/pointsReasons";
 
-type Operation = "add" | "deduct";
+type Operation = PointsOperation;
 
-/**
- * أسباب جاهزة تُعبَّأ بنقرة واحدة، لكل عملية أسبابها.
- *
- * ثابتة في الكود لا عبر i18n، لأن t مع returnObjects كان يعيد المفتاح
- * كنص فلا تظهر الرقاقات إطلاقاً.
+/*
+ * الأسباب الجاهزة خرجت إلى lib/pointsReasons.ts لتشاركها نافذةُ إضافة
+ * النقاط — كانت هنا نصوصاً عربية ثابتة، فانحرف عنها ملفُّ الترجمة الذي
+ * تقرأ منه تلك النافذة. والترجمة تعمل الآن لأن كل مفتاح يُستدعى مفرداً
+ * بلا returnObjects — وهو ما كان يُفشلها.
  */
-const REASON_PRESETS: Record<Operation, string[]> = {
-  add: ["مكافأة بالدرس", "مكافأة بالدرس الجماعي", "حسن الخلق"],
-  deduct: [
-    "خروج من الدرس",
-    "مشاغبة",
-    "كثرة الكلام",
-    "إساءة إلى أستاذ",
-    "إساءة إلى مشرف",
-  ],
-};
 
 /**
  * المقادير الجاهزة لكل عملية.
@@ -88,6 +79,7 @@ export default function QuickPointsModal({
    */
   const amountLocked = !canTypeAmount;
   const presets = AMOUNT_PRESETS[operation];
+  const reasons = reasonPresets(t, operation);
 
   const positive = typeof amount === "number" && amount > 0;
   const allowedAmount =
@@ -131,7 +123,7 @@ export default function QuickPointsModal({
    */
   const switchOperation = (next: Operation) => {
     setOperation(next);
-    if (REASON_PRESETS[operation].includes(reason)) setReason("");
+    if (reasonPresets(t, operation).includes(reason)) setReason("");
     // مقدار كُتب يدوياً لا يجوز أن يتسلّل إلى عمليةٍ مقيَّدة بالأزرار
     if (typeof amount === "number" && !AMOUNT_PRESETS[next].includes(amount)) {
       setAmount(canTypeAmount ? amount : "");
@@ -341,7 +333,7 @@ export default function QuickPointsModal({
 
           {/* اقتراحات سريعة تملأ الحقل بنقرة واحدة */}
           <div className="mt-2 flex flex-wrap gap-2">
-            {REASON_PRESETS[operation].map((preset) => (
+            {reasons.map((preset) => (
               <button
                 key={preset}
                 type="button"

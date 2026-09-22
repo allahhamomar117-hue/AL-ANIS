@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { reasonPresets } from "../../lib/pointsReasons";
 
 type AddPointsPopupProps = {
   studentName: string;
@@ -23,6 +24,9 @@ export function PopupAddPoints({
   const [reason, setReason] = useState("");
 
   const valid = typeof amount === "number" && amount > 0;
+
+  // النافذة إضافةٌ فقط، فأسباب الخصم لا محلّ لها هنا
+  const presets = reasonPresets(t, "add");
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -61,11 +65,34 @@ export function PopupAddPoints({
         </label>
         <input
           type="text"
-          className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark-light text-gray-800 dark:text-white rounded-xl p-2 mb-4 text-right focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark-light text-gray-800 dark:text-white rounded-xl p-2 mb-2 text-right focus:outline-none focus:ring-2 focus:ring-emerald-500"
           placeholder={t("popupAddPoints.reasonPlaceholder")}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
         />
+
+        {/*
+          رقاقات الأسباب الجاهزة — نفس رقاقات «النقاط السريعة» شكلاً
+          ومصدراً (lib/pointsReasons.ts)، فالمستخدم يجد ما اعتاده في
+          النافذتين. والحقل يبقى قابلاً للكتابة: الرقاقة تملؤه ولا
+          تقيّده.
+        */}
+        <div className="mb-4 flex flex-wrap gap-2">
+          {presets.map((preset) => (
+            <button
+              key={preset}
+              type="button"
+              onClick={() => setReason(preset)}
+              className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                reason === preset
+                  ? "bg-emerald-500 text-white shadow"
+                  : "bg-gray-100 text-gray-700 hover:bg-emerald-100 dark:bg-dark-light dark:text-gray-200 dark:hover:bg-emerald-900/40"
+              }`}
+            >
+              + {preset}
+            </button>
+          ))}
+        </div>
 
         {valid && (
           <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
