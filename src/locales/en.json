@@ -386,7 +386,11 @@
     "empty": "No data yet",
     "filterHalaqa": "All halaqat",
     "attendedOfDays": "{{attended}} of {{days}}",
-    "pagesValue": "{{pages}} pages"
+    "pagesValue": "{{pages}} pages",
+    "tv": {
+      "enter": "TV mode",
+      "exit": "Exit TV mode (Esc)"
+    }
   },
   "halaqaCard": {
     "students": "students"

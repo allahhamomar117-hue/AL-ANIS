@@ -389,7 +389,11 @@
     "empty": "لا توجد بيانات بعد",
     "filterHalaqa": "كل الحلقات",
     "attendedOfDays": "حضر {{attended}} من {{days}}",
-    "pagesValue": "{{pages}} صفحة"
+    "pagesValue": "{{pages}} صفحة",
+    "tv": {
+      "enter": "وضع التلفاز",
+      "exit": "الخروج من وضع التلفاز (Esc)"
+    }
   },
   "halaqaCard": {
     "students": "طالب"
