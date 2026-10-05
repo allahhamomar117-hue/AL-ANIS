@@ -25,6 +25,11 @@ export interface AuthContextValue {
   isTeacher: boolean;
   /** مشرف بلا إدارة حسابات. */
   isSupervisor: boolean;
+  /**
+   * حساب شاشة العرض: يُفتح على لوحة الصدارة بوضع التلفاز ولا يرى غيرها.
+   * الخادم يرفض له كل ما عدا قراءة لوحة الصدارة — هذا للواجهة وحدها.
+   */
+  isViewer: boolean;
   /** إدارة سجلّات الطلاب (CRUD) — المدير وحده، لا المشرف. */
   canManageStudents: boolean;
   /** إدارة حسابات الكادر — المدير وحده. */

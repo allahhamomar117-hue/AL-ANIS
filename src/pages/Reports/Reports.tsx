@@ -1,15 +1,16 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { FaUser, FaCrown, FaTrophy } from "react-icons/fa";
-import { Monitor, Minimize2 } from "lucide-react";
+import { FaTrophy } from "react-icons/fa";
+import { Maximize, Minimize2, Monitor } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { reportsApi } from "../../lib/api";
 import { qk } from "../../lib/api/queryKeys";
-import { useHalaqat } from "../../lib/api/hooks";
-import { useCurrentHalaqa } from "../../lib/api/useCurrentHalaqa";
+import { DEPARTMENTS, type Department } from "../../lib/api/types";
+import { useAuth } from "../../context/authContext";
 import { EmptyState, ErrorState, LoadingState } from "../../shared/QueryState";
 import Avatar from "../../shared/Avatar";
+import Podium from "./Podium";
 
 type LeaderboardType = "points" | "attendance" | "recitation";
 type LeaderboardResult = Awaited<ReturnType<typeof reportsApi.leaderboard>>;
@@ -24,51 +25,36 @@ const TV_REST_LIMIT = 16;
 /** تحديث تلقائي في وضع التلفاز: الشاشة تبقى مفتوحة أمام الطلاب ولا أحد يضغط "تحديث". */
 const TV_REFRESH_MS = 60_000;
 
-/** ألوان الميداليات: حدّ + توهّج + شارة المركز لكل من الذهبي والفضي والبرونزي. */
-const MEDALS: Record<number, { border: string; glow: string; halo: string; badge: string; order: string }> = {
-  1: {
-    border: "border-yellow-400/90",
-    glow: "shadow-[0_0_18px_rgba(250,204,21,0.55),0_0_48px_rgba(250,204,21,0.25)]",
-    halo: "bg-yellow-400/40 animate-pulse",
-    badge: "bg-gradient-to-br from-yellow-200 via-yellow-400 to-amber-500 text-amber-950",
-    order: "order-2 md:-translate-y-3",
-  },
-  2: {
-    border: "border-slate-300/90",
-    glow: "shadow-[0_0_16px_rgba(203,213,225,0.55),0_0_40px_rgba(203,213,225,0.2)]",
-    halo: "bg-slate-300/30",
-    badge: "bg-gradient-to-br from-white via-slate-200 to-slate-400 text-slate-800",
-    order: "order-1",
-  },
-  3: {
-    border: "border-orange-400/90",
-    glow: "shadow-[0_0_16px_rgba(205,127,50,0.6),0_0_40px_rgba(205,127,50,0.22)]",
-    halo: "bg-orange-500/30",
-    badge: "bg-gradient-to-br from-orange-200 via-orange-400 to-amber-700 text-white",
-    order: "order-3",
-  },
-};
-
 /** حركة الظهور: تتلاشى وتصعد، متتابعة حسب الترتيب. تُلغى لمن يفضّل تقليل الحركة. */
 const enter = "animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-both motion-reduce:animate-none";
 const delay = (i: number) => ({ animationDelay: `${i * 60}ms` });
 
 const Reports: React.FC = () => {
-  const [type, setType] = useState<LeaderboardType>("points");
-  const [halaqaId, setHalaqaId] = useState<number | "">("");
-  const [tvMode, setTvMode] = useState(false);
   const { t } = useTranslation();
+  const { isTeacher, isViewer, halaqaName, departments } = useAuth();
 
-  const { data: halaqat = [] } = useHalaqat();
-  const current = useCurrentHalaqa();
+  const [type, setType] = useState<LeaderboardType>("points");
+  const [department, setDepartment] = useState<Department | "">("");
+  // حساب شاشة العرض يُفتح على وضع التلفاز مباشرةً — هذه وظيفته الوحيدة
+  const [tvMode, setTvMode] = useState(isViewer);
+
+  /*
+   * الدورات المعروضة في الفلتر: أقسام المستخدم، أو الثلاث كلّها لمن نطاقه
+   * المعهد كلّه (قائمته فارغة). المدرّس بلا فلتر — نطاقه حلقاته، والخادم
+   * يقصر لوحة الصدارة عليها أصلاً.
+   *
+   * من الثوابت لا من استعلام: الدورات ثلاث قيم ثابتة في المشروع (لا جدول
+   * لها)، والفلتر تضييقٌ فوق نطاق الخادم لا يكشف شيئاً خارجه.
+   */
+  const departmentOptions: readonly Department[] = isTeacher
+    ? []
+    : departments.length
+      ? departments
+      : DEPARTMENTS;
 
   /**
    * الخادم يرجّع الأعمدة الثلاثة في كل طلب ويرتّب حسب `type`،
    * لذا تبديل التبويب لا يحتاج إلا إعادة الترتيب من الخادم.
-   */
-  /*
-   * المدرّس: بلا مرشّح حلقة — الخادم يقصر لوحة الصدارة على نطاقه أصلاً.
-   * تمرير حلقته الافتراضية وحدها كان يُسقط طلاب حلقاته الأخرى من الترتيب.
    */
   /*
    * بلا limit: الصفحة تعرض ترتيب الطلاب كلّهم.
@@ -80,7 +66,7 @@ const Reports: React.FC = () => {
    */
   const params = {
     type,
-    halaqaId: current.isTeacher ? undefined : halaqaId === "" ? undefined : halaqaId,
+    department: isTeacher || department === "" ? undefined : department,
   };
 
   const leaderboard = useQuery({
@@ -117,140 +103,65 @@ const Reports: React.FC = () => {
         })
       : null;
 
+  /** اسم النطاق المعروض: حلقة المدرّس، أو الدورة المختارة، أو «كل الدورات». */
+  const scopeName = isTeacher
+    ? halaqaName
+    : department
+      ? t(`departments.${department}`)
+      : departmentOptions.length === 1
+        ? t(`departments.${departmentOptions[0]}`)
+        : t("leaderboard.filterDepartment");
+
   /* ---------------- وضع التلفاز ---------------- */
 
-  /** هل دخلنا ملء الشاشة فعلاً؟ الخروج منه (Esc من المتصفح) يُنهي وضع التلفاز أيضاً. */
-  const enteredFullscreen = useRef(false);
+  /**
+   * هل دخل ملءَ الشاشة مع وضع التلفاز نفسه؟ عندها يُنهي الخروجُ منه (Esc
+   * من المتصفح) وضعَ التلفاز أيضاً. أمّا ملء الشاشة من زرّه داخل الوضع
+   * — وهو سبيل حساب العرض إليه — فالخروج منه يُبقي الوضع قائماً.
+   */
+  const fullscreenWithTv = useRef(false);
+  const [isFullscreen, setIsFullscreen] = useState(() => Boolean(document.fullscreenElement));
 
   const exitTv = useCallback(() => {
     setTvMode(false);
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
-    enteredFullscreen.current = false;
+    fullscreenWithTv.current = false;
   }, []);
+
+  const requestFullscreen = () =>
+    document.documentElement.requestFullscreen?.() ?? Promise.reject(new Error("unsupported"));
 
   const enterTv = () => {
     setTvMode(true);
     // ملء الشاشة تحسين لا شرط: الطبقة نفسها تغطّي الشاشة كلها لو رفضه المتصفح
-    document.documentElement
-      .requestFullscreen?.()
-      .then(() => (enteredFullscreen.current = true))
+    requestFullscreen()
+      .then(() => (fullscreenWithTv.current = true))
       .catch(() => {});
   };
 
   useEffect(() => {
+    const onFsChange = () => {
+      const active = Boolean(document.fullscreenElement);
+      setIsFullscreen(active);
+      if (!active && fullscreenWithTv.current) exitTv();
+    };
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, [exitTv]);
+
+  useEffect(() => {
     if (!tvMode) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && exitTv();
-    const onFsChange = () => {
-      if (!document.fullscreenElement && enteredFullscreen.current) exitTv();
-    };
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     window.addEventListener("keydown", onKey);
-    document.addEventListener("fullscreenchange", onFsChange);
     return () => {
       document.body.style.overflow = prevOverflow;
       window.removeEventListener("keydown", onKey);
-      document.removeEventListener("fullscreenchange", onFsChange);
     };
   }, [tvMode, exitTv]);
 
-  const scopeName = current.showHalaqaPicker
-    ? (halaqat.find((h) => h.id === halaqaId)?.name ?? t("leaderboard.filterHalaqa"))
-    : current.halaqaName;
-
   /* ---------------- أجزاء العرض ---------------- */
-
-  const podium = (tv: boolean) => (
-    <div
-      className={`mx-auto flex w-full items-end justify-center gap-3 md:gap-6 ${
-        tv ? "max-w-5xl pt-4" : "max-w-4xl mb-8 px-2 pt-3"
-      }`}
-    >
-      {topThree.map((student, i) => {
-        const medal = MEDALS[student.rank] ?? MEDALS[3];
-        const first = student.rank === 1;
-        return (
-          <div
-            key={`${type}-${student.id}`}
-            style={delay(first ? 0 : i + 1)}
-            className={`relative isolate flex-1 ${medal.order} ${enter} ${
-              first ? "zoom-in-90" : ""
-            }`}
-          >
-            {/* هالة ضوئية خلف البطاقة */}
-            <div className={`absolute -inset-1 -z-10 rounded-3xl blur-xl ${medal.halo}`} />
-            <div
-              className={`rounded-2xl border-2 bg-white text-center dark:bg-dark ${medal.border} ${medal.glow} ${
-                tv
-                  ? first
-                    ? "px-4 py-5 dark:bg-slate-900/80"
-                    : "px-4 py-4 dark:bg-slate-900/80"
-                  : first
-                    ? "p-3 md:p-5"
-                    : "p-3 md:p-4"
-              }`}
-            >
-              <div className="relative mb-2 inline-block">
-                {student.avatarUrl ? (
-                  <Avatar
-                    name={student.name}
-                    url={student.avatarUrl}
-                    className={`mx-auto ${
-                      tv ? (first ? "size-24" : "size-20") : first ? "size-14 md:size-20" : "size-12 md:size-16"
-                    }`}
-                    textClassName={tv ? "text-3xl" : "text-xl md:text-2xl"}
-                  />
-                ) : (
-                  <div
-                    className={`mx-auto flex items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700 ${
-                      tv ? (first ? "size-24" : "size-20") : first ? "size-14 md:size-20" : "size-12 md:size-16"
-                    }`}
-                  >
-                    {first ? (
-                      <FaCrown className="text-2xl text-yellow-400 md:text-3xl" />
-                    ) : (
-                      <FaUser className="text-xl text-gray-400 dark:text-gray-300 md:text-2xl" />
-                    )}
-                  </div>
-                )}
-
-                {/* التاج يبقى ظاهراً فوق صورة صاحب المركز الأول */}
-                {first && student.avatarUrl && (
-                  <FaCrown className="absolute -top-3 left-1/2 -translate-x-1/2 text-lg text-yellow-400 drop-shadow md:text-2xl" />
-                )}
-                <div
-                  className={`absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full px-2 py-0.5 font-black shadow ${medal.badge} ${
-                    tv ? "text-sm" : "text-[10px] md:text-xs"
-                  }`}
-                >
-                  #{student.rank}
-                </div>
-              </div>
-              <h2
-                className={`truncate font-bold dark:text-white ${
-                  tv ? (first ? "text-2xl" : "text-xl") : "text-xs md:text-lg"
-                }`}
-              >
-                {student.name}
-              </h2>
-              <div
-                className={`font-black text-emerald-500 dark:text-emerald-300 ${
-                  tv ? (first ? "text-4xl mt-1" : "text-3xl mt-1") : "text-lg md:text-2xl mt-1"
-                }`}
-              >
-                {valueOf(student)}
-              </div>
-              <span
-                className={`font-bold text-gray-400 dark:text-gray-300 ${tv ? "text-sm" : "text-[10px] md:text-xs"}`}
-              >
-                {daysOf(student) ?? label}
-              </span>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
 
   const rankGrid = (list: Student[], tv: boolean) => {
     // ترتيب عمودي: يُقرأ العمود الأول من أعلى لأسفل ثم الثاني — أطبع لقراءة الترتيب
@@ -260,42 +171,52 @@ const Reports: React.FC = () => {
         style={{ "--rows": rows } as React.CSSProperties}
         className={`grid gap-2 md:grid-cols-2 md:grid-flow-col ${
           tv
-            ? "min-h-0 flex-1 gap-x-4 gap-y-2 grid-cols-2 grid-flow-col grid-rows-[repeat(var(--rows),minmax(0,1fr))] max-h-[calc(var(--rows)*5.5rem)]"
+            ? "min-h-0 flex-1 gap-x-4 gap-y-[0.8vh] grid-cols-2 grid-flow-col grid-rows-[repeat(var(--rows),minmax(0,1fr))] max-h-[calc(var(--rows)*5.5rem)]"
             : "mx-auto max-w-6xl md:grid-rows-[repeat(var(--rows),auto)]"
         }`}
       >
         {list.map((student, i) => (
           <div
             key={`${type}-${student.id}`}
-            style={delay(Math.min(i, 20) + 3)}
+            style={delay(Math.min(i, 20) + 8)}
             className={`flex min-h-0 items-center gap-3 rounded-xl border bg-white shadow-sm transition-colors
               hover:bg-gray-50 dark:border-gray-700 dark:bg-dark dark:hover:bg-dark-light/20 ${enter} ${
-                tv ? "px-4 py-1 dark:border-white/10 dark:bg-white/5" : "px-3 py-2"
+                tv ? "px-4 py-0.5 dark:border-white/10 dark:bg-white/5" : "px-3 py-2"
               }`}
           >
             <span
               className={`flex shrink-0 items-center justify-center rounded-lg bg-gray-100 font-black text-gray-500
-                dark:bg-gray-700/70 dark:text-gray-200 ${tv ? "size-10 text-lg" : "size-8 text-sm"}`}
+                dark:bg-gray-700/70 dark:text-gray-200 ${
+                  tv ? "size-[clamp(1.75rem,3.8vh,2.5rem)] text-[clamp(0.9rem,2vh,1.15rem)]" : "size-8 text-sm"
+                }`}
             >
               {student.rank}
             </span>
             <Avatar
               name={student.name}
               url={student.avatarUrl}
-              className={`shrink-0 ${tv ? "size-11" : "size-9"}`}
+              className={`shrink-0 ${tv ? "size-[clamp(1.75rem,4.2vh,2.75rem)]" : "size-9"}`}
             />
             <div className="min-w-0 flex-1">
-              <h3 className={`truncate font-bold leading-tight dark:text-white ${tv ? "text-xl" : "text-sm"}`}>
+              <h3
+                className={`truncate font-bold leading-tight dark:text-white ${
+                  tv ? "text-[clamp(0.95rem,2.1vh,1.3rem)]" : "text-sm"
+                }`}
+              >
                 {student.name}
               </h3>
-              <p className={`truncate text-gray-500 dark:text-gray-400 ${tv ? "text-sm" : "text-xs"}`}>
+              <p
+                className={`truncate text-gray-500 dark:text-gray-400 ${
+                  tv ? "text-[clamp(0.7rem,1.4vh,0.875rem)]" : "text-xs"
+                }`}
+              >
                 {student.group}
               </p>
             </div>
             <div className="shrink-0 text-center">
               <p
                 className={`font-black leading-none text-emerald-500 dark:text-emerald-400 ${
-                  tv ? "text-2xl" : "text-lg"
+                  tv ? "text-[clamp(1.1rem,2.6vh,1.6rem)]" : "text-lg"
                 }`}
               >
                 {valueOf(student)}
@@ -321,7 +242,13 @@ const Reports: React.FC = () => {
       <EmptyState message={t("leaderboard.empty")} icon="🏆" />
     ) : (
       <>
-        {podium(tv)}
+        <Podium
+          students={topThree}
+          tv={tv}
+          animationKey={`${type}-${params.department ?? "all"}`}
+          valueOf={valueOf}
+          captionOf={(s) => daysOf(s) ?? label}
+        />
         {rankGrid(tv ? restOfStudents.slice(0, TV_REST_LIMIT) : restOfStudents, tv)}
       </>
     );
@@ -332,30 +259,43 @@ const Reports: React.FC = () => {
    */
   const tvOverlay = createPortal(
     <div
-      className="dark fixed inset-0 z-100 flex flex-col gap-4 overflow-hidden p-4 text-right font-['Cairo'] lg:gap-6 lg:p-6
-        bg-[radial-gradient(ellipse_at_top,#064e3b_0%,#0b1220_55%,#05080f_100%)]"
+      className="dark fixed inset-0 z-100 flex flex-col gap-[1.5vh] overflow-hidden p-4 text-right font-['Cairo'] lg:px-6
+        bg-[radial-gradient(ellipse_at_top,#1e293b_0%,#0b1220_50%,#05080f_100%)]"
     >
       <header className="flex shrink-0 items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-500 motion-reduce:animate-none">
-        <div className="flex items-center gap-3">
-          <FaTrophy className="text-3xl text-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.6)]" />
-          <h1 className="text-3xl font-black text-white lg:text-4xl">{t("leaderboard.title")}</h1>
-          <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-base font-bold text-emerald-300 ring-1 ring-emerald-400/40">
+        <div className="flex min-w-0 items-center gap-3">
+          <FaTrophy className="shrink-0 text-3xl text-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.6)]" />
+          <h1 className="truncate text-3xl font-black text-white lg:text-4xl">{t("leaderboard.title")}</h1>
+          <span className="shrink-0 rounded-full bg-yellow-400/15 px-3 py-1 text-base font-bold text-yellow-200 ring-1 ring-yellow-400/40">
             {label}
           </span>
           {scopeName && (
-            <span className="rounded-full bg-white/10 px-3 py-1 text-base font-bold text-gray-200">
+            <span className="shrink-0 rounded-full bg-white/10 px-3 py-1 text-base font-bold text-gray-200">
               {scopeName}
             </span>
           )}
         </div>
-        <button
-          onClick={exitTv}
-          title={t("leaderboard.tv.exit")}
-          aria-label={t("leaderboard.tv.exit")}
-          className="rounded-xl bg-white/5 p-2.5 text-gray-400 opacity-40 transition hover:bg-white/15 hover:text-white hover:opacity-100"
-        >
-          <Minimize2 className="size-5" />
-        </button>
+        <div className="flex shrink-0 items-center gap-1">
+          {/* ملء الشاشة لا يُطلب إلا بنقرة: حساب العرض يدخل الوضع تلقائياً بلا نقرة، فيحتاج هذا الزر */}
+          {!isFullscreen && (
+            <button
+              onClick={() => void requestFullscreen().catch(() => {})}
+              title={t("leaderboard.tv.fullscreen")}
+              aria-label={t("leaderboard.tv.fullscreen")}
+              className="rounded-xl bg-white/5 p-2.5 text-gray-400 opacity-40 transition hover:bg-white/15 hover:text-white hover:opacity-100"
+            >
+              <Maximize className="size-5" />
+            </button>
+          )}
+          <button
+            onClick={exitTv}
+            title={t("leaderboard.tv.exit")}
+            aria-label={t("leaderboard.tv.exit")}
+            className="rounded-xl bg-white/5 p-2.5 text-gray-400 opacity-40 transition hover:bg-white/15 hover:text-white hover:opacity-100"
+          >
+            <Minimize2 className="size-5" />
+          </button>
+        </div>
       </header>
       {content(true)}
     </div>,
@@ -376,24 +316,26 @@ const Reports: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* فلترة بالحلقة — للمشرف فقط */}
-          {current.showHalaqaPicker ? (
-          <select
-            value={halaqaId}
-            onChange={(e) => setHalaqaId(e.target.value === "" ? "" : Number(e.target.value))}
-            className="rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark px-4 py-2 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
-          >
-            <option value="">{t("leaderboard.filterHalaqa")}</option>
-            {halaqat.map((h) => (
-              <option key={h.id} value={h.id}>
-                {h.name}
-              </option>
-            ))}
-          </select>
+          {/* فلترة بالدورة — لمن نطاقه أكثر من دورة واحدة */}
+          {departmentOptions.length > 1 ? (
+            <select
+              value={department}
+              onChange={(e) => setDepartment(e.target.value as Department | "")}
+              className="rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-dark px-4 py-2 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"
+            >
+              <option value="">{t("leaderboard.filterDepartment")}</option>
+              {departmentOptions.map((d) => (
+                <option key={d} value={d}>
+                  {t(`departments.${d}`)}
+                </option>
+              ))}
+            </select>
           ) : (
-            <span className="rounded-xl bg-emerald-100 px-4 py-2 font-bold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-              {current.halaqaName}
-            </span>
+            scopeName && (
+              <span className="rounded-xl bg-emerald-100 px-4 py-2 font-bold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                {scopeName}
+              </span>
+            )
           )}
 
           <button

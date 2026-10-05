@@ -7,6 +7,7 @@ import {
   FaEyeSlash,
   FaTimes,
   FaTrash,
+  FaTv,
   FaUserPlus,
   FaUserTie,
 } from "react-icons/fa";
@@ -199,7 +200,7 @@ export default function PopupStaffForm({
       >
         <div className="flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-lg font-bold text-emerald-700 dark:text-emerald-400">
-            {role === "TEACHER" ? <FaUserPlus /> : <FaUserTie />}
+            {role === "TEACHER" ? <FaUserPlus /> : role === "VIEWER" ? <FaTv /> : <FaUserTie />}
             {isEdit ? t("staff.editTitle") : t("staff.addTitle")}
           </h2>
           <button
@@ -217,8 +218,8 @@ export default function PopupStaffForm({
           <label className="mb-1 block text-sm font-semibold text-gray-700 dark:text-gray-300">
             {t("staff.role")}
           </label>
-          <div className="grid grid-cols-2 gap-2 rounded-xl bg-gray-100 p-1 dark:bg-dark-light">
-            {(["TEACHER", "SUPERVISOR"] as const).map((option) => (
+          <div className="grid grid-cols-3 gap-2 rounded-xl bg-gray-100 p-1 dark:bg-dark-light">
+            {(["TEACHER", "SUPERVISOR", "VIEWER"] as const).map((option) => (
               <button
                 key={option}
                 type="button"
@@ -233,6 +234,9 @@ export default function PopupStaffForm({
               </button>
             ))}
           </div>
+          {role === "VIEWER" && (
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{t("staff.viewerHint")}</p>
+          )}
         </div>
 
         {/* الاسم */}

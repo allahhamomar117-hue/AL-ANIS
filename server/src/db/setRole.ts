@@ -11,7 +11,8 @@
  */
 import { closeDb, db, initDb } from "./index.js";
 
-type Role = "ADMIN" | "SUPERVISOR" | "TEACHER";
+const ROLES = ["ADMIN", "SUPERVISOR", "TEACHER", "VIEWER"] as const;
+type Role = (typeof ROLES)[number];
 
 interface UserRow {
   id: number;
@@ -79,12 +80,12 @@ async function main(): Promise<void> {
 
   if (!identifier) {
     await listUsers();
-  } else if (roleArg !== "ADMIN" && roleArg !== "SUPERVISOR" && roleArg !== "TEACHER") {
-    console.error("الدور يجب أن يكون ADMIN أو SUPERVISOR أو TEACHER.");
+  } else if (!ROLES.includes(roleArg as Role)) {
+    console.error("الدور يجب أن يكون ADMIN أو SUPERVISOR أو TEACHER أو VIEWER.");
     console.error('مثال:  npm run user:role -- "عمار شهوري" ADMIN');
     process.exit(1);
   } else {
-    await setRole(identifier, roleArg);
+    await setRole(identifier, roleArg as Role);
   }
 
   await closeDb();

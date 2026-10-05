@@ -143,3 +143,44 @@ body {
 .dark .app-bg > main > * {
   background-color: transparent;
 }
+
+/*
+ * حركات منصّة لوحة الصدارة.
+ * podium-float: تاج المركز الأول يطفو بهدوء.
+ * podium-sheen: لمعة ضوء تعبر بطاقة المركز الأول كل بضع ثوانٍ.
+ * تُلغيان لمن يفضّل تقليل الحركة.
+ */
+@keyframes podium-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes podium-sheen {
+  0% {
+    transform: translateX(-160%) skewX(-20deg);
+  }
+  55%,
+  100% {
+    transform: translateX(260%) skewX(-20deg);
+  }
+}
+
+.podium-float {
+  animation: podium-float 3s ease-in-out infinite;
+}
+
+.podium-sheen {
+  animation: podium-sheen 5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .podium-float,
+  .podium-sheen {
+    animation: none;
+  }
+}

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { db, type SqlParam } from "../db/index.js";
 import { dateOf } from "../db/sqlfn.js";
 import { ApiError, asyncHandler, parse } from "../lib/http.js";
-import { idParam, isoDate, today } from "../lib/schemas.js";
+import { department, idParam, isoDate, today } from "../lib/schemas.js";
 import { denySupervisor } from "../middleware/auth.js";
 import { countedSession } from "../services/attendanceSql.js";
 import { assertHalaqaAccess, assertStudentAccess, halaqaFilter } from "../services/scope.js";
@@ -53,6 +53,14 @@ reportsRouter.get(
     const q = parse(
       rangeSchema.extend({
         type: z.enum(["points", "attendance", "recitation"]).default("points"),
+        /*
+         * فلتر الدورة (القسم) — بديل فلتر الحلقة في صفحة لوحة الصدارة.
+         * الغياب = كل الدورات ضمن نطاق المستخدم.
+         *
+         * تضييقٌ فوق النطاق لا توسيعٌ له: قيد halaqaFilter أدناه يبقى
+         * مطبَّقاً، فمدير دورةٍ يطلب دورةً أخرى يحصل على قائمة فارغة.
+         */
+        department: department.optional(),
         /*
          * بلا حدّ أعلى وبلا قيمة افتراضية: صفحة التقارير تعرض كل الطلاب،
          * وسقف المئة كان يقصّ الترتيب صامتاً عند مركزٍ أكبر منه — فيظهر
@@ -146,6 +154,11 @@ reportsRouter.get(
       sql += " AND s.halaqa_id = ?";
       params.push(q.halaqaId);
     }
+    // الدورة صفةُ الحلقة لا الطالب: الطالب ينتمي إلى دورةٍ عبر حلقته
+    if (q.department) {
+      sql += " AND h.department = ?";
+      params.push(q.department);
+    }
 
     // المدرّس: لوحة الصدارة تقتصر على طلاب حلقاته
     const scope = await halaqaFilter(req.user!, "s.halaqa_id");
@@ -178,7 +191,12 @@ reportsRouter.get(
 
     res.json({
       data: rows.map((row, index) => ({ ...row, rank: index + 1 })),
-      meta: { type: q.type, from: q.from ?? null, to: q.to ?? null },
+      meta: {
+        type: q.type,
+        department: q.department ?? null,
+        from: q.from ?? null,
+        to: q.to ?? null,
+      },
     });
   })
 );
@@ -277,24 +295,39 @@ reportsRouter.get(
       at: string;
       detail: string;
       surahNumber: number | null;
+      pageNumber: number | null;
+      toPage: number | null;
     }>(
       `SELECT 'recitation' AS kind, s.name AS student, r.created_at AS at,
-              'صفحة ' || r.page_number AS detail, r.surah_number AS "surahNumber"
+              'صفحة ' || r.page_number AS detail, r.surah_number AS "surahNumber",
+              r.page_number AS "pageNumber", r.to_page AS "toPage"
        FROM recitations r JOIN students s ON s.id = r.student_id
        WHERE 1 = 1${actRecScope.clause}
        UNION ALL
        SELECT 'attendance' AS kind, COALESCE(h.name, '') AS student, a.created_at AS at,
-              'تسجيل حضور ' || a.date AS detail, NULL AS "surahNumber"
+              'تسجيل حضور ' || a.date AS detail, NULL AS "surahNumber",
+              NULL AS "pageNumber", NULL AS "toPage"
        FROM attendance_sessions a LEFT JOIN halaqat h ON h.id = a.halaqa_id
        WHERE ${countedSession("a")}${actAttScope.clause}
        ORDER BY at DESC LIMIT 10`,
       [...actRecScope.params, ...actAttScope.params]
     );
 
-    // التسميع بالسورة يوصف باسمها لا برقم صفحتها
-    const recentActivity = activityRows.map(({ surahNumber, ...row }) => {
+    /*
+     * التسميع بالسورة يوصف باسمها لا برقم صفحتها، والنطاق (أكثر من صفحة)
+     * يوصف ببدايته ونهايته كما في سجلّ تسميع الطالب — آخر صفحة وحدها
+     * كانت توحي بأنه سمّع صفحة واحدة.
+     *
+     * النطاق داخل عزلٍ LTR (U+2066…U+2069): في سطرٍ عربي يُقلَب ترتيب
+     * الطرفين فيصير السهم مشيراً من النهاية إلى البداية.
+     */
+    const recentActivity = activityRows.map(({ surahNumber, pageNumber, toPage, ...row }) => {
       const surah = surahNumber != null ? surahByNumber(surahNumber) : undefined;
-      return surah ? { ...row, detail: `سورة ${surah.name}` } : row;
+      if (surah) return { ...row, detail: `سورة ${surah.name}` };
+      if (pageNumber != null && toPage != null && toPage !== pageNumber) {
+        return { ...row, detail: `⁦ص ${pageNumber} ➔ ص ${toPage}⁩` };
+      }
+      return row;
     });
 
     res.json({

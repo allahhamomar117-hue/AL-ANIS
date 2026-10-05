@@ -8,6 +8,7 @@ PRAGMA foreign_keys = ON;
 --   ADMIN      : يرى كل شيء ويدير حسابات الكادر (إنشاء/تعديل/تعطيل).
 --   SUPERVISOR : يرى كل الحلقات والطلاب والتقارير، بلا إدارة حسابات.
 --   TEACHER    : يرى حلقاته المسندة إليه وطلابها فقط.
+--   VIEWER     : شاشة العرض — لوحة الصدارة وحدها، للقراءة فقط. راجع الترقية 019.
 -- ويقيّد العمود department نطاق الإداريين (ADMIN/SUPERVISOR) بقسم واحد:
 -- NULL = المعهد كامل، وقيمة = ذلك القسم وحده. راجع الترقية 012.
 CREATE TABLE IF NOT EXISTS users (
@@ -18,7 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
   phone_number  TEXT,                       -- اختياري: الدخول باسم المستخدم
   country_code  TEXT    NOT NULL DEFAULT '963',
   role          TEXT    NOT NULL DEFAULT 'TEACHER'
-                        CHECK (role IN ('ADMIN', 'SUPERVISOR', 'TEACHER')),
+                        CHECK (role IN ('ADMIN', 'SUPERVISOR', 'TEACHER', 'VIEWER')),
   -- نطاق الإداري في جدول user_departments أدناه، لا في عمود هنا.
   fcm_token     TEXT,
   is_active     INTEGER NOT NULL DEFAULT 1,

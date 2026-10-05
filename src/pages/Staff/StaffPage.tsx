@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { FaEdit, FaUserPlus, FaUserShield, FaUserTie } from "react-icons/fa";
+import { FaEdit, FaTv, FaUserPlus, FaUserShield, FaUserTie } from "react-icons/fa";
 import { useStaff } from "../../lib/api/hooks";
 import type { Role, StaffUser } from "../../lib/api/types";
 import { useAuth } from "../../context/authContext";
@@ -39,7 +39,9 @@ export default function StaffPage() {
       ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
       : role === "SUPERVISOR"
         ? "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300"
-        : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300";
+        : role === "VIEWER"
+          ? "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300"
+          : "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300";
 
   return (
     <div
@@ -71,6 +73,14 @@ export default function StaffPage() {
             >
               <FaUserTie />
               {t("staff.addSupervisor")}
+            </button>
+            {/* حساب شاشة العرض في المسجد — لوحة الصدارة وحدها، للقراءة فقط */}
+            <button
+              onClick={() => setForm({ role: "VIEWER" })}
+              className="flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 font-bold text-white shadow transition hover:bg-violet-700"
+            >
+              <FaTv />
+              {t("staff.addViewer")}
             </button>
             {/*
               تعيين مدير دورة — ترقية حسابٍ قائم لا إنشاء حساب، ولونه

@@ -388,11 +388,13 @@
     },
     "empty": "لا توجد بيانات بعد",
     "filterHalaqa": "كل الحلقات",
+    "filterDepartment": "كل الدورات",
     "attendedOfDays": "حضر {{attended}} من {{days}}",
     "pagesValue": "{{pages}} صفحة",
     "tv": {
       "enter": "وضع التلفاز",
-      "exit": "الخروج من وضع التلفاز (Esc)"
+      "exit": "الخروج من وضع التلفاز (Esc)",
+      "fullscreen": "ملء الشاشة"
     }
   },
   "halaqaCard": {
@@ -451,7 +453,8 @@
   "roles": {
     "ADMIN": "مدير",
     "SUPERVISOR": "مشرف",
-    "TEACHER": "أستاذ"
+    "TEACHER": "أستاذ",
+    "VIEWER": "شاشة عرض"
   },
   "quickPoints": {
     "button": "نقاط سريعة",
@@ -513,6 +516,8 @@
     "open": "فتح الصفحة",
     "addTeacher": "إضافة أستاذ جديد",
     "addSupervisor": "إضافة مشرف جديد",
+    "addViewer": "حساب شاشة عرض",
+    "viewerHint": "حساب للتلفاز في المسجد: يفتح لوحة الصدارة بوضع العرض فقط، ولا يستطيع تعديل أي شيء. حدّد الدورات التي تظهر على الشاشة من حقل الأقسام.",
     "addDepartmentManager": "إضافة مدير دورة",
     "assignManagerTitle": "تعيين مدير دورة",
     "assignManagerHint": "اختر حساباً من الكادر والدورة التي سيديرها. يصبح دوره «مدير»، ويقتصر ما يراه ويعدّله على تلك الدورة.",

@@ -306,6 +306,8 @@ export const reportsApi = {
   leaderboard: (params?: {
     type?: "points" | "attendance" | "recitation";
     halaqaId?: number;
+    /** الدورة (القسم) — الغياب = كل الدورات ضمن نطاق المستخدم. */
+    department?: Department;
     from?: string;
     to?: string;
     limit?: number;

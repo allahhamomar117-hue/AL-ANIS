@@ -385,11 +385,13 @@
     },
     "empty": "No data yet",
     "filterHalaqa": "All halaqat",
+    "filterDepartment": "All courses",
     "attendedOfDays": "{{attended}} of {{days}}",
     "pagesValue": "{{pages}} pages",
     "tv": {
       "enter": "TV mode",
-      "exit": "Exit TV mode (Esc)"
+      "exit": "Exit TV mode (Esc)",
+      "fullscreen": "Full screen"
     }
   },
   "halaqaCard": {
@@ -449,7 +451,8 @@
   "roles": {
     "ADMIN": "Manager",
     "SUPERVISOR": "Supervisor",
-    "TEACHER": "Teacher"
+    "TEACHER": "Teacher",
+    "VIEWER": "Display screen"
   },
   "quickPoints": {
     "button": "Quick points",
@@ -511,6 +514,8 @@
     "open": "Open page",
     "addTeacher": "Add teacher",
     "addSupervisor": "Add supervisor",
+    "addViewer": "Display screen account",
+    "viewerHint": "An account for the mosque TV: it opens the leaderboard in TV mode only and cannot change anything. Pick the courses shown on screen in the departments field.",
     "addDepartmentManager": "Add course manager",
     "assignManagerTitle": "Assign a course manager",
     "assignManagerHint": "Pick a staff account and the course it will manage. Its role becomes Manager, scoped to that course alone.",

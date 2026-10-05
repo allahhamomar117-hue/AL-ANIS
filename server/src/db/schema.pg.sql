@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS users (
   phone_number  TEXT,
   country_code  TEXT        NOT NULL DEFAULT '963',
   role          TEXT        NOT NULL DEFAULT 'TEACHER'
-                            CHECK (role IN ('ADMIN', 'SUPERVISOR', 'TEACHER')),
+                            CHECK (role IN ('ADMIN', 'SUPERVISOR', 'TEACHER', 'VIEWER')),
   -- نطاق الإداري في جدول user_departments أدناه، لا في عمود هنا.
   fcm_token     TEXT,
   is_active     BOOLEAN     NOT NULL DEFAULT TRUE,

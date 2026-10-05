@@ -4,8 +4,31 @@ import { config } from "../config.js";
 import { db } from "../db/index.js";
 import { ApiError, asyncHandler } from "../lib/http.js";
 
-export const ROLES = ["ADMIN", "SUPERVISOR", "TEACHER"] as const;
+/**
+ * VIEWER: حساب شاشة العرض في المسجد — يقرأ لوحة الصدارة ولا شيء غيرها.
+ * راجع VIEWER_ALLOWED أدناه.
+ */
+export const ROLES = ["ADMIN", "SUPERVISOR", "TEACHER", "VIEWER"] as const;
 export type Role = (typeof ROLES)[number];
+
+/**
+ * المسارات الوحيدة المفتوحة لحساب العرض (VIEWER)، وبطريقة GET وحدها.
+ *
+ * قائمة سماح لا قائمة منع: الشاشة معروضة أمام الطلاب، فأي مسار يُضاف
+ * إلى المشروع لاحقاً يبقى مغلقاً أمامها حتى يُفتح هنا صراحةً. ومنعُ
+ * POST/PUT/PATCH/DELETE وحده كان سيترك قراءة بيانات الطلاب (الهواتف،
+ * ملفّاتهم) مكشوفة لمن يعبث بالشاشة.
+ *
+ * المطابقة على المسار الحرفيّ: أي صيغة أخرى (حروف كبيرة، شرطة زائدة)
+ * تُرفض — والرفض هنا هو الجهة الآمنة للخطأ.
+ */
+const VIEWER_ALLOWED = new Set(["/api/auth/me", "/api/reports/leaderboard"]);
+
+function viewerMayAccess(req: Request): boolean {
+  if (req.method !== "GET") return false;
+  const path = req.originalUrl.split("?")[0];
+  return VIEWER_ALLOWED.has(path);
+}
 
 export const DEPARTMENTS = ["PRIMARY", "MIDDLE_HIGH", "INTENSIVE"] as const;
 export type Department = (typeof DEPARTMENTS)[number];
@@ -86,7 +109,8 @@ export const requireAuth = asyncHandler(async (req: Request, _res: Response, nex
   if (unknown.length) {
     console.warn(`[auth] أقسام غير معروفة ${unknown.join("، ")} للمستخدم ${user.id}`);
 
-    if (user.role === "ADMIN" || user.role === "SUPERVISOR") {
+    // حساب العرض نطاقه أقسامه كالإداري، فالانحراف عنده توسيعٌ صامت أيضاً
+    if (user.role === "ADMIN" || user.role === "SUPERVISOR" || user.role === "VIEWER") {
       return next(
         ApiError.forbidden(
           "قسم الحساب غير صالح — راجع إدارة الكادر لتصحيحه قبل المتابعة"
@@ -94,6 +118,17 @@ export const requireAuth = asyncHandler(async (req: Request, _res: Response, nex
       );
     }
     user.departments = [];
+  }
+
+  /*
+   * حساب العرض: للقراءة فقط وعلى قائمة السماح وحدها.
+   *
+   * الفحص هنا لا في كل راوتر: كل مسار محميّ يمرّ من requireAuth، فلا
+   * يُنسى الحارس في مسار جديد. وإخفاء الأزرار في الواجهة ترتيبُ شاشة لا
+   * صلاحية — هذا هو الحاجز الفعلي.
+   */
+  if (user.role === "VIEWER" && !viewerMayAccess(req)) {
+    return next(ApiError.forbidden("حساب شاشة العرض للاطّلاع على لوحة الصدارة فقط"));
   }
 
   req.user = user;
@@ -174,8 +209,9 @@ export const requireStaff = requireRole("ADMIN", "SUPERVISOR");
 export const requireStudentManager = requireRole("ADMIN");
 
 /**
- * الإحصاءات العامة ولوحة الصدارة: للمدير وللمدرّس (ضمن نطاق حلقاته).
+ * الإحصاءات العامة ولوحة الصدارة: للمدير وللمدرّس (ضمن نطاق حلقاته)،
+ * ولحساب شاشة العرض (ضمن أقسامه).
  * المشرف محجوب عنها — دوره المتابعة اليومية لا الإحصاء العام.
  * لا تُكتب requireRole("ADMIN") هنا: المدرّس يحتاج لوحة صدارة حلقاته.
  */
-export const denySupervisor = requireRole("ADMIN", "TEACHER");
+export const denySupervisor = requireRole("ADMIN", "TEACHER", "VIEWER");

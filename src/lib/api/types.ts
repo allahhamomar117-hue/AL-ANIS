@@ -1,6 +1,7 @@
 /** أنواع البيانات القادمة من API الأنيس. */
 
-export type Role = "ADMIN" | "SUPERVISOR" | "TEACHER";
+/** VIEWER: حساب شاشة العرض — لوحة الصدارة وحدها، للقراءة فقط. */
+export type Role = "ADMIN" | "SUPERVISOR" | "TEACHER" | "VIEWER";
 
 /**
  * أقسام المعهد — مفاتيح ثابتة، الترجمة في locales تحت departments.

@@ -12,7 +12,7 @@ export const rating = z.enum(["excellent", "good", "needs"]);
 
 export type RecitationType = z.infer<typeof recitationType>;
 export type Rating = z.infer<typeof rating>;
-export const userRole = z.enum(["ADMIN", "SUPERVISOR", "TEACHER"]);
+export const userRole = z.enum(["ADMIN", "SUPERVISOR", "TEACHER", "VIEWER"]);
 
 /**
  * أقسام المعهد. مفاتيح ثابتة تُترجَم في الواجهة، على غرار halaqaStage.

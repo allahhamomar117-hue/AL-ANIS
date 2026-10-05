@@ -442,3 +442,35 @@ END $$;
 -- في الكتلة نفسها.
 ALTER TABLE halaqat ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;
 CREATE INDEX IF NOT EXISTS idx_halaqat_sort_order ON halaqat (sort_order);
+
+-- @fixup دور حساب شاشة العرض: VIEWER
+
+-- ── نظير الترقية 019 على مسار Postgres ──────────────────────────────
+--
+-- `CREATE TABLE IF NOT EXISTS` لا يعدّل قيداً على جدول قائم، فقاعدة
+-- الإنتاج سترفض إنشاء حساب العرض بـ 23514 بدون هذه الكتلة.
+--
+-- نفس نمط كتلتَي awqaf و assignment أعلاه: يُسقَط القيد ويُضاف موسَّعاً
+-- باسمه الصريح الذي تولّده Postgres للقيد المضمّن في المخطّط
+-- (users_role_check). والشرط على 'VIEWER' يجعلها لا-عمليّة بعد أول نجاح.
+-- التوسيع لا يُبطل أي صفّ قائم (القيم المسموحة تزداد فقط).
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'users_role_check'
+      AND pg_get_constraintdef(oid) NOT LIKE '%VIEWER%'
+  ) THEN
+    ALTER TABLE users DROP CONSTRAINT users_role_check;
+    RAISE NOTICE 'أُسقط قيد users_role_check القديم';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'users_role_check'
+  ) THEN
+    ALTER TABLE users
+      ADD CONSTRAINT users_role_check
+      CHECK (role IN ('ADMIN', 'SUPERVISOR', 'TEACHER', 'VIEWER'));
+    RAISE NOTICE 'أُضيف قيد users_role_check موسَّعاً بـ VIEWER';
+  END IF;
+END $$;

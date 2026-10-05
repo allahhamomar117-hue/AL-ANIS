@@ -274,7 +274,8 @@ usersRouter.get(
 
     const sql = `${selectUser()}
       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
-      ORDER BY CASE u.role WHEN 'ADMIN' THEN 0 WHEN 'SUPERVISOR' THEN 1 ELSE 2 END, u.name`;
+      ORDER BY CASE u.role WHEN 'ADMIN' THEN 0 WHEN 'SUPERVISOR' THEN 1
+                          WHEN 'TEACHER' THEN 2 ELSE 3 END, u.name`;
 
     const rows = await db().all<Record<string, unknown>>(sql, params);
     res.json({ data: rows.map(withDepartments) });

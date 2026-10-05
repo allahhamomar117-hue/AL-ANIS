@@ -15,8 +15,10 @@ import {
   FaUserCircle,
   FaStar,
   FaFileAlt,
+  FaSignOutAlt,
 } from "react-icons/fa";
 
+import ConfirmDialog from "./ConfirmDialog";
 import QuickPointsModal from "./QuickPointsModal";
 import DailyReportModal from "./DailyReportModal";
 import { useAuth } from "../context/authContext";
@@ -29,7 +31,73 @@ import { useIntensiveHalaqat } from "../lib/api/useIntensiveHalaqat";
  */
 const SUPERVISOR_HIDDEN = new Set(["students", "reports", "assignments"]);
 
+/**
+ * شريط حساب شاشة العرض: الشعار وزرّ الخروج فقط.
+ *
+ * مكوّن مستقلّ لا فرعٌ داخل شريط الكادر: ذاك يستدعي useIntensiveHalaqat
+ * (أي GET /api/halaqat) عند كل تحميل، والخادم يردّه بـ403 لحساب العرض.
+ * ولا نقاط سريعة ولا تقرير يوم ولا إعدادات — الشاشة أمام الطلاب.
+ */
+function ViewerNavbar() {
+  const navigate = useNavigate();
+  const { lang = "ar" } = useParams();
+  const { t } = useTranslation();
+  const { user: me, logout } = useAuth();
+  const [confirmLogout, setConfirmLogout] = useState(false);
+
+  return (
+    <>
+      <div
+        className={`fixed top-0 left-0 z-50 flex h-16 w-full items-center gap-3 border-b border-gray-200
+          bg-white/95 px-3 shadow-sm backdrop-blur-md dark:border-gray-700 dark:bg-dark md:px-8 ${
+            lang === "ar" ? "rtl" : "ltr"
+          }`}
+      >
+        <img src={logo} alt="logo" className="h-11 w-auto shrink-0 object-contain md:h-14" />
+        <div className="flex-1" />
+        {me && (
+          <span className="hidden text-sm font-semibold text-gray-700 dark:text-gray-200 sm:inline">
+            {me.name}
+            <span className="ms-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+              {t(`roles.${me.role}`)}
+            </span>
+          </span>
+        )}
+        <button
+          onClick={() => setConfirmLogout(true)}
+          title={t("settingsPage.account.logout")}
+          aria-label={t("settingsPage.account.logout")}
+          className="flex h-11 shrink-0 items-center justify-center rounded-xl px-3 text-gray-500 transition
+            hover:bg-red-50 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-900/20"
+        >
+          <FaSignOutAlt className="text-lg" />
+        </button>
+      </div>
+
+      {confirmLogout && (
+        <ConfirmDialog
+          title={t("settingsPage.account.logoutConfirmTitle")}
+          message={t("settingsPage.account.logoutConfirmMessage")}
+          confirmLabel={t("settingsPage.account.logout")}
+          tone="danger"
+          onConfirm={() => {
+            setConfirmLogout(false);
+            logout();
+            navigate("/login", { replace: true });
+          }}
+          onCancel={() => setConfirmLogout(false)}
+        />
+      )}
+    </>
+  );
+}
+
 function Navbar() {
+  const { isViewer } = useAuth();
+  return isViewer ? <ViewerNavbar /> : <StaffNavbar />;
+}
+
+function StaffNavbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { lang } = useParams();

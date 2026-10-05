@@ -9,6 +9,8 @@
  *                  إدارة سجلّات طلاب (CRUD).
  *     TEACHER    : حلقاته المسندة إليه (teacher_halaqat) والحلقات التي هو
  *                  أستاذها الأساسي (halaqat.teacher_id)، وطلاب تلك الحلقات.
+ *     VIEWER     : شاشة العرض — يقرأ لوحة الصدارة وحدها (قائمة السماح في
+ *                  middleware/auth)، ونطاقها أقسامها كالإداريين.
  *
  *   الأقسام (departments) — على مَن يفعله؟ (للإداريين وحدهم)
  *     []      ⇒ المعهد كامل — المدير العام.
@@ -63,8 +65,19 @@ export function isSuperAdmin(user: AuthUser): boolean {
  * فالقيمة المُعادة غير فارغة أبداً: إمّا null أو قائمة فيها قسم فأكثر.
  */
 export function departmentScope(user: AuthUser): Department[] | null {
-  if (!isAdmin(user)) return null;
+  if (!scopedByDepartments(user)) return null;
   return user.departments.length ? user.departments : null;
+}
+
+/**
+ * من يُقاس نطاقه بأقسامه لا بحلقاته المسندة: الإداريون، وحساب شاشة
+ * العرض (VIEWER) — شاشة المسجد تعرض أقساماً كاملة لا حلقات بعينها.
+ *
+ * حساب العرض لا يصير بهذا إدارياً: isAdmin و isSuperAdmin لا تشملانه،
+ * وقائمة السماح في requireAuth تقصره على لوحة الصدارة أصلاً.
+ */
+function scopedByDepartments(user: AuthUser): boolean {
+  return isAdmin(user) || user.role === "VIEWER";
 }
 
 /**
@@ -96,7 +109,7 @@ export function assertDepartmentAccess(user: AuthUser, dept: Department | null):
  *   مدرّس     ⇒ حلقاته المسندة إليه
  */
 export async function accessibleHalaqaIds(user: AuthUser): Promise<number[] | null> {
-  if (isAdmin(user)) {
+  if (scopedByDepartments(user)) {
     const scope = departmentScope(user);
     if (scope === null) return null;
 

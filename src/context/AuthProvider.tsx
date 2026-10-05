@@ -65,8 +65,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
        * الأقسام تخصّ الإداريين وحدهم — يطابق departmentScope على الخادم.
        * المدرّس تُعاد له فارغةً لأن نطاقه حلقاته المسندة لا أقسامه.
        */
+      // وحساب العرض كالإداريين: نطاقه أقسامه (scopedByDepartments على الخادم)
       departments:
-        user?.role === "ADMIN" || user?.role === "SUPERVISOR"
+        user?.role === "ADMIN" || user?.role === "SUPERVISOR" || user?.role === "VIEWER"
           ? user.departments
           : [],
       isSuperAdmin:
@@ -75,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAdmin: user?.role === "ADMIN" || user?.role === "SUPERVISOR",
       isTeacher: user?.role === "TEACHER",
       isSupervisor: user?.role === "SUPERVISOR",
+      isViewer: user?.role === "VIEWER",
       canManageStudents: user?.role === "ADMIN",
       canManageUsers: user?.role === "ADMIN",
       isLoading: Boolean(token) && isPending,
