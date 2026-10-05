@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { FaTrophy } from "react-icons/fa";
-import { Maximize, Minimize2, Monitor } from "lucide-react";
+import { Maximize, Minimize2, Monitor, Moon, Sun } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { reportsApi } from "../../lib/api";
@@ -25,6 +25,22 @@ const TV_REST_LIMIT = 16;
 /** تحديث تلقائي في وضع التلفاز: الشاشة تبقى مفتوحة أمام الطلاب ولا أحد يضغط "تحديث". */
 const TV_REFRESH_MS = 60_000;
 
+/**
+ * مظهر شاشة التلفاز — مستقلّ عن وضع التطبيق، ومحفوظ في المتصفح نفسه:
+ * التلفاز جهازٌ واحد يُضبط مرّة، فيُفتح على ما اختير آخر مرّة.
+ * الافتراضي فاتح.
+ */
+type TvTheme = "light" | "dark";
+const TV_THEME_KEY = "leaderboard.tvTheme";
+
+function readTvTheme(): TvTheme {
+  try {
+    return localStorage.getItem(TV_THEME_KEY) === "dark" ? "dark" : "light";
+  } catch {
+    return "light";
+  }
+}
+
 /** حركة الظهور: تتلاشى وتصعد، متتابعة حسب الترتيب. تُلغى لمن يفضّل تقليل الحركة. */
 const enter = "animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-both motion-reduce:animate-none";
 const delay = (i: number) => ({ animationDelay: `${i * 60}ms` });
@@ -37,6 +53,17 @@ const Reports: React.FC = () => {
   const [department, setDepartment] = useState<Department | "">("");
   // حساب شاشة العرض يُفتح على وضع التلفاز مباشرةً — هذه وظيفته الوحيدة
   const [tvMode, setTvMode] = useState(isViewer);
+  const [tvTheme, setTvTheme] = useState<TvTheme>(readTvTheme);
+
+  const toggleTvTheme = () => {
+    const next: TvTheme = tvTheme === "dark" ? "light" : "dark";
+    setTvTheme(next);
+    try {
+      localStorage.setItem(TV_THEME_KEY, next);
+    } catch {
+      // تخزين محجوب (نافذة خاصة): يعمل المفتاح للجلسة الحالية وحدها
+    }
+  };
 
   /*
    * الدورات المعروضة في الفلتر: أقسام المستخدم، أو الثلاث كلّها لمن نطاقه
@@ -161,6 +188,24 @@ const Reports: React.FC = () => {
     };
   }, [tvMode, exitTv]);
 
+  /*
+   * مظهر التلفاز يُطبَّق على <html> مدّة الوضع، ثم يُعاد وضعُ التطبيق كما كان.
+   *
+   * لماذا على <html> لا على الطبقة نفسها؟ متغيّر dark: في المشروع هو
+   * `.dark *`، فالتطبيق الداكن (صنف dark على <html>) يُظلم كلَّ ما تحته
+   * ولا سبيل لاستثناء الطبقة منه. وتعديل المتغيّر نفسه يحتاج :not() مركّباً
+   * لا تفهمه متصفّحات التلفاز القديمة — فيسقط الوضع الداكن في التطبيق كلّه.
+   */
+  useEffect(() => {
+    if (!tvMode) return;
+    const root = document.documentElement;
+    const appDark = root.classList.contains("dark");
+    root.classList.toggle("dark", tvTheme === "dark");
+    return () => {
+      root.classList.toggle("dark", appDark);
+    };
+  }, [tvMode, tvTheme]);
+
   /* ---------------- أجزاء العرض ---------------- */
 
   const rankGrid = (list: Student[], tv: boolean) => {
@@ -179,13 +224,15 @@ const Reports: React.FC = () => {
           <div
             key={`${type}-${student.id}`}
             style={delay(Math.min(i, 20) + 8)}
-            className={`flex min-h-0 items-center gap-3 rounded-xl border bg-white shadow-sm transition-colors
-              hover:bg-gray-50 dark:border-gray-700 dark:bg-dark dark:hover:bg-dark-light/20 ${enter} ${
-                tv ? "px-4 py-0.5 dark:border-white/10 dark:bg-white/5" : "px-3 py-2"
-              }`}
+            className={`flex min-h-0 items-center gap-3 rounded-xl border transition-colors ${enter} ${
+              tv
+                ? "border-slate-200/80 bg-white/80 px-4 py-0.5 shadow-sm backdrop-blur " +
+                  "dark:border-white/10 dark:bg-white/5 dark:shadow-none"
+                : "bg-white px-3 py-2 shadow-sm hover:bg-gray-50 dark:border-gray-700 dark:bg-dark dark:hover:bg-dark-light/20"
+            }`}
           >
             <span
-              className={`flex shrink-0 items-center justify-center rounded-lg bg-gray-100 font-black text-gray-500
+              className={`flex shrink-0 items-center justify-center rounded-lg bg-slate-100 font-black text-slate-600
                 dark:bg-gray-700/70 dark:text-gray-200 ${
                   tv ? "size-[clamp(1.75rem,3.8vh,2.5rem)] text-[clamp(0.9rem,2vh,1.15rem)]" : "size-8 text-sm"
                 }`}
@@ -199,7 +246,7 @@ const Reports: React.FC = () => {
             />
             <div className="min-w-0 flex-1">
               <h3
-                className={`truncate font-bold leading-tight dark:text-white ${
+                className={`truncate font-bold leading-tight text-slate-900 dark:text-white ${
                   tv ? "text-[clamp(0.95rem,2.1vh,1.3rem)]" : "text-sm"
                 }`}
               >
@@ -215,7 +262,7 @@ const Reports: React.FC = () => {
             </div>
             <div className="shrink-0 text-center">
               <p
-                className={`font-black leading-none text-emerald-500 dark:text-emerald-400 ${
+                className={`font-black leading-none text-emerald-600 dark:text-emerald-400 ${
                   tv ? "text-[clamp(1.1rem,2.6vh,1.6rem)]" : "text-lg"
                 }`}
               >
@@ -253,36 +300,58 @@ const Reports: React.FC = () => {
       </>
     );
 
+  const tvButton =
+    "rounded-xl bg-slate-900/5 p-2.5 text-slate-500 opacity-60 transition hover:bg-slate-900/10 hover:text-slate-900 " +
+    "hover:opacity-100 dark:bg-white/5 dark:text-gray-400 dark:opacity-40 dark:hover:bg-white/15 dark:hover:text-white";
+
   /*
    * طبقة ثابتة فوق كل شيء (فوق شريط التنقّل العلوي والسفلي) بدل تعديل MainLayout.
-   * صنف `dark` عليها يفعّل أصناف dark: لما بداخلها — شاشة العرض داكنة دائماً.
+   * مظهرها من tvTheme (راجع التأثير أعلاه): فاتحٌ عاجيّ افتراضاً، وداكنٌ ليليّ.
    */
   const tvOverlay = createPortal(
     <div
-      className="dark fixed inset-0 z-100 flex flex-col gap-[1.5vh] overflow-hidden p-4 text-right font-['Cairo'] lg:px-6
-        bg-[radial-gradient(ellipse_at_top,#1e293b_0%,#0b1220_50%,#05080f_100%)]"
+      className="fixed inset-0 z-100 flex flex-col gap-[1.5vh] overflow-hidden p-4 text-right font-['Cairo'] text-slate-900
+        transition-colors duration-500 lg:px-6 dark:text-white
+        bg-[radial-gradient(ellipse_at_top,#fef3c7_0%,#fffbeb_25%,#f8fafc_60%,#e2e8f0_100%)]
+        dark:bg-[radial-gradient(ellipse_at_top,#1e293b_0%,#0b1220_50%,#05080f_100%)]"
     >
       <header className="flex shrink-0 items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-500 motion-reduce:animate-none">
         <div className="flex min-w-0 items-center gap-3">
-          <FaTrophy className="shrink-0 text-3xl text-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.6)]" />
-          <h1 className="truncate text-3xl font-black text-white lg:text-4xl">{t("leaderboard.title")}</h1>
-          <span className="shrink-0 rounded-full bg-yellow-400/15 px-3 py-1 text-base font-bold text-yellow-200 ring-1 ring-yellow-400/40">
+          <FaTrophy
+            className="shrink-0 text-3xl text-amber-500 drop-shadow-[0_2px_6px_rgba(217,119,6,0.4)]
+              dark:text-yellow-400 dark:drop-shadow-[0_0_10px_rgba(250,204,21,0.6)]"
+          />
+          <h1 className="truncate text-3xl font-black text-slate-900 lg:text-4xl dark:text-white">
+            {t("leaderboard.title")}
+          </h1>
+          <span
+            className="shrink-0 rounded-full bg-amber-100 px-3 py-1 text-base font-bold text-amber-800 ring-1 ring-amber-300
+              dark:bg-yellow-400/15 dark:text-yellow-200 dark:ring-yellow-400/40"
+          >
             {label}
           </span>
           {scopeName && (
-            <span className="shrink-0 rounded-full bg-white/10 px-3 py-1 text-base font-bold text-gray-200">
+            <span
+              className="shrink-0 rounded-full bg-white px-3 py-1 text-base font-bold text-slate-700 shadow-sm ring-1 ring-slate-200
+                dark:bg-white/10 dark:text-gray-200 dark:shadow-none dark:ring-0"
+            >
               {scopeName}
             </span>
           )}
         </div>
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex shrink-0 items-center gap-2">
+          <ThemeSwitch
+            dark={tvTheme === "dark"}
+            onToggle={toggleTvTheme}
+            label={t(tvTheme === "dark" ? "leaderboard.tv.lightMode" : "leaderboard.tv.darkMode")}
+          />
           {/* ملء الشاشة لا يُطلب إلا بنقرة: حساب العرض يدخل الوضع تلقائياً بلا نقرة، فيحتاج هذا الزر */}
           {!isFullscreen && (
             <button
               onClick={() => void requestFullscreen().catch(() => {})}
               title={t("leaderboard.tv.fullscreen")}
               aria-label={t("leaderboard.tv.fullscreen")}
-              className="rounded-xl bg-white/5 p-2.5 text-gray-400 opacity-40 transition hover:bg-white/15 hover:text-white hover:opacity-100"
+              className={tvButton}
             >
               <Maximize className="size-5" />
             </button>
@@ -291,7 +360,7 @@ const Reports: React.FC = () => {
             onClick={exitTv}
             title={t("leaderboard.tv.exit")}
             aria-label={t("leaderboard.tv.exit")}
-            className="rounded-xl bg-white/5 p-2.5 text-gray-400 opacity-40 transition hover:bg-white/15 hover:text-white hover:opacity-100"
+            className={tvButton}
           >
             <Minimize2 className="size-5" />
           </button>
@@ -378,5 +447,36 @@ const Reports: React.FC = () => {
     </div>
   );
 };
+
+/**
+ * مفتاح الفاتح/الداكن لشاشة التلفاز: كبسولة بمقبض ينزلق بين شمسٍ وقمر.
+ * الموضع منطقيّ (start) لا أيمن/أيسر، فينزلق المقبض في الاتجاه الصحيح
+ * بالعربية والإنجليزية معاً.
+ */
+function ThemeSwitch({ dark, onToggle, label }: { dark: boolean; onToggle: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={dark}
+      aria-label={label}
+      title={label}
+      onClick={onToggle}
+      className="relative h-9 w-17 shrink-0 rounded-full bg-amber-100 shadow-inner ring-1 ring-amber-300 transition-colors
+        duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500
+        dark:bg-slate-800 dark:ring-white/15"
+    >
+      {/* الأيقونتان الخافتتان على طرفي الكبسولة */}
+      <Sun className="absolute start-2 top-1/2 size-4 -translate-y-1/2 text-amber-400/70" />
+      <Moon className="absolute end-2 top-1/2 size-4 -translate-y-1/2 text-slate-400/60 dark:text-slate-400" />
+      <span
+        className={`absolute top-1 flex size-7 items-center justify-center rounded-full shadow-md transition-all duration-300
+          ${dark ? "start-[calc(100%-2rem)] bg-slate-950 text-yellow-200" : "start-1 bg-white text-amber-500"}`}
+      >
+        {dark ? <Moon className="size-4" /> : <Sun className="size-4" />}
+      </span>
+    </button>
+  );
+}
 
 export default Reports;

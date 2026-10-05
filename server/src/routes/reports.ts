@@ -318,14 +318,18 @@ reportsRouter.get(
      * يوصف ببدايته ونهايته كما في سجلّ تسميع الطالب — آخر صفحة وحدها
      * كانت توحي بأنه سمّع صفحة واحدة.
      *
-     * النطاق داخل عزلٍ LTR (U+2066…U+2069): في سطرٍ عربي يُقلَب ترتيب
-     * الطرفين فيصير السهم مشيراً من النهاية إلى البداية.
+     * النطاق يُقرأ بالعربية من اليمين: البداية يميناً، والسهم يشير يساراً
+     * إلى النهاية (ص 551 ← ص 552). والسهم ← لا تقلبه خوارزمية الاتجاه
+     * (ليس من المحارف المرآتية)، فيبقى مشيراً يساراً كما كُتب.
+     *
+     * والنطاق داخل عزلٍ RTL (U+2067…U+2069) لا LTR: هكذا يبقى ترتيبه
+     * عربياً حتى في الواجهة الإنجليزية، ولا يتداخل مع اسم الطالب قبله.
      */
     const recentActivity = activityRows.map(({ surahNumber, pageNumber, toPage, ...row }) => {
       const surah = surahNumber != null ? surahByNumber(surahNumber) : undefined;
       if (surah) return { ...row, detail: `سورة ${surah.name}` };
       if (pageNumber != null && toPage != null && toPage !== pageNumber) {
-        return { ...row, detail: `⁦ص ${pageNumber} ➔ ص ${toPage}⁩` };
+        return { ...row, detail: `⁧ص ${pageNumber} ← ص ${toPage}⁩` };
       }
       return row;
     });

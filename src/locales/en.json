@@ -243,6 +243,7 @@
     "lessonReward": "Lesson reward",
     "groupLessonReward": "Group lesson reward",
     "goodManners": "Good manners",
+    "earlyAttendance": "Early attendance",
     "leftLesson": "Left the lesson",
     "disruption": "Disruptive behaviour",
     "tooMuchTalking": "Excessive talking",
@@ -391,7 +392,9 @@
     "tv": {
       "enter": "TV mode",
       "exit": "Exit TV mode (Esc)",
-      "fullscreen": "Full screen"
+      "fullscreen": "Full screen",
+      "lightMode": "Light mode",
+      "darkMode": "Dark mode"
     }
   },
   "halaqaCard": {

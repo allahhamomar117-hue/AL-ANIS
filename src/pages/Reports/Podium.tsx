@@ -12,36 +12,52 @@ export interface PodiumStudent {
 /**
  * ألوان كل مركز: إطار معدنيّ متدرّج، وتوهّج حوله، وصبغة داخل الزجاج،
  * ولون الرقم، وقاعدة المنصّة. ذهبيّ للأول، فضّيّ للثاني، برونزيّ للثالث.
+ *
+ * لكل لونٍ يُقرأ على الخلفية قيمتان: الفاتح أعمق درجةً (ذهبٌ فاتح على
+ * أبيض لا يُرى)، والداكن أفتح وأشدّ توهّجاً. الإطار والقاعدة معدنٌ
+ * يصلح للخلفيتين كما هو.
  */
 const MEDALS: Record<
   number,
   { frame: string; glow: string; tint: string; value: string; pedestal: string; icon: string; order: string }
 > = {
   1: {
-    frame: "from-yellow-100 via-yellow-400 to-amber-600",
-    glow: "shadow-[0_0_30px_rgba(250,204,21,0.45),0_0_80px_rgba(250,204,21,0.2)]",
-    tint: "from-yellow-400/20 via-yellow-500/5 to-transparent",
-    value: "from-yellow-100 via-yellow-300 to-amber-500",
+    frame: "from-yellow-200 via-yellow-400 to-amber-600",
+    glow:
+      "shadow-[0_8px_30px_rgba(217,119,6,0.28),0_0_60px_rgba(250,204,21,0.25)] " +
+      "dark:shadow-[0_0_30px_rgba(250,204,21,0.45),0_0_80px_rgba(250,204,21,0.2)]",
+    tint: "from-yellow-300/30 via-yellow-100/20 to-transparent dark:from-yellow-400/20 dark:via-yellow-500/5",
+    value:
+      "from-amber-500 via-yellow-600 to-amber-700 " +
+      "dark:from-yellow-100 dark:via-yellow-300 dark:to-amber-500",
     pedestal: "from-yellow-400/80 via-amber-500/50 to-amber-700/20",
-    icon: "text-yellow-300",
+    icon: "text-amber-500 dark:text-yellow-300",
     order: "order-2",
   },
   2: {
-    frame: "from-white via-slate-300 to-slate-500",
-    glow: "shadow-[0_0_24px_rgba(203,213,225,0.35),0_0_60px_rgba(203,213,225,0.12)]",
-    tint: "from-slate-200/15 via-slate-300/5 to-transparent",
-    value: "from-white via-slate-200 to-slate-400",
-    pedestal: "from-slate-300/70 via-slate-400/40 to-slate-600/20",
-    icon: "text-slate-200",
+    frame: "from-slate-100 via-slate-300 to-slate-500 dark:from-white",
+    glow:
+      "shadow-[0_8px_26px_rgba(71,85,105,0.22)] " +
+      "dark:shadow-[0_0_24px_rgba(203,213,225,0.35),0_0_60px_rgba(203,213,225,0.12)]",
+    tint: "from-slate-300/30 via-slate-100/20 to-transparent dark:from-slate-200/15 dark:via-slate-300/5",
+    value:
+      "from-slate-500 via-slate-600 to-slate-800 " +
+      "dark:from-white dark:via-slate-200 dark:to-slate-400",
+    pedestal: "from-slate-300/80 via-slate-400/50 to-slate-600/20",
+    icon: "text-slate-400 dark:text-slate-200",
     order: "order-1",
   },
   3: {
     frame: "from-orange-200 via-orange-500 to-amber-800",
-    glow: "shadow-[0_0_24px_rgba(205,127,50,0.4),0_0_60px_rgba(205,127,50,0.15)]",
-    tint: "from-orange-400/15 via-orange-500/5 to-transparent",
-    value: "from-orange-100 via-orange-300 to-orange-600",
+    glow:
+      "shadow-[0_8px_26px_rgba(194,65,12,0.24)] " +
+      "dark:shadow-[0_0_24px_rgba(205,127,50,0.4),0_0_60px_rgba(205,127,50,0.15)]",
+    tint: "from-orange-300/25 via-orange-100/20 to-transparent dark:from-orange-400/15 dark:via-orange-500/5",
+    value:
+      "from-orange-500 via-orange-600 to-amber-800 " +
+      "dark:from-orange-100 dark:via-orange-300 dark:to-orange-600",
     pedestal: "from-orange-400/70 via-orange-600/40 to-amber-800/20",
-    icon: "text-orange-300",
+    icon: "text-orange-500 dark:text-orange-300",
     order: "order-3",
   },
 };
@@ -99,11 +115,11 @@ const enter = "animate-in fade-in slide-in-from-bottom-8 duration-700 fill-mode-
 const delayByRank: Record<number, number> = { 3: 100, 2: 300, 1: 550 };
 
 /**
- * منصّة المراكز الثلاثة الأولى — لوحة شرف داكنة بزجاج شفّاف وإطارات معدنية مضيئة.
+ * منصّة المراكز الثلاثة الأولى — لوحة شرف بزجاج شفّاف وإطارات معدنية مضيئة.
  *
- * داكنة في الوضعين عمداً، حتى في الصفحة الفاتحة: هي لوحة الشرف، والتوهّج
- * الذهبيّ لا يُرى على خلفية بيضاء. وصنف `dark` على المسرح يُبقي ما بداخله
- * (الصورة الرمزية) على ألوانه الداكنة أيّاً كان وضع الصفحة.
+ * تتبع الوضع الفاتح/الداكن كبقية الواجهة: في الصفحة وضعُ التطبيق، وفي
+ * التلفاز مفتاحُ الشاشة نفسها (راجع tvTheme في Reports). الفاتح عاجيٌّ
+ * دافئ بزجاج أبيض وظلال ملوّنة، والداكن ليليٌّ بتوهّج.
  */
 export default function Podium<T extends PodiumStudent>({
   students,
@@ -123,17 +139,20 @@ export default function Podium<T extends PodiumStudent>({
 
   return (
     <div
-      className={`dark relative isolate w-full overflow-hidden ${
+      className={`relative isolate w-full overflow-hidden ${
         tv
           ? "shrink-0"
-          : "mx-auto mb-8 max-w-5xl rounded-3xl border border-white/10 px-2 pt-6 shadow-2xl md:px-8 md:pt-10 " +
-            "bg-[radial-gradient(ellipse_at_top,#1e293b_0%,#0b1220_55%,#05080f_100%)]"
+          : "mx-auto mb-8 max-w-5xl rounded-3xl border border-amber-200/60 px-2 pt-6 shadow-xl md:px-8 md:pt-10 " +
+            "bg-[radial-gradient(ellipse_at_top,#fffbeb_0%,#ffffff_50%,#f1f5f9_100%)] " +
+            "dark:border-white/10 dark:shadow-2xl " +
+            "dark:bg-[radial-gradient(ellipse_at_top,#1e293b_0%,#0b1220_55%,#05080f_100%)]"
       }`}
     >
       {/* بقعة ضوء ذهبية من الأعلى على المركز الأول */}
       <div
         className="pointer-events-none absolute left-1/2 top-0 -z-10 h-full w-2/3 -translate-x-1/2
-          bg-[radial-gradient(ellipse_at_top,rgba(250,204,21,0.22),transparent_65%)]"
+          bg-[radial-gradient(ellipse_at_top,rgba(250,204,21,0.28),transparent_65%)]
+          dark:bg-[radial-gradient(ellipse_at_top,rgba(250,204,21,0.22),transparent_65%)]"
       />
 
       <div className={`mx-auto flex items-end justify-center gap-2 md:gap-5 ${tv ? "max-w-6xl" : ""}`}>
@@ -150,18 +169,18 @@ export default function Podium<T extends PodiumStudent>({
                 first ? "z-10 flex-[1.25] zoom-in-90" : "flex-1"
               } ${tv ? (first ? "max-w-md" : "max-w-xs") : first ? "max-w-xs" : "max-w-60"}`}
             >
-              {/* البطاقة: إطار متدرّج بسماكة 2px يحيط بزجاج داكن */}
+              {/* البطاقة: إطار متدرّج بسماكة 2px يحيط بزجاج أبيض/داكن */}
               <div className={`relative w-full rounded-3xl bg-linear-to-b p-0.5 ${medal.frame} ${medal.glow}`}>
                 <div
-                  className={`relative overflow-hidden rounded-[calc(1.5rem-2px)] bg-slate-950/80 text-center
+                  className={`relative overflow-hidden rounded-[calc(1.5rem-2px)] bg-white/85 text-center dark:bg-slate-950/80
                     backdrop-blur-xl ${size.pad}`}
                 >
                   <div className={`pointer-events-none absolute inset-0 bg-linear-to-b ${medal.tint}`} />
-                  <div className="pointer-events-none absolute inset-x-0 top-0 h-1/3 bg-linear-to-b from-white/10 to-transparent" />
+                  <div className="pointer-events-none absolute inset-x-0 top-0 h-1/3 bg-linear-to-b from-white/70 to-transparent dark:from-white/10" />
                   {first && (
                     <div
                       className="podium-sheen pointer-events-none absolute inset-y-0 left-0 w-1/3
-                        bg-linear-to-r from-transparent via-white/15 to-transparent"
+                        bg-linear-to-r from-transparent via-white/70 to-transparent dark:via-white/15"
                     />
                   )}
 
@@ -169,7 +188,7 @@ export default function Podium<T extends PodiumStudent>({
                     {first ? (
                       <FaCrown
                         className={`podium-float mx-auto mb-1 ${medal.icon} ${size.crown}
-                          drop-shadow-[0_0_14px_rgba(250,204,21,0.85)]`}
+                          drop-shadow-[0_2px_8px_rgba(217,119,6,0.45)] dark:drop-shadow-[0_0_14px_rgba(250,204,21,0.85)]`}
                       />
                     ) : (
                       <FaMedal className={`mx-auto mb-1 ${medal.icon} ${size.crown} drop-shadow`} />
@@ -177,7 +196,7 @@ export default function Podium<T extends PodiumStudent>({
 
                     {/* الصورة بحلقة معدنية بلون المركز */}
                     <div className={`mx-auto w-fit rounded-full bg-linear-to-br p-0.75 ${medal.frame}`}>
-                      <div className="rounded-full bg-slate-950 p-0.5">
+                      <div className="rounded-full bg-white p-0.5 dark:bg-slate-950">
                         <Avatar
                           name={student.name}
                           url={student.avatarUrl}
@@ -187,16 +206,16 @@ export default function Podium<T extends PodiumStudent>({
                       </div>
                     </div>
 
-                    <h2 className={`mt-2 truncate font-black leading-tight text-white ${size.name}`}>
+                    <h2 className={`mt-2 truncate font-black leading-tight text-slate-900 dark:text-white ${size.name}`}>
                       {student.name}
                     </h2>
                     <div
                       className={`mt-1 bg-linear-to-b bg-clip-text font-black leading-none text-transparent
-                        tabular-nums drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] ${medal.value} ${size.value}`}
+                        tabular-nums dark:drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] ${medal.value} ${size.value}`}
                     >
                       {valueOf(student)}
                     </div>
-                    <div className={`mt-1 truncate font-bold text-white/60 ${sizes.caption}`}>
+                    <div className={`mt-1 truncate font-bold text-slate-500 dark:text-white/60 ${sizes.caption}`}>
                       {captionOf(student)}
                     </div>
                   </div>
@@ -205,10 +224,10 @@ export default function Podium<T extends PodiumStudent>({
 
               {/* قاعدة المنصّة — أعلاها للأول */}
               <div
-                className={`mt-2 flex w-[86%] items-start justify-center rounded-t-xl border-x border-t border-white/15
+                className={`mt-2 flex w-[86%] items-start justify-center rounded-t-xl border-x border-t border-black/5 dark:border-white/15
                   bg-linear-to-b pt-0.5 ${medal.pedestal} ${size.pedestal}`}
               >
-                <span className={`font-black text-white/90 drop-shadow ${sizes.rank}`}>{student.rank}</span>
+                <span className={`font-black text-slate-900/70 dark:text-white/90 dark:drop-shadow ${sizes.rank}`}>{student.rank}</span>
               </div>
             </div>
           );

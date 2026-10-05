@@ -24,7 +24,7 @@ export type PointsOperation = "add" | "deduct";
  * غالباً.
  */
 export const REASON_PRESET_KEYS: Record<PointsOperation, string[]> = {
-  add: ["lessonReward", "groupLessonReward", "goodManners"],
+  add: ["lessonReward", "groupLessonReward", "goodManners", "earlyAttendance"],
   deduct: [
     "leftLesson",
     "disruption",

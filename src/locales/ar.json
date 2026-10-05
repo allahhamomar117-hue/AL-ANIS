@@ -246,6 +246,7 @@
     "lessonReward": "مكافأة بالدرس",
     "groupLessonReward": "مكافأة بالدرس الجماعي",
     "goodManners": "حسن الخلق",
+    "earlyAttendance": "حضور مبكر",
     "leftLesson": "خروج من الدرس",
     "disruption": "مشاغبة",
     "tooMuchTalking": "كثرة الكلام",
@@ -394,7 +395,9 @@
     "tv": {
       "enter": "وضع التلفاز",
       "exit": "الخروج من وضع التلفاز (Esc)",
-      "fullscreen": "ملء الشاشة"
+      "fullscreen": "ملء الشاشة",
+      "lightMode": "الوضع الفاتح",
+      "darkMode": "الوضع الداكن"
     }
   },
   "halaqaCard": {
