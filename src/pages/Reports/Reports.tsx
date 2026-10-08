@@ -222,9 +222,9 @@ const Reports: React.FC = () => {
   const rankGrid = (list: Student[], tv: boolean) => {
     return (
       <div
-        className={`grid w-full items-stretch ${
+        className={`grid w-full ${
           tv
-            ? "grid-cols-2 gap-x-6 gap-y-3 overflow-hidden px-2 py-1 lg:gap-x-8 lg:gap-y-3 xl:gap-x-8"
+            ? "grid-cols-2 gap-x-4 gap-y-1.5 overflow-hidden px-1 py-0.5 lg:gap-x-6"
             : "mx-auto max-w-6xl grid-cols-1 gap-3 md:grid-cols-2 md:gap-4"
         }`}
       >
@@ -232,57 +232,59 @@ const Reports: React.FC = () => {
           <div
             key={`${type}-${student.id}`}
             style={delay(Math.min(i, 20) + 8)}
-            className={`group flex min-w-0 items-center gap-3 rounded-xl border bg-white/80 backdrop-blur-sm transition-all duration-300 ${enter} ${
+            className={`group flex min-w-0 items-center gap-2 rounded-lg border bg-white/80 backdrop-blur-sm transition-all duration-300 ${enter} ${
               tv
-                ? "min-h-[clamp(3.25rem,4.3vh,4.5rem) border-slate-200/75 px-3 py-2 shadow-sm ring-1 ring-slate-200/60 dark:border-white/10 dark:bg-slate-900/75 dark:ring-white/10"
+                ? "min-h-[clamp(2.35rem,3.1vh,3.1rem) border-slate-200/75 px-2 py-1 shadow-sm ring-1 ring-slate-200/60 dark:border-white/10 dark:bg-slate-900/75 dark:ring-white/10"
                 : "bg-white px-3 py-2 shadow-sm hover:bg-gray-50 dark:border-gray-700 dark:bg-dark dark:hover:bg-dark-light/20"
             }`}
           >
             <div
-              className={`flex w-11 shrink-0 items-center justify-center rounded-lg bg-slate-100 font-black text-slate-700 shadow-inner dark:bg-slate-700 dark:text-slate-100 ${
-                tv ? "h-10 text-sm lg:h-11 lg:text-base" : "size-8 text-sm"
+              className={`flex shrink-0 items-center justify-center rounded-md bg-slate-100 font-black text-slate-700 shadow-inner dark:bg-slate-700 dark:text-slate-100 ${
+                tv
+                  ? "h-7 w-8 text-[11px] lg:h-8 lg:w-9 lg:text-xs"
+                  : "size-8 text-sm"
               }`}
             >
               #{student.rank}
             </div>
 
-            <div className="flex shrink-0 items-center justify-center rounded-lg bg-white p-0.5 shadow-sm dark:bg-slate-800">
+            <div className="flex shrink-0 items-center justify-center rounded-md bg-white p-0.5 shadow-sm dark:bg-slate-800">
               <Avatar
                 name={student.name}
                 url={student.avatarUrl}
-                className={`shrink-0 rounded-md ${tv ? "size-11 lg:size-12" : "size-9"}`}
+                className={`shrink-0 rounded-sm ${tv ? "size-8 lg:size-10" : "size-9"}`}
               />
             </div>
 
             <div className="min-w-0 flex-1 overflow-hidden">
               <h3
-                className={`truncate font-bold leading-snug text-slate-900 dark:text-white ${
-                  tv ? "text-base lg:text-lg" : "text-sm"
+                className={`truncate font-bold leading-none text-slate-900 dark:text-white ${
+                  tv ? "text-xs lg:text-sm" : "text-sm"
                 }`}
               >
                 {student.name}
               </h3>
               <p
-                className={`mt-0.5 truncate leading-snug text-slate-500 dark:text-slate-300 ${
-                  tv ? "text-xs lg:text-sm" : "text-xs"
+                className={`mt-px truncate leading-none text-slate-500 dark:text-slate-300 ${
+                  tv ? "text-[10px] lg:text-xs" : "text-xs"
                 }`}
               >
                 {student.group}
               </p>
             </div>
 
-            <div className="w-24 shrink-0 text-right lg:w-28">
+            <div className="w-18 shrink-0 text-right lg:w-20">
               <p
                 className={`truncate font-black leading-none text-emerald-600 dark:text-emerald-300 ${
-                  tv ? "text-base lg:text-lg" : "text-lg"
+                  tv ? "text-sm lg:text-base" : "text-lg"
                 }`}
               >
                 {valueOf(student)}
               </p>
               {daysOf(student) && (
                 <span
-                  className={`mt-1 block truncate text-slate-400 dark:text-slate-500 ${
-                    tv ? "text-[10px] lg:text-xs" : "text-[10px]"
+                  className={`mt-px block truncate text-slate-400 dark:text-slate-500 ${
+                    tv ? "text-[9px] lg:text-[10px]" : "text-[10px]"
                   }`}
                 >
                   {daysOf(student)}
