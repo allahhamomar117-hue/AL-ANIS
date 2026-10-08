@@ -222,9 +222,9 @@ const Reports: React.FC = () => {
   const rankGrid = (list: Student[], tv: boolean) => {
     return (
       <div
-        className={`grid w-full min-w-0 ${
+        className={`grid w-full min-w-0 items-start ${
           tv
-            ? "grid-cols-2 gap-x-2 gap-y-0.5 overflow-hidden px-0.5 py-0 lg:gap-x-4"
+            ? "grid-cols-2 content-start gap-x-2 gap-y-0.5 overflow-hidden px-0.5 py-0 lg:gap-x-4"
             : "mx-auto max-w-6xl grid-cols-1 gap-3 md:grid-cols-2 md:gap-4"
         }`}
       >
@@ -232,9 +232,9 @@ const Reports: React.FC = () => {
           <div
             key={`${type}-${student.id}`}
             style={delay(Math.min(i, 20) + 8)}
-            className={`group flex min-w-0 items-center gap-1.5 rounded-md border bg-white/80 backdrop-blur-sm transition-all duration-300 ${enter} ${
+            className={`group flex h-fit min-w-0 items-center gap-1.5 self-start rounded-md border bg-white/80 backdrop-blur-sm transition-all duration-300 ${enter} ${
               tv
-                ? "min-h-[clamp(2.1rem,2.8vh,2.7rem) border-slate-200/75 px-1.5 py-0.5 shadow-sm ring-1 ring-slate-200/60 dark:border-white/10 dark:bg-slate-900/75 dark:ring-white/10"
+                ? "h-[clamp(2.1rem,2.8vh,2.7rem) border-slate-200/75 px-1.5 py-0.5 shadow-sm ring-1 ring-slate-200/60 dark:border-white/10 dark:bg-slate-900/75 dark:ring-white/10"
                 : "bg-white px-3 py-2 shadow-sm hover:bg-gray-50 dark:border-gray-700 dark:bg-dark dark:hover:bg-dark-light/20"
             }`}
           >
@@ -393,7 +393,7 @@ const Reports: React.FC = () => {
           </button>
         </div>
       </header>
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col justify-start overflow-hidden">
         {content(true)}
       </div>
     </div>,
