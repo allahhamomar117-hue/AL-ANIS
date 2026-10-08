@@ -78,23 +78,23 @@ const MEDALS: Record<
 const SIZES = {
   tv: {
     first: {
-      avatar: "size-[clamp(4rem,11vh,7.5rem)]",
-      crown: "text-[clamp(1.7rem,4.2vh,3.2rem)]",
-      name: "text-[clamp(1.2rem,2.9vh,2.1rem)]",
-      value: "text-[clamp(1.9rem,5.9vh,3.9rem)]",
-      pad: "px-5 py-[1.8vh]",
-      pedestal: "h-[6.5vh]",
+      avatar: "size-[clamp(3.25rem,7.8vh,5.8rem)]",
+      crown: "text-[clamp(1.2rem,2.8vh,2.2rem)]",
+      name: "text-[clamp(1rem,2.4vh,1.6rem)]",
+      value: "text-[clamp(1.5rem,4.4vh,3rem)]",
+      pad: "px-3 py-[0.8vh]",
+      pedestal: "h-[3.4vh]",
     },
     other: {
-      avatar: "size-[clamp(3.4rem,8.5vh,5.5rem)]",
-      crown: "text-[clamp(1.2rem,3vh,2.1rem)]",
-      name: "text-[clamp(1.05rem,2.5vh,1.7rem)]",
-      value: "text-[clamp(1.5rem,4.5vh,2.9rem)]",
-      pad: "px-4 py-[1.6vh]",
-      pedestal: "h-[4vh]",
+      avatar: "size-[clamp(2.8rem,6.8vh,4.8rem)]",
+      crown: "text-[clamp(1rem,2.2vh,1.7rem)]",
+      name: "text-[clamp(0.9rem,2vh,1.4rem)]",
+      value: "text-[clamp(1.2rem,3.6vh,2.4rem)]",
+      pad: "px-2.5 py-[0.75vh]",
+      pedestal: "h-[3vh]",
     },
-    caption: "text-[clamp(0.8rem,1.5vh,1.05rem)]",
-    rank: "text-[clamp(1.1rem,2.8vh,1.9rem)]",
+    caption: "text-[clamp(0.7rem,1.2vh,0.9rem)]",
+    rank: "text-[clamp(0.9rem,2vh,1.5rem)]",
   },
   page: {
     first: {
@@ -148,9 +148,9 @@ export default function Podium<T extends PodiumStudent>({
 
   return (
     <div
-      className={`relative isolate w-full overflow-hidden ${
+      className={`relative isolate w-full min-h-0 overflow-hidden ${
         tv
-          ? "shrink-0 px-[1.5vh] pb-[1vh] pt-[0.5vh]"
+          ? "shrink-0 px-[0.75vh] pb-[0.5vh] pt-[0.25vh]"
           : "mx-auto mb-8 max-w-5xl rounded-3xl border border-amber-200/60 px-2 pt-6 shadow-xl md:px-8 md:pt-10 " +
             "bg-[radial-gradient(ellipse_at_top,#fffbeb_0%,#ffffff_50%,#f1f5f9_100%)] " +
             "dark:border-white/10 dark:shadow-2xl " +
@@ -165,7 +165,7 @@ export default function Podium<T extends PodiumStudent>({
       />
 
       <div
-        className={`mx-auto flex items-end justify-center gap-[clamp(0.5rem,1.5vh,1.25rem)] ${tv ? "max-w-6xl" : "md:gap-5"}`}
+        className={`mx-auto flex min-h-0 items-end justify-center gap-[clamp(0.25rem,0.8vh,0.75rem)] ${tv ? "max-w-6xl" : "md:gap-5"}`}
       >
         {students.map((student) => {
           const medal = MEDALS[student.rank] ?? MEDALS[3];
@@ -206,12 +206,12 @@ export default function Podium<T extends PodiumStudent>({
                   <div className="relative">
                     {first ? (
                       <FaCrown
-                        className={`podium-float mx-auto mb-1.5 ${medal.icon} ${size.crown}
+                        className={`podium-float mx-auto mb-1 ${medal.icon} ${size.crown}
                           drop-shadow-[0_2px_8px_rgba(217,119,6,0.45)] dark:drop-shadow-[0_0_14px_rgba(250,204,21,0.85)]`}
                       />
                     ) : (
                       <FaMedal
-                        className={`mx-auto mb-1.5 ${medal.icon} ${size.crown} drop-shadow`}
+                        className={`mx-auto mb-1 ${medal.icon} ${size.crown} drop-shadow`}
                       />
                     )}
 
@@ -230,18 +230,18 @@ export default function Podium<T extends PodiumStudent>({
                     </div>
 
                     <h2
-                      className={`mt-2.5 truncate font-black leading-tight text-slate-900 dark:text-white ${size.name}`}
+                      className={`mt-1 truncate font-black leading-none text-slate-900 dark:text-white ${size.name}`}
                     >
                       {student.name}
                     </h2>
                     <div
-                      className={`mt-1 bg-linear-to-b bg-clip-text font-black leading-none text-transparent
+                      className={`mt-0.5 bg-linear-to-b bg-clip-text font-black leading-none text-transparent
                         tabular-nums dark:drop-shadow-[0_2px_12px_rgba(0,0,0,0.5)] ${medal.value} ${size.value}`}
                     >
                       {valueOf(student)}
                     </div>
                     <div
-                      className={`mt-1 truncate font-bold text-slate-500 dark:text-white/60 ${sizes.caption}`}
+                      className={`mt-0.5 truncate font-bold leading-none text-slate-500 dark:text-white/60 ${sizes.caption}`}
                     >
                       {captionOf(student)}
                     </div>
@@ -251,11 +251,11 @@ export default function Podium<T extends PodiumStudent>({
 
               {/* قاعدة المنصّة — أعلاها للأول */}
               <div
-                className={`mt-2 flex w-[86%] items-start justify-center rounded-t-xl border-x border-t border-black/5 dark:border-white/15
+                className={`mt-1 flex w-[86%] items-start justify-center rounded-t-xl border-x border-t border-black/5 dark:border-white/15
                   bg-linear-to-b pt-0.5 ${medal.pedestal} ${size.pedestal}`}
               >
                 <span
-                  className={`font-black text-slate-900/70 dark:text-white/90 dark:drop-shadow ${sizes.rank}`}
+                  className={`font-black leading-none text-slate-900/70 dark:text-white/90 dark:drop-shadow ${sizes.rank}`}
                 >
                   {student.rank}
                 </span>

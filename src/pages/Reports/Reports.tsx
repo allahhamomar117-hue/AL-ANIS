@@ -222,9 +222,9 @@ const Reports: React.FC = () => {
   const rankGrid = (list: Student[], tv: boolean) => {
     return (
       <div
-        className={`grid w-full ${
+        className={`grid w-full min-w-0 ${
           tv
-            ? "grid-cols-2 gap-x-4 gap-y-1.5 overflow-hidden px-1 py-0.5 lg:gap-x-6"
+            ? "grid-cols-2 gap-x-2 gap-y-0.5 overflow-hidden px-0.5 py-0 lg:gap-x-4"
             : "mx-auto max-w-6xl grid-cols-1 gap-3 md:grid-cols-2 md:gap-4"
         }`}
       >
@@ -232,59 +232,59 @@ const Reports: React.FC = () => {
           <div
             key={`${type}-${student.id}`}
             style={delay(Math.min(i, 20) + 8)}
-            className={`group flex min-w-0 items-center gap-2 rounded-lg border bg-white/80 backdrop-blur-sm transition-all duration-300 ${enter} ${
+            className={`group flex min-w-0 items-center gap-1.5 rounded-md border bg-white/80 backdrop-blur-sm transition-all duration-300 ${enter} ${
               tv
-                ? "min-h-[clamp(2.35rem,3.1vh,3.1rem) border-slate-200/75 px-2 py-1 shadow-sm ring-1 ring-slate-200/60 dark:border-white/10 dark:bg-slate-900/75 dark:ring-white/10"
+                ? "min-h-[clamp(2.1rem,2.8vh,2.7rem) border-slate-200/75 px-1.5 py-0.5 shadow-sm ring-1 ring-slate-200/60 dark:border-white/10 dark:bg-slate-900/75 dark:ring-white/10"
                 : "bg-white px-3 py-2 shadow-sm hover:bg-gray-50 dark:border-gray-700 dark:bg-dark dark:hover:bg-dark-light/20"
             }`}
           >
             <div
               className={`flex shrink-0 items-center justify-center rounded-md bg-slate-100 font-black text-slate-700 shadow-inner dark:bg-slate-700 dark:text-slate-100 ${
                 tv
-                  ? "h-7 w-8 text-[11px] lg:h-8 lg:w-9 lg:text-xs"
+                  ? "h-7 w-7 text-[10px] lg:h-7 lg:w-7 lg:text-[11px]"
                   : "size-8 text-sm"
               }`}
             >
               #{student.rank}
             </div>
 
-            <div className="flex shrink-0 items-center justify-center rounded-md bg-white p-0.5 shadow-sm dark:bg-slate-800">
+            <div className="flex shrink-0 items-center justify-center rounded-sm bg-white p-0.5 shadow-sm dark:bg-slate-800">
               <Avatar
                 name={student.name}
                 url={student.avatarUrl}
-                className={`shrink-0 rounded-sm ${tv ? "size-8 lg:size-10" : "size-9"}`}
+                className={`shrink-0 rounded-sm ${tv ? "size-7 lg:size-8" : "size-9"}`}
               />
             </div>
 
             <div className="min-w-0 flex-1 overflow-hidden">
               <h3
                 className={`truncate font-bold leading-none text-slate-900 dark:text-white ${
-                  tv ? "text-xs lg:text-sm" : "text-sm"
+                  tv ? "text-[10px] lg:text-xs" : "text-sm"
                 }`}
               >
                 {student.name}
               </h3>
               <p
-                className={`mt-px truncate leading-none text-slate-500 dark:text-slate-300 ${
-                  tv ? "text-[10px] lg:text-xs" : "text-xs"
+                className={`mt-0 truncate leading-none text-slate-500 dark:text-slate-300 ${
+                  tv ? "text-[8px] lg:text-[9px]" : "text-xs"
                 }`}
               >
                 {student.group}
               </p>
             </div>
 
-            <div className="w-18 shrink-0 text-right lg:w-20">
+            <div className="w-16 shrink-0 text-right lg:w-18">
               <p
                 className={`truncate font-black leading-none text-emerald-600 dark:text-emerald-300 ${
-                  tv ? "text-sm lg:text-base" : "text-lg"
+                  tv ? "text-xs lg:text-sm" : "text-lg"
                 }`}
               >
                 {valueOf(student)}
               </p>
               {daysOf(student) && (
                 <span
-                  className={`mt-px block truncate text-slate-400 dark:text-slate-500 ${
-                    tv ? "text-[9px] lg:text-[10px]" : "text-[10px]"
+                  className={`mt-0 block truncate leading-none text-slate-400 dark:text-slate-500 ${
+                    tv ? "text-[7px] lg:text-[8px]" : "text-[10px]"
                   }`}
                 >
                   {daysOf(student)}
@@ -333,8 +333,8 @@ const Reports: React.FC = () => {
    */
   const tvOverlay = createPortal(
     <div
-      className="fixed inset-0 z-100 flex flex-col gap-[1.5vh] overflow-hidden p-4 text-right font-['Cairo'] text-slate-900
-        transition-colors duration-500 lg:px-6 dark:text-white
+      className="fixed inset-0 z-100 flex h-screen min-h-0 flex-col gap-[0.5vh] overflow-hidden p-3 text-right font-['Cairo'] text-slate-900
+        transition-colors duration-500 lg:px-4 dark:text-white
         bg-[radial-gradient(ellipse_at_top,#fef3c7_0%,#fffbeb_25%,#f8fafc_60%,#e2e8f0_100%)]
         dark:bg-[radial-gradient(ellipse_at_top,#1e293b_0%,#0b1220_50%,#05080f_100%)]"
     >
@@ -393,7 +393,9 @@ const Reports: React.FC = () => {
           </button>
         </div>
       </header>
-      {content(true)}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        {content(true)}
+      </div>
     </div>,
     document.body,
   );
