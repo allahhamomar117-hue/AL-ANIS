@@ -222,9 +222,9 @@ const Reports: React.FC = () => {
   const rankGrid = (list: Student[], tv: boolean) => {
     return (
       <div
-        className={`grid w-full items-stretch gap-x-8 gap-y-3 py-1 ${
+        className={`grid w-full items-stretch ${
           tv
-            ? "grid-cols-2 gap-x-16 lg:gap-x-20 xl:gap-x-24 2xl:gap-x-32 lg:gap-y-4 xl:gap-y-5 min-h-0 flex-1 overflow-hidden px-2 lg:px-4 xl:px-6"
+            ? "grid-cols-2 gap-x-12 gap-y-4 overflow-hidden px-2 py-1 lg:gap-x-16 lg:gap-y-5 xl:gap-x-20 xl:gap-y-6 2xl:gap-x-24 2xl:gap-y-7"
             : "mx-auto max-w-6xl grid-cols-1 gap-3 md:grid-cols-2 md:gap-4"
         }`}
       >
@@ -232,48 +232,53 @@ const Reports: React.FC = () => {
           <div
             key={`${type}-${student.id}`}
             style={delay(Math.min(i, 20) + 8)}
-            className={`flex min-w-0 items-center gap-3 rounded-2xl border transition-all ${enter} ${
+            className={`group flex min-w-0 items-center gap-4 rounded-2xl border backdrop-blur-xl transition-all duration-300 ${enter} ${
               tv
-                ? "min-h-[clamp(4rem,6.2vh,6rem) border-slate-200/90 bg-white/90 px-3 py-3 shadow-[0_4px_22px_rgba(15,23,42,0.09)] backdrop-blur-md lg:px-4 lg:py-4 xl:px-5 xl:py-5 " +
-                  "dark:border-white/10 dark:bg-slate-900/80 dark:shadow-[0_4px_24px_rgba(0,0,0,0.28)]"
+                ? "min-h-[clamp(5.5rem,7vh,7rem) border-white/60 bg-white/75 px-4 py-5 shadow-[0_8px_28px_rgba(15,23,42,0.10)] ring-1 ring-slate-200/70 lg:px-5 lg:py-6 xl:px-6 xl:py-6 2xl:px-7 2xl:py-7 " +
+                  "dark:border-white/10 dark:bg-slate-900/75 dark:shadow-[0_10px_30px_rgba(0,0,0,0.28)] dark:ring-white/10"
                 : "bg-white px-3 py-2 shadow-sm hover:bg-gray-50 dark:border-gray-700 dark:bg-dark dark:hover:bg-dark-light/20"
             }`}
           >
-            <span
-              className={`flex w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 font-black text-slate-600
-                shadow-inner dark:bg-gray-700/70 dark:text-gray-200 ${
-                  tv
-                    ? "size-[clamp(2.2rem,4.5vh,3rem)] text-base lg:text-xl xl:text-2xl"
-                    : "size-8 text-sm"
-                }`}
-            >
-              {student.rank}
-            </span>
-
-            <Avatar
-              name={student.name}
-              url={student.avatarUrl}
-              className={`shrink-0 rounded-full ring-2 ring-white/80 dark:ring-slate-900/80 ${
+            <div
+              className={`flex w-14 shrink-0 items-center justify-center rounded-2xl font-black shadow-inner ${
                 tv
-                  ? "size-[clamp(2.75rem,5.2vh,4rem)] lg:size-[clamp(3rem,5.8vh,4.5rem)]"
-                  : "size-9"
+                  ? "h-14 bg-linear-to-br from-amber-100 to-orange-100 text-xl text-amber-700 ring-1 ring-amber-200 lg:h-16 lg:w-16 lg:text-2xl xl:text-3xl dark:from-slate-700 dark:to-slate-800 dark:text-amber-200 dark:ring-white/10"
+                  : "size-8 text-sm"
               }`}
-            />
+            >
+              #{student.rank}
+            </div>
+
+            <div
+              className={`flex shrink-0 items-center justify-center rounded-2xl bg-linear-to-br p-1 shadow-lg ${
+                tv
+                  ? "from-amber-200 via-orange-100 to-yellow-100 dark:from-amber-500/30 dark:via-slate-700 dark:to-slate-800"
+                  : ""
+              }`}
+            >
+              <Avatar
+                name={student.name}
+                url={student.avatarUrl}
+                className={`shrink-0 rounded-2xl border-2 border-white object-cover shadow-md dark:border-slate-900 ${
+                  tv ? "size-14 lg:size-16 xl:size-18 2xl:size-20" : "size-9"
+                }`}
+              />
+            </div>
 
             <div className="min-w-0 flex-1 overflow-hidden">
               <h3
-                className={`truncate font-black leading-[1.2] text-slate-900 dark:text-white ${
+                className={`truncate font-black leading-tight text-slate-900 dark:text-white ${
                   tv
-                    ? "text-lg leading-tight lg:text-xl xl:text-2xl 2xl:text-[1.75rem]"
+                    ? "text-2xl lg:text-3xl xl:text-[2rem] 2xl:text-[2.4rem]"
                     : "text-sm"
                 }`}
               >
                 {student.name}
               </h3>
               <p
-                className={`mt-0.5 truncate text-gray-500 dark:text-gray-400 ${
+                className={`mt-1 truncate font-medium leading-snug text-slate-500 dark:text-slate-300 ${
                   tv
-                    ? "text-sm leading-[1.3] lg:text-base xl:text-lg 2xl:text-xl"
+                    ? "text-lg lg:text-xl xl:text-2xl 2xl:text-[1.6rem]"
                     : "text-xs"
                 }`}
               >
@@ -281,11 +286,11 @@ const Reports: React.FC = () => {
               </p>
             </div>
 
-            <div className="w-24 shrink-0 text-center lg:w-28 xl:w-32 2xl:w-36">
+            <div className="w-28 shrink-0 text-right lg:w-32 xl:w-36 2xl:w-40">
               <p
-                className={`truncate font-black leading-none text-emerald-600 dark:text-emerald-400 ${
+                className={`truncate font-black leading-none text-emerald-600 dark:text-emerald-300 ${
                   tv
-                    ? "text-xl leading-tight lg:text-2xl xl:text-[2rem] 2xl:text-[2.5rem]"
+                    ? "text-2xl lg:text-3xl xl:text-[2.4rem] 2xl:text-[3rem]"
                     : "text-lg"
                 }`}
               >
@@ -293,9 +298,9 @@ const Reports: React.FC = () => {
               </p>
               {daysOf(student) && (
                 <span
-                  className={`mt-1 block truncate text-gray-400 dark:text-gray-500 ${
+                  className={`mt-1.5 block truncate font-medium text-slate-400 dark:text-slate-500 ${
                     tv
-                      ? "text-[0.7rem] leading-[1.3] lg:text-xs xl:text-sm"
+                      ? "text-xs lg:text-sm xl:text-base 2xl:text-lg"
                       : "text-[10px]"
                   }`}
                 >
