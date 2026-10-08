@@ -220,72 +220,84 @@ const Reports: React.FC = () => {
   /* ---------------- أجزاء العرض ---------------- */
 
   const rankGrid = (list: Student[], tv: boolean) => {
-    // ترتيب عمودي: يُقرأ العمود الأول من أعلى لأسفل ثم الثاني — أطبع لقراءة الترتيب
-    const rows = Math.ceil(list.length / 2);
     return (
       <div
-        style={{ "--rows": rows } as React.CSSProperties}
-        className={`grid gap-2 md:grid-cols-2 md:grid-flow-col ${
+        className={`grid w-full items-stretch gap-x-8 gap-y-3 py-1 ${
           tv
-            ? "min-h-0 flex-1 grid-cols-2 grid-flow-col gap-x-5 gap-y-[1.1vh] grid-rows-[repeat(var(--rows),minmax(0,1fr))]"
-            : "mx-auto max-w-6xl md:grid-rows-[repeat(var(--rows),auto)]"
+            ? "grid-cols-2 gap-x-16 lg:gap-x-20 xl:gap-x-24 2xl:gap-x-32 lg:gap-y-4 xl:gap-y-5 min-h-0 flex-1 overflow-hidden px-2 lg:px-4 xl:px-6"
+            : "mx-auto max-w-6xl grid-cols-1 gap-3 md:grid-cols-2 md:gap-4"
         }`}
       >
         {list.map((student, i) => (
           <div
             key={`${type}-${student.id}`}
             style={delay(Math.min(i, 20) + 8)}
-            className={`flex min-h-0 items-center gap-3 rounded-2xl border transition-all ${enter} ${
+            className={`flex min-w-0 items-center gap-3 rounded-2xl border transition-all ${enter} ${
               tv
-                ? "min-h-[clamp(3.1rem,5.2vh,4.75rem) border-slate-200/90 bg-white/90 px-4 py-1.5 shadow-[0_3px_18px_rgba(15,23,42,0.08)] backdrop-blur-md " +
-                  "dark:border-white/10 dark:bg-slate-900/80 dark:shadow-[0_3px_20px_rgba(0,0,0,0.25)]"
+                ? "min-h-[clamp(4rem,6.2vh,6rem) border-slate-200/90 bg-white/90 px-3 py-3 shadow-[0_4px_22px_rgba(15,23,42,0.09)] backdrop-blur-md lg:px-4 lg:py-4 xl:px-5 xl:py-5 " +
+                  "dark:border-white/10 dark:bg-slate-900/80 dark:shadow-[0_4px_24px_rgba(0,0,0,0.28)]"
                 : "bg-white px-3 py-2 shadow-sm hover:bg-gray-50 dark:border-gray-700 dark:bg-dark dark:hover:bg-dark-light/20"
             }`}
           >
             <span
-              className={`flex shrink-0 items-center justify-center rounded-xl bg-slate-100 font-black text-slate-600
+              className={`flex w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 font-black text-slate-600
                 shadow-inner dark:bg-gray-700/70 dark:text-gray-200 ${
                   tv
-                    ? "size-[clamp(1.9rem,4vh,2.7rem)] text-[clamp(0.9rem,2vh,1.15rem)]"
+                    ? "size-[clamp(2.2rem,4.5vh,3rem)] text-base lg:text-xl xl:text-2xl"
                     : "size-8 text-sm"
                 }`}
             >
               {student.rank}
             </span>
+
             <Avatar
               name={student.name}
               url={student.avatarUrl}
               className={`shrink-0 rounded-full ring-2 ring-white/80 dark:ring-slate-900/80 ${
-                tv ? "size-[clamp(2rem,4.4vh,3rem)]" : "size-9"
+                tv
+                  ? "size-[clamp(2.75rem,5.2vh,4rem)] lg:size-[clamp(3rem,5.8vh,4.5rem)]"
+                  : "size-9"
               }`}
             />
-            <div className="min-w-0 flex-1">
+
+            <div className="min-w-0 flex-1 overflow-hidden">
               <h3
-                className={`truncate font-bold leading-tight text-slate-900 dark:text-white ${
-                  tv ? "text-[clamp(0.95rem,2.15vh,1.35rem)]" : "text-sm"
+                className={`truncate font-black leading-[1.2] text-slate-900 dark:text-white ${
+                  tv
+                    ? "text-lg leading-tight lg:text-xl xl:text-2xl 2xl:text-[1.75rem]"
+                    : "text-sm"
                 }`}
               >
                 {student.name}
               </h3>
               <p
-                className={`truncate text-gray-500 dark:text-gray-400 ${
-                  tv ? "text-[clamp(0.72rem,1.5vh,0.9rem)]" : "text-xs"
+                className={`mt-0.5 truncate text-gray-500 dark:text-gray-400 ${
+                  tv
+                    ? "text-sm leading-[1.3] lg:text-base xl:text-lg 2xl:text-xl"
+                    : "text-xs"
                 }`}
               >
                 {student.group}
               </p>
             </div>
-            <div className="shrink-0 text-center">
+
+            <div className="w-24 shrink-0 text-center lg:w-28 xl:w-32 2xl:w-36">
               <p
-                className={`font-black leading-none text-emerald-600 dark:text-emerald-400 ${
-                  tv ? "text-[clamp(1.1rem,2.8vh,1.7rem)]" : "text-lg"
+                className={`truncate font-black leading-none text-emerald-600 dark:text-emerald-400 ${
+                  tv
+                    ? "text-xl leading-tight lg:text-2xl xl:text-[2rem] 2xl:text-[2.5rem]"
+                    : "text-lg"
                 }`}
               >
                 {valueOf(student)}
               </p>
               {daysOf(student) && (
                 <span
-                  className={`block text-gray-400 dark:text-gray-500 ${tv ? "text-[0.7rem]" : "text-[10px]"}`}
+                  className={`mt-1 block truncate text-gray-400 dark:text-gray-500 ${
+                    tv
+                      ? "text-[0.7rem] leading-[1.3] lg:text-xs xl:text-sm"
+                      : "text-[10px]"
+                  }`}
                 >
                   {daysOf(student)}
                 </span>
