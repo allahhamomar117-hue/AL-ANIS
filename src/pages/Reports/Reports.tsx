@@ -17,10 +17,10 @@ type LeaderboardResult = Awaited<ReturnType<typeof reportsApi.leaderboard>>;
 type Student = LeaderboardResult["data"][number];
 
 /**
- * وضع التلفاز يعرض المراكز من الرابع حتى هذا العدد بعده (٤–١٩):
- * عمودان × ثمانية صفوف تتّسع لها شاشة 1080p تحت منصّة المراكز الثلاثة بلا تمرير.
+ * وضع التلفاز يعرض عدداً محدوداً من الصفوف حتى تبقى المسافات واضحة على الشاشات الكبيرة.
+ * كل عمود يحتوي على خمسة صفوف كحد أقصى (إجمالي 10 صفوف).
  */
-const TV_REST_LIMIT = 16;
+const TV_REST_LIMIT = 10;
 
 /** تحديث تلقائي في وضع التلفاز: الشاشة تبقى مفتوحة أمام الطلاب ولا أحد يضغط "تحديث". */
 const TV_REFRESH_MS = 60_000;
@@ -42,7 +42,8 @@ function readTvTheme(): TvTheme {
 }
 
 /** حركة الظهور: تتلاشى وتصعد، متتابعة حسب الترتيب. تُلغى لمن يفضّل تقليل الحركة. */
-const enter = "animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-both motion-reduce:animate-none";
+const enter =
+  "animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-both motion-reduce:animate-none";
 const delay = (i: number) => ({ animationDelay: `${i * 60}ms` });
 
 const Reports: React.FC = () => {
@@ -117,7 +118,8 @@ const Reports: React.FC = () => {
   const valueOf = (student: Student) => {
     if (type === "attendance") return `${student.attendance}%`;
     // التسميع يُقاس بالصفحات: الكسور تظهر كما هي (نصف صفحة، أو وزن سورة قصيرة)
-    if (type === "recitation") return t("leaderboard.pagesValue", { pages: student.recitationPages });
+    if (type === "recitation")
+      return t("leaderboard.pagesValue", { pages: student.recitationPages });
     return student.points;
   };
 
@@ -147,16 +149,20 @@ const Reports: React.FC = () => {
    * — وهو سبيل حساب العرض إليه — فالخروج منه يُبقي الوضع قائماً.
    */
   const fullscreenWithTv = useRef(false);
-  const [isFullscreen, setIsFullscreen] = useState(() => Boolean(document.fullscreenElement));
+  const [isFullscreen, setIsFullscreen] = useState(() =>
+    Boolean(document.fullscreenElement),
+  );
 
   const exitTv = useCallback(() => {
     setTvMode(false);
-    if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+    if (document.fullscreenElement)
+      void document.exitFullscreen().catch(() => {});
     fullscreenWithTv.current = false;
   }, []);
 
   const requestFullscreen = () =>
-    document.documentElement.requestFullscreen?.() ?? Promise.reject(new Error("unsupported"));
+    document.documentElement.requestFullscreen?.() ??
+    Promise.reject(new Error("unsupported"));
 
   const enterTv = () => {
     setTvMode(true);
@@ -200,9 +206,14 @@ const Reports: React.FC = () => {
     if (!tvMode) return;
     const root = document.documentElement;
     const appDark = root.classList.contains("dark");
-    root.classList.toggle("dark", tvTheme === "dark");
+    const nextDark = tvTheme === "dark";
+
+    root.classList.toggle("dark", nextDark);
+    root.dataset.tvTheme = tvTheme;
+
     return () => {
       root.classList.toggle("dark", appDark);
+      delete root.dataset.tvTheme;
     };
   }, [tvMode, tvTheme]);
 
@@ -216,7 +227,7 @@ const Reports: React.FC = () => {
         style={{ "--rows": rows } as React.CSSProperties}
         className={`grid gap-2 md:grid-cols-2 md:grid-flow-col ${
           tv
-            ? "min-h-0 flex-1 gap-x-4 gap-y-[0.8vh] grid-cols-2 grid-flow-col grid-rows-[repeat(var(--rows),minmax(0,1fr))] max-h-[calc(var(--rows)*5.5rem)]"
+            ? "min-h-0 flex-1 grid-cols-2 grid-flow-col gap-x-5 gap-y-[1.1vh] grid-rows-[repeat(var(--rows),minmax(0,1fr))]"
             : "mx-auto max-w-6xl md:grid-rows-[repeat(var(--rows),auto)]"
         }`}
       >
@@ -224,17 +235,19 @@ const Reports: React.FC = () => {
           <div
             key={`${type}-${student.id}`}
             style={delay(Math.min(i, 20) + 8)}
-            className={`flex min-h-0 items-center gap-3 rounded-xl border transition-colors ${enter} ${
+            className={`flex min-h-0 items-center gap-3 rounded-2xl border transition-all ${enter} ${
               tv
-                ? "border-slate-200/80 bg-white/80 px-4 py-0.5 shadow-sm backdrop-blur " +
-                  "dark:border-white/10 dark:bg-white/5 dark:shadow-none"
+                ? "min-h-[clamp(3.1rem,5.2vh,4.75rem) border-slate-200/90 bg-white/90 px-4 py-1.5 shadow-[0_3px_18px_rgba(15,23,42,0.08)] backdrop-blur-md " +
+                  "dark:border-white/10 dark:bg-slate-900/80 dark:shadow-[0_3px_20px_rgba(0,0,0,0.25)]"
                 : "bg-white px-3 py-2 shadow-sm hover:bg-gray-50 dark:border-gray-700 dark:bg-dark dark:hover:bg-dark-light/20"
             }`}
           >
             <span
-              className={`flex shrink-0 items-center justify-center rounded-lg bg-slate-100 font-black text-slate-600
-                dark:bg-gray-700/70 dark:text-gray-200 ${
-                  tv ? "size-[clamp(1.75rem,3.8vh,2.5rem)] text-[clamp(0.9rem,2vh,1.15rem)]" : "size-8 text-sm"
+              className={`flex shrink-0 items-center justify-center rounded-xl bg-slate-100 font-black text-slate-600
+                shadow-inner dark:bg-gray-700/70 dark:text-gray-200 ${
+                  tv
+                    ? "size-[clamp(1.9rem,4vh,2.7rem)] text-[clamp(0.9rem,2vh,1.15rem)]"
+                    : "size-8 text-sm"
                 }`}
             >
               {student.rank}
@@ -242,19 +255,21 @@ const Reports: React.FC = () => {
             <Avatar
               name={student.name}
               url={student.avatarUrl}
-              className={`shrink-0 ${tv ? "size-[clamp(1.75rem,4.2vh,2.75rem)]" : "size-9"}`}
+              className={`shrink-0 rounded-full ring-2 ring-white/80 dark:ring-slate-900/80 ${
+                tv ? "size-[clamp(2rem,4.4vh,3rem)]" : "size-9"
+              }`}
             />
             <div className="min-w-0 flex-1">
               <h3
                 className={`truncate font-bold leading-tight text-slate-900 dark:text-white ${
-                  tv ? "text-[clamp(0.95rem,2.1vh,1.3rem)]" : "text-sm"
+                  tv ? "text-[clamp(0.95rem,2.15vh,1.35rem)]" : "text-sm"
                 }`}
               >
                 {student.name}
               </h3>
               <p
                 className={`truncate text-gray-500 dark:text-gray-400 ${
-                  tv ? "text-[clamp(0.7rem,1.4vh,0.875rem)]" : "text-xs"
+                  tv ? "text-[clamp(0.72rem,1.5vh,0.9rem)]" : "text-xs"
                 }`}
               >
                 {student.group}
@@ -263,13 +278,15 @@ const Reports: React.FC = () => {
             <div className="shrink-0 text-center">
               <p
                 className={`font-black leading-none text-emerald-600 dark:text-emerald-400 ${
-                  tv ? "text-[clamp(1.1rem,2.6vh,1.6rem)]" : "text-lg"
+                  tv ? "text-[clamp(1.1rem,2.8vh,1.7rem)]" : "text-lg"
                 }`}
               >
                 {valueOf(student)}
               </p>
               {daysOf(student) && (
-                <span className={`text-gray-400 dark:text-gray-500 ${tv ? "text-xs" : "text-[10px]"}`}>
+                <span
+                  className={`block text-gray-400 dark:text-gray-500 ${tv ? "text-[0.7rem]" : "text-[10px]"}`}
+                >
                   {daysOf(student)}
                 </span>
               )}
@@ -284,7 +301,10 @@ const Reports: React.FC = () => {
     leaderboard.isPending ? (
       <LoadingState />
     ) : leaderboard.isError ? (
-      <ErrorState error={leaderboard.error} onRetry={() => void leaderboard.refetch()} />
+      <ErrorState
+        error={leaderboard.error}
+        onRetry={() => void leaderboard.refetch()}
+      />
     ) : students.length === 0 ? (
       <EmptyState message={t("leaderboard.empty")} icon="🏆" />
     ) : (
@@ -296,7 +316,10 @@ const Reports: React.FC = () => {
           valueOf={valueOf}
           captionOf={(s) => daysOf(s) ?? label}
         />
-        {rankGrid(tv ? restOfStudents.slice(0, TV_REST_LIMIT) : restOfStudents, tv)}
+        {rankGrid(
+          tv ? restOfStudents.slice(0, TV_REST_LIMIT) : restOfStudents,
+          tv,
+        )}
       </>
     );
 
@@ -343,7 +366,11 @@ const Reports: React.FC = () => {
           <ThemeSwitch
             dark={tvTheme === "dark"}
             onToggle={toggleTvTheme}
-            label={t(tvTheme === "dark" ? "leaderboard.tv.lightMode" : "leaderboard.tv.darkMode")}
+            label={t(
+              tvTheme === "dark"
+                ? "leaderboard.tv.lightMode"
+                : "leaderboard.tv.darkMode",
+            )}
           />
           {/* ملء الشاشة لا يُطلب إلا بنقرة: حساب العرض يدخل الوضع تلقائياً بلا نقرة، فيحتاج هذا الزر */}
           {!isFullscreen && (
@@ -381,7 +408,9 @@ const Reports: React.FC = () => {
           <h1 className="text-2xl sm:text-3xl font-bold mb-1 dark:text-white">
             {t("leaderboard.title")}
           </h1>
-          <p className="text-gray-500 dark:text-gray-300 mt-1">{t("leaderboard.subtitle")}</p>
+          <p className="text-gray-500 dark:text-gray-300 mt-1">
+            {t("leaderboard.subtitle")}
+          </p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -453,7 +482,15 @@ const Reports: React.FC = () => {
  * الموضع منطقيّ (start) لا أيمن/أيسر، فينزلق المقبض في الاتجاه الصحيح
  * بالعربية والإنجليزية معاً.
  */
-function ThemeSwitch({ dark, onToggle, label }: { dark: boolean; onToggle: () => void; label: string }) {
+function ThemeSwitch({
+  dark,
+  onToggle,
+  label,
+}: {
+  dark: boolean;
+  onToggle: () => void;
+  label: string;
+}) {
   return (
     <button
       type="button"

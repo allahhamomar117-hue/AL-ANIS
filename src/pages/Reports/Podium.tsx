@@ -19,7 +19,15 @@ export interface PodiumStudent {
  */
 const MEDALS: Record<
   number,
-  { frame: string; glow: string; tint: string; value: string; pedestal: string; icon: string; order: string }
+  {
+    frame: string;
+    glow: string;
+    tint: string;
+    value: string;
+    pedestal: string;
+    icon: string;
+    order: string;
+  }
 > = {
   1: {
     frame: "from-yellow-200 via-yellow-400 to-amber-600",
@@ -70,23 +78,23 @@ const MEDALS: Record<
 const SIZES = {
   tv: {
     first: {
-      avatar: "size-[clamp(3.5rem,10vh,7rem)]",
-      crown: "text-[clamp(1.5rem,4vh,3rem)]",
-      name: "text-[clamp(1.1rem,2.8vh,2rem)]",
-      value: "text-[clamp(1.8rem,5.5vh,3.75rem)]",
-      pad: "px-4 py-[1.6vh]",
-      pedestal: "h-[6vh]",
+      avatar: "size-[clamp(4rem,11vh,7.5rem)]",
+      crown: "text-[clamp(1.7rem,4.2vh,3.2rem)]",
+      name: "text-[clamp(1.2rem,2.9vh,2.1rem)]",
+      value: "text-[clamp(1.9rem,5.9vh,3.9rem)]",
+      pad: "px-5 py-[1.8vh]",
+      pedestal: "h-[6.5vh]",
     },
     other: {
-      avatar: "size-[clamp(3rem,7.5vh,5rem)]",
-      crown: "text-[clamp(1.1rem,2.8vh,2rem)]",
-      name: "text-[clamp(1rem,2.3vh,1.6rem)]",
-      value: "text-[clamp(1.4rem,4vh,2.75rem)]",
-      pad: "px-3 py-[1.4vh]",
-      pedestal: "h-[3.5vh]",
+      avatar: "size-[clamp(3.4rem,8.5vh,5.5rem)]",
+      crown: "text-[clamp(1.2rem,3vh,2.1rem)]",
+      name: "text-[clamp(1.05rem,2.5vh,1.7rem)]",
+      value: "text-[clamp(1.5rem,4.5vh,2.9rem)]",
+      pad: "px-4 py-[1.6vh]",
+      pedestal: "h-[4vh]",
     },
-    caption: "text-[clamp(0.75rem,1.4vh,1rem)]",
-    rank: "text-[clamp(1rem,2.6vh,1.75rem)]",
+    caption: "text-[clamp(0.8rem,1.5vh,1.05rem)]",
+    rank: "text-[clamp(1.1rem,2.8vh,1.9rem)]",
   },
   page: {
     first: {
@@ -111,7 +119,8 @@ const SIZES = {
 } as const;
 
 /** حركة الظهور. الثالث ثم الثاني ثم الأول أخيراً — الإعلان يبلغ ذروته بالبطل. */
-const enter = "animate-in fade-in slide-in-from-bottom-8 duration-700 fill-mode-both motion-reduce:animate-none";
+const enter =
+  "animate-in fade-in slide-in-from-bottom-8 duration-700 fill-mode-both motion-reduce:animate-none";
 const delayByRank: Record<number, number> = { 3: 100, 2: 300, 1: 550 };
 
 /**
@@ -141,7 +150,7 @@ export default function Podium<T extends PodiumStudent>({
     <div
       className={`relative isolate w-full overflow-hidden ${
         tv
-          ? "shrink-0"
+          ? "shrink-0 px-[1.5vh] pb-[1vh] pt-[0.5vh]"
           : "mx-auto mb-8 max-w-5xl rounded-3xl border border-amber-200/60 px-2 pt-6 shadow-xl md:px-8 md:pt-10 " +
             "bg-[radial-gradient(ellipse_at_top,#fffbeb_0%,#ffffff_50%,#f1f5f9_100%)] " +
             "dark:border-white/10 dark:shadow-2xl " +
@@ -155,7 +164,9 @@ export default function Podium<T extends PodiumStudent>({
           dark:bg-[radial-gradient(ellipse_at_top,rgba(250,204,21,0.22),transparent_65%)]"
       />
 
-      <div className={`mx-auto flex items-end justify-center gap-2 md:gap-5 ${tv ? "max-w-6xl" : ""}`}>
+      <div
+        className={`mx-auto flex items-end justify-center gap-[clamp(0.5rem,1.5vh,1.25rem)] ${tv ? "max-w-6xl" : "md:gap-5"}`}
+      >
         {students.map((student) => {
           const medal = MEDALS[student.rank] ?? MEDALS[3];
           const first = student.rank === 1;
@@ -164,18 +175,26 @@ export default function Podium<T extends PodiumStudent>({
           return (
             <div
               key={`${animationKey}-${student.id}`}
-              style={{ animationDelay: `${delayByRank[student.rank] ?? 0}ms` } as CSSProperties}
+              style={
+                {
+                  animationDelay: `${delayByRank[student.rank] ?? 0}ms`,
+                } as CSSProperties
+              }
               className={`flex min-w-0 flex-col items-center ${medal.order} ${enter} ${
                 first ? "z-10 flex-[1.25] zoom-in-90" : "flex-1"
               } ${tv ? (first ? "max-w-md" : "max-w-xs") : first ? "max-w-xs" : "max-w-60"}`}
             >
               {/* البطاقة: إطار متدرّج بسماكة 2px يحيط بزجاج أبيض/داكن */}
-              <div className={`relative w-full rounded-3xl bg-linear-to-b p-0.5 ${medal.frame} ${medal.glow}`}>
+              <div
+                className={`relative w-full rounded-3xl bg-linear-to-b p-0.5 ${medal.frame} ${medal.glow}`}
+              >
                 <div
                   className={`relative overflow-hidden rounded-[calc(1.5rem-2px)] bg-white/85 text-center dark:bg-slate-950/80
                     backdrop-blur-xl ${size.pad}`}
                 >
-                  <div className={`pointer-events-none absolute inset-0 bg-linear-to-b ${medal.tint}`} />
+                  <div
+                    className={`pointer-events-none absolute inset-0 bg-linear-to-b ${medal.tint}`}
+                  />
                   <div className="pointer-events-none absolute inset-x-0 top-0 h-1/3 bg-linear-to-b from-white/70 to-transparent dark:from-white/10" />
                   {first && (
                     <div
@@ -187,16 +206,20 @@ export default function Podium<T extends PodiumStudent>({
                   <div className="relative">
                     {first ? (
                       <FaCrown
-                        className={`podium-float mx-auto mb-1 ${medal.icon} ${size.crown}
+                        className={`podium-float mx-auto mb-1.5 ${medal.icon} ${size.crown}
                           drop-shadow-[0_2px_8px_rgba(217,119,6,0.45)] dark:drop-shadow-[0_0_14px_rgba(250,204,21,0.85)]`}
                       />
                     ) : (
-                      <FaMedal className={`mx-auto mb-1 ${medal.icon} ${size.crown} drop-shadow`} />
+                      <FaMedal
+                        className={`mx-auto mb-1.5 ${medal.icon} ${size.crown} drop-shadow`}
+                      />
                     )}
 
                     {/* الصورة بحلقة معدنية بلون المركز */}
-                    <div className={`mx-auto w-fit rounded-full bg-linear-to-br p-0.75 ${medal.frame}`}>
-                      <div className="rounded-full bg-white p-0.5 dark:bg-slate-950">
+                    <div
+                      className={`mx-auto w-fit rounded-full bg-linear-to-br p-[clamp(0.22rem,0.75vh,0.5rem)] ${medal.frame}`}
+                    >
+                      <div className="rounded-full bg-white p-[clamp(0.12rem,0.35vh,0.25rem)] dark:bg-slate-950">
                         <Avatar
                           name={student.name}
                           url={student.avatarUrl}
@@ -206,7 +229,9 @@ export default function Podium<T extends PodiumStudent>({
                       </div>
                     </div>
 
-                    <h2 className={`mt-2 truncate font-black leading-tight text-slate-900 dark:text-white ${size.name}`}>
+                    <h2
+                      className={`mt-2.5 truncate font-black leading-tight text-slate-900 dark:text-white ${size.name}`}
+                    >
                       {student.name}
                     </h2>
                     <div
@@ -215,7 +240,9 @@ export default function Podium<T extends PodiumStudent>({
                     >
                       {valueOf(student)}
                     </div>
-                    <div className={`mt-1 truncate font-bold text-slate-500 dark:text-white/60 ${sizes.caption}`}>
+                    <div
+                      className={`mt-1 truncate font-bold text-slate-500 dark:text-white/60 ${sizes.caption}`}
+                    >
                       {captionOf(student)}
                     </div>
                   </div>
@@ -227,7 +254,11 @@ export default function Podium<T extends PodiumStudent>({
                 className={`mt-2 flex w-[86%] items-start justify-center rounded-t-xl border-x border-t border-black/5 dark:border-white/15
                   bg-linear-to-b pt-0.5 ${medal.pedestal} ${size.pedestal}`}
               >
-                <span className={`font-black text-slate-900/70 dark:text-white/90 dark:drop-shadow ${sizes.rank}`}>{student.rank}</span>
+                <span
+                  className={`font-black text-slate-900/70 dark:text-white/90 dark:drop-shadow ${sizes.rank}`}
+                >
+                  {student.rank}
+                </span>
               </div>
             </div>
           );
