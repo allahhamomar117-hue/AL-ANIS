@@ -80,11 +80,27 @@ function assertHalaqaGiven(halaqaId: number | null | undefined): asserts halaqaI
 
 async function nextStudentCode(): Promise<string> {
   const year = new Date().getFullYear();
-  const row = await db().get<{ n: number }>(
-    "SELECT COUNT(*) AS n FROM students WHERE code LIKE ?",
+  const rows = await db().all<{ code: string }>(
+    "SELECT code FROM students WHERE code LIKE ?",
     [`${year}%`]
   );
-  return `${year}${String((row?.n ?? 0) + 1).padStart(3, "0")}`;
+  const prefix = String(year);
+  const highest = rows.reduce((max, row) => {
+    const suffix = row.code.slice(prefix.length);
+    if (!/^\d+$/.test(suffix)) return max;
+    return Math.max(max, Number(suffix));
+  }, 0);
+
+  return `${prefix}${String(highest + 1).padStart(3, "0")}`;
+}
+
+function isStudentCodeConflict(error: unknown): boolean {
+  const databaseError = error as { code?: string; constraint?: string; message?: string };
+  return (
+    databaseError.constraint === "students_code_key" ||
+    (databaseError.code === "SQLITE_CONSTRAINT_UNIQUE" &&
+      databaseError.message?.includes("students.code") === true)
+  );
 }
 
 /** GET /api/students?halaqaId=&search= — قائمة الطلاب (شكل صفحة كل الطلاب). */
@@ -252,21 +268,28 @@ studentsRouter.post(
     const body = parse(studentBody, req.body);
     assertHalaqaGiven(body.halaqa_id);
     await assertHalaqaAccess(req.user!, body.halaqa_id);
-    const code = body.code ?? (await nextStudentCode());
-
-    const info = await db().run(
-      `INSERT INTO students (code, name, halaqa_id, birth_date, student_phone, parent_phone, avatar_url)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        code,
-        body.name,
-        body.halaqa_id,
-        body.birth_date ?? null,
-        body.student_phone ?? null,
-        body.parent_phone ?? null,
-        body.avatar_url ?? null,
-      ]
-    );
+    let info;
+    for (let attempt = 0; ; attempt++) {
+      const code = body.code ?? (await nextStudentCode());
+      try {
+        info = await db().run(
+          `INSERT INTO students (code, name, halaqa_id, birth_date, student_phone, parent_phone, avatar_url)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [
+            code,
+            body.name,
+            body.halaqa_id,
+            body.birth_date ?? null,
+            body.student_phone ?? null,
+            body.parent_phone ?? null,
+            body.avatar_url ?? null,
+          ]
+        );
+        break;
+      } catch (error) {
+        if (body.code || attempt >= 9 || !isStudentCodeConflict(error)) throw error;
+      }
+    }
 
     res.status(201).json({
       data: await db().get(`${SELECT_STUDENT} WHERE s.id = ?`, [info.lastInsertRowid]),
