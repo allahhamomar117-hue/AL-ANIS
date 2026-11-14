@@ -24,6 +24,9 @@ import HalaqatPage from "./pages/Halaqat/HalaqatPage";
 import AwqafExams from "./pages/Awqaf/AwqafExams";
 import StatisticsDashboard from "./pages/Statistics/StatisticsDashboard";
 import LoginPage from "./pages/logIn/LoginPage";
+import TribesAdmin from "./pages/TribesAdmin/TribesAdmin";
+import TribesTV from "./pages/TribesTV/TribesTV";
+import TribesMobile from "./pages/TribesMobile/TribesMobile";
 
 const MainRoutes = () => {
   return (
@@ -32,11 +35,17 @@ const MainRoutes = () => {
 
       {/* ===== مسارات عامة (بلا حماية) ===== */}
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/:lang/tribes-tv" element={<TribesTV />} />
+      <Route path="/:lang/tribes-mobile" element={<TribesMobile />} />
 
       {/* المسارات القديمة تُحوَّل إلى الجديدة حفاظاً على الروابط المحفوظة */}
       <Route path="/LogInEnter" element={<Navigate to="/login" replace />} />
       <Route path="/LogInEnd" element={<Navigate to="/login" replace />} />
       <Route path="/login/verify" element={<Navigate to="/login" replace />} />
+      <Route
+        path="/admin/tribes"
+        element={<Navigate to="/ar/admin/tribes" replace />}
+      />
 
       {/* ===== مسارات التطبيق: كلها خلف حارس الجلسة ===== */}
       <Route
@@ -49,7 +58,10 @@ const MainRoutes = () => {
       >
         <Route index element={<Dashboard />} />
         <Route path="attendance" element={<AttendancePage />} />
-        <Route path="attendance-groups/attendance-record" element={<AttendanceRecord />} />
+        <Route
+          path="attendance-groups/attendance-record"
+          element={<AttendanceRecord />}
+        />
         <Route path="attendance-groups" element={<AttendanceGroups />} />
         <Route path="attendance-groups/:id" element={<AttendancePage />} />
 
@@ -60,11 +72,17 @@ const MainRoutes = () => {
         <Route path="assignments-groups" element={<AssignmentGroups />} />
         {/* السجلّ قبل :id — وإلا ابتلعه المسار المتغيّر فصار "assignments-record"
             معرّفَ حلقة (NaN) وفُتحت ورقةٌ فارغة بدل الصفحة. */}
-        <Route path="assignments-groups/assignments-record" element={<AssignmentsRecords />} />
+        <Route
+          path="assignments-groups/assignments-record"
+          element={<AssignmentsRecords />}
+        />
         <Route path="assignments-groups/:id" element={<AssignmentsPage />} />
 
         <Route path="recitation-groups" element={<RecitationGroups />} />
-        <Route path="recitation-groups/recitation-records" element={<RecitationRecords />} />
+        <Route
+          path="recitation-groups/recitation-records"
+          element={<RecitationRecords />}
+        />
         <Route path="recitation-groups/:id" element={<RecitationPage />} />
         <Route
           path="recitation-groups/:groupId/students/:studentId"
@@ -102,6 +120,15 @@ const MainRoutes = () => {
           }
         />
         <Route path="settings" element={<SettingsPage />} />
+
+        <Route
+          path="admin/tribes"
+          element={
+            <RequireManager>
+              <TribesAdmin />
+            </RequireManager>
+          }
+        />
 
         {/* إدارة الحلقات: للمدير وحده — منها تُشتقّ كل قوائم اختيار الحلقات */}
         <Route
