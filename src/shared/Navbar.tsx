@@ -16,6 +16,7 @@ import {
   FaStar,
   FaFileAlt,
   FaSignOutAlt,
+  FaFlag,
 } from "react-icons/fa";
 
 import ConfirmDialog from "./ConfirmDialog";
@@ -186,6 +187,13 @@ function StaffNavbar() {
       icon: FaCertificate,
       path: "awqaf",
       // شهادات الأوقاف شأنٌ يخصّ المعهد كلّه لا دورةً بعينها
+      superAdminOnly: true,
+    },
+    {
+      key: "tribes-admin",
+      title: "إدارة القبائل",
+      icon: FaFlag,
+      path: "admin/tribes",
       superAdminOnly: true,
     },
   ].filter(
