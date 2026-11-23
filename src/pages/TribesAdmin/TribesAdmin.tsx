@@ -7,6 +7,7 @@ import {
   Plus,
   Save,
   Shield,
+  Trash2,
   Users,
   X,
 } from "lucide-react";
@@ -14,6 +15,8 @@ import { studentsApi } from "@/lib/api";
 import type { Student } from "@/lib/api/types";
 import {
   badgesService,
+  deleteBadge,
+  deleteTribe,
   tribeStudentsService,
   tribesService,
 } from "@/services/tribesService";
@@ -115,6 +118,32 @@ export default function TribesAdmin() {
       });
       setEditingBadge(null);
       setBadgeForm(emptyBadge);
+    },
+  });
+
+  const removeTribe = useMutation({
+    mutationFn: (id: number) => deleteTribe(id),
+    onSuccess: async (_result, id) => {
+      await queryClient.invalidateQueries({
+        queryKey: ["tribes-admin", "tribes"],
+      });
+      if (editingTribe?.id === id) {
+        setEditingTribe(null);
+        setTribeForm(emptyTribe);
+      }
+    },
+  });
+
+  const removeBadge = useMutation({
+    mutationFn: (id: number) => deleteBadge(id),
+    onSuccess: async (_result, id) => {
+      await queryClient.invalidateQueries({
+        queryKey: ["tribes-admin", "badges"],
+      });
+      if (editingBadge?.id === id) {
+        setEditingBadge(null);
+        setBadgeForm(emptyBadge);
+      }
     },
   });
 
@@ -358,6 +387,11 @@ export default function TribesAdmin() {
                   onRetry={() => void tribesQuery.refetch()}
                   empty={tribes.length === 0}
                 />
+                {removeTribe.isError && (
+                  <div className="px-5 pb-3">
+                    <InlineError error={removeTribe.error} />
+                  </div>
+                )}
                 {tribes.length > 0 && (
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-140 text-right text-sm">
@@ -394,6 +428,7 @@ export default function TribesAdmin() {
                               {tribe.bg_image_url || "—"}
                             </td>
                             <td className="px-5 py-3">
+                              <div className="flex items-center gap-1">
                               <button
                                 type="button"
                                 title={`تعديل ${tribe.name}`}
@@ -402,6 +437,20 @@ export default function TribesAdmin() {
                               >
                                 <Pencil size={16} />
                               </button>
+                              <button
+                                type="button"
+                                title={`حذف ${tribe.name}`}
+                                aria-label={`حذف ${tribe.name}`}
+                                onClick={() => {
+                                  if (window.confirm(`هل تريد حذف قبيلة «${tribe.name}»؟`)) {
+                                    removeTribe.mutate(tribe.id);
+                                  }
+                                }}
+                                className="inline-flex size-9 items-center justify-center rounded-md text-red-600 transition hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -508,6 +557,11 @@ export default function TribesAdmin() {
                   onRetry={() => void badgesQuery.refetch()}
                   empty={badges.length === 0}
                 />
+                {removeBadge.isError && (
+                  <div className="px-5 pb-3">
+                    <InlineError error={removeBadge.error} />
+                  </div>
+                )}
                 {badges.length > 0 && (
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-125 text-right text-sm">
@@ -542,6 +596,7 @@ export default function TribesAdmin() {
                               {badge.icon_url || "—"}
                             </td>
                             <td className="px-5 py-3">
+                              <div className="flex items-center gap-1">
                               <button
                                 type="button"
                                 title={`تعديل ${badge.title}`}
@@ -550,6 +605,20 @@ export default function TribesAdmin() {
                               >
                                 <Pencil size={16} />
                               </button>
+                              <button
+                                type="button"
+                                title={`حذف ${badge.title}`}
+                                aria-label={`حذف ${badge.title}`}
+                                onClick={() => {
+                                  if (window.confirm(`هل تريد حذف الدرع «${badge.title}»؟`)) {
+                                    removeBadge.mutate(badge.id);
+                                  }
+                                }}
+                                className="inline-flex size-9 items-center justify-center rounded-md text-red-600 transition hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                              </div>
                             </td>
                           </tr>
                         ))}

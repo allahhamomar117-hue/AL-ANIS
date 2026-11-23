@@ -305,7 +305,7 @@ function StaffNavbar() {
             isArabic ? "rtl" : "ltr"
           }`}
       >
-        <div className="flex items-stretch">
+        <div className="flex flex-nowrap items-stretch overflow-x-auto scrollbar-hide">
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.path);
@@ -313,7 +313,7 @@ function StaffNavbar() {
               <button
                 key={item.key}
                 onClick={() => navigate(`/${lang}/${item.path}`)}
-                className={`flex min-h-[60px] flex-1 flex-col items-center justify-center gap-1 px-1 py-2
+                className={`flex min-h-15 min-w-16 shrink-0 flex-col items-center justify-center gap-1 px-1 py-2
                   text-[11px] font-semibold transition active:scale-95 ${
                     active
                       ? "text-emerald-600 dark:text-emerald-300"

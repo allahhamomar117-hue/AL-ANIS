@@ -62,6 +62,12 @@ export const tribesService = createTableService<Tribe>("tribes");
 export const badgesService = createTableService<Badge>("badges");
 export const tribeBadgesService = createTableService<TribeBadge>("tribe_badges");
 
+export const deleteTribe = (id: number) =>
+  request<void>("tribes", "DELETE", { id: `eq.${id}` });
+
+export const deleteBadge = (id: number) =>
+  request<void>("badges", "DELETE", { id: `eq.${id}` });
+
 export const tribeStudentsService = {
   list: () => request<TribeStudent[]>("tribe_students", "GET"),
   assign: async (studentId: number, tribeId: number) => {
