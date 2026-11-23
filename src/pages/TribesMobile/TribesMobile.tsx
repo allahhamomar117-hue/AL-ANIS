@@ -98,10 +98,18 @@ export default function TribesMobile() {
                     numberFormat.format(index + 1)
                   )}
                 </span>
-                <span
-                  className="size-2.5 shrink-0 rounded-full"
-                  style={{ backgroundColor: tribe.theme_color || "#34d399" }}
-                />
+                {tribe.bg_image_url ? (
+                  <img
+                    src={tribe.bg_image_url}
+                    alt=""
+                    className="h-8 w-8 shrink-0 object-contain"
+                  />
+                ) : (
+                  <span
+                    className="size-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: tribe.theme_color || "#34d399" }}
+                  />
+                )}
                 <h2 className="min-w-0 flex-1 truncate text-sm font-bold">
                   {tribe.name}
                 </h2>
