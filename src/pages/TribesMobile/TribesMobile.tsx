@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Award, ChevronDown, Flag, RefreshCw, Trophy, X } from "lucide-react";
+import { Award, ChevronDown, Crown, Flag, RefreshCw, Shield, X } from "lucide-react";
 import { useParams } from "react-router-dom";
 import {
   badgesService,
   tribeLogsService,
   tribesService,
 } from "@/services/tribesService";
-import type { Badge } from "@/types/tribes";
+import type { Badge, Tribe } from "@/types/tribes";
 
 const numberFormat = new Intl.NumberFormat("ar");
 
@@ -36,24 +36,31 @@ export default function TribesMobile() {
   );
   const logs = logsQuery.data ?? [];
   const badges = badgesQuery.data ?? [];
+  const leadingScore = tribes[0]?.score ?? 0;
 
   return (
     <main
       dir={lang === "ar" ? "rtl" : "ltr"}
-      className="min-h-dvh bg-[#0a0e11] text-white"
+      className="min-h-dvh bg-[#080b0f] text-white"
     >
-      <div className="mx-auto max-w-xl px-4 pb-10 pt-7 sm:px-6">
-        <header className="mb-6 border-b border-white/10 pb-5">
-          <p className="flex items-center gap-2 text-xs font-black text-emerald-300">
-            <Flag size={15} /> نظام القبائل
-          </p>
-          <div className="mt-3 flex items-end justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-black">لوحة الترتيب</h1>
-              <p className="mt-1 text-xs text-white/45">
-                تحدٍّ يتغير مع كل راية.
+      <div className="mx-auto max-w-2xl px-4 pb-12 pt-5 sm:px-6 sm:pt-8">
+        <header className="relative mb-7 overflow-hidden rounded-xl border border-white/10 bg-[#0f141a] px-5 py-5 sm:px-6">
+          <span className="absolute inset-y-4 right-0 w-0.75 rounded-full bg-linear-to-b from-emerald-300 via-cyan-400 to-amber-300" />
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="flex items-center gap-2 text-[10px] font-black tracking-[0.16em] text-emerald-300 sm:text-xs">
+                <Flag size={14} /> ساحة التحدي
+              </p>
+              <h1 className="mt-2 text-2xl font-black sm:text-3xl">لوحة القبائل</h1>
+              <p className="mt-1 text-xs text-white/45 sm:text-sm">
+                كل راية تقرّب قبيلتك من القمة.
               </p>
             </div>
+            <div className="flex shrink-0 items-center gap-3">
+              <div className="hidden text-left sm:block">
+                <p className="text-[10px] font-bold text-white/40">القبائل المتنافسة</p>
+                <p className="mt-1 text-xl font-black tabular-nums">{numberFormat.format(tribes.length)}</p>
+              </div>
             <button
               type="button"
               title="تحديث الآن"
@@ -62,14 +69,15 @@ export default function TribesMobile() {
                 void logsQuery.refetch();
                 void badgesQuery.refetch();
               }}
-              className="flex size-10 items-center justify-center rounded-md border border-white/10 text-white/65 transition hover:bg-white/10 hover:text-white"
+              className="flex size-10 items-center justify-center rounded-lg border border-white/10 bg-white/3 text-white/65 transition hover:border-emerald-300/30 hover:bg-emerald-300/10 hover:text-emerald-200 active:scale-95"
             >
               <RefreshCw size={17} />
             </button>
+            </div>
           </div>
         </header>
 
-        <section aria-label="ترتيب القبائل" className="space-y-2">
+        <section aria-label="ترتيب القبائل" className="space-y-3">
           {tribesQuery.isPending ? (
             <p className="py-8 text-center text-sm text-white/50">
               جارٍ تحميل الترتيب...
@@ -85,52 +93,20 @@ export default function TribesMobile() {
             </p>
           ) : (
             tribes.map((tribe, index) => (
-              <article
+              <TribeRankCard
                 key={tribe.id}
-                className="flex items-center gap-3 rounded-md border border-white/10 bg-[#11171b] p-3"
-              >
-                <span
-                  className={`flex size-9 shrink-0 items-center justify-center rounded-md text-sm font-black ${index === 0 ? "bg-amber-300 text-black" : "bg-white/5 text-white/65"}`}
-                >
-                  {index === 0 ? (
-                    <Trophy size={17} />
-                  ) : (
-                    numberFormat.format(index + 1)
-                  )}
-                </span>
-                {tribe.bg_image_url ? (
-                  <img
-                    src={tribe.bg_image_url}
-                    alt=""
-                    className="h-8 w-8 shrink-0 object-contain"
-                  />
-                ) : (
-                  <span
-                    className="size-2.5 shrink-0 rounded-full"
-                    style={{ backgroundColor: tribe.theme_color || "#34d399" }}
-                  />
-                )}
-                <h2 className="min-w-0 flex-1 truncate text-sm font-bold">
-                  {tribe.name}
-                </h2>
-                <div className="text-left">
-                  <p
-                    className="text-xl font-black tabular-nums"
-                    style={{ color: tribe.theme_color || "#34d399" }}
-                  >
-                    {numberFormat.format(tribe.score)}
-                  </p>
-                  <p className="text-[9px] text-white/40">راية</p>
-                </div>
-              </article>
+                tribe={tribe}
+                rank={index + 1}
+                leadingScore={leadingScore}
+              />
             ))
           )}
         </section>
 
         <section className="mt-7">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-sm font-black">
-              <Award size={17} className="text-amber-300" /> بنك الدروع
+            <h2 className="flex items-center gap-2 text-sm font-black sm:text-base">
+              <Shield size={17} className="text-amber-300" /> بنك الدروع
             </h2>
             <span className="text-[10px] text-white/40">
               اضغط لمعرفة طريقة الحصول
@@ -150,28 +126,30 @@ export default function TribesMobile() {
               لا توجد دروع متاحة بعد.
             </p>
           ) : (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
               {badges.map((badge) => (
                 <button
                   key={badge.id}
                   type="button"
                   onClick={() => setSelectedBadge(badge)}
-                  className="flex min-w-0 items-center gap-3 rounded-md border border-amber-300/15 bg-[#11171b] p-3 text-right transition hover:border-amber-300/50 hover:bg-[#171e23] focus-visible:outline-2 focus-visible:outline-amber-300"
+                  className="flex min-h-19 min-w-0 items-center gap-3 rounded-xl border border-white/10 bg-white/3 p-3 text-right transition hover:border-amber-300/35 hover:bg-white/6 active:scale-95 focus-visible:outline-2 focus-visible:outline-amber-300"
                 >
-                  {badge.icon_url ? (
-                    <img
-                      src={badge.icon_url}
-                      alt=""
-                      className="size-9 shrink-0 object-contain"
-                    />
-                  ) : (
-                    <Award size={28} className="shrink-0 text-amber-300" />
-                  )}
-                  <span className="min-w-0">
-                    <span className="block truncate text-xs font-bold">
+                  <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-amber-200/10 bg-amber-300/6">
+                    {badge.icon_url ? (
+                      <img
+                        src={badge.icon_url}
+                        alt=""
+                        className="size-8 object-contain"
+                      />
+                    ) : (
+                      <Award size={24} className="text-amber-300" />
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="line-clamp-2 text-xs font-bold leading-5 sm:text-sm">
                       {badge.title}
                     </span>
-                    <span className="mt-1 block text-[10px] text-amber-200/70">
+                    <span className="mt-1 block text-[10px] text-amber-200/70 sm:text-[11px]">
                       {numberFormat.format(badge.required_flags)} راية
                     </span>
                   </span>
@@ -308,6 +286,157 @@ export default function TribesMobile() {
         </div>
       )}
     </main>
+  );
+}
+
+function TribeRankCard({
+  tribe,
+  rank,
+  leadingScore,
+}: {
+  tribe: Tribe;
+  rank: number;
+  leadingScore: number;
+}) {
+  const accent = tribe.theme_color || "#34d399";
+  const progress =
+    leadingScore > 0
+      ? Math.min(100, Math.max(0, (tribe.score / leadingScore) * 100))
+      : 0;
+  const isLeader = rank === 1;
+
+  return (
+    <article
+      className={`relative isolate overflow-hidden rounded-xl border p-3.5 transition-colors ${
+        isLeader ? "shadow-[0_0_30px_rgba(245,158,11,0.12)]" : ""
+      }`}
+      style={{
+        backgroundImage: `linear-gradient(110deg, color-mix(in srgb, ${accent} 12%, #11171b), #11171b 64%, color-mix(in srgb, ${accent} 7%, #11171b))`,
+        borderColor: isLeader
+          ? "rgba(251, 191, 36, 0.38)"
+          : `color-mix(in srgb, ${accent} 24%, rgba(255, 255, 255, 0.1))`,
+      }}
+    >
+      <span
+        aria-hidden="true"
+        className="absolute inset-y-3 right-0 w-0.75 rounded-full"
+        style={{
+          backgroundColor: accent,
+          boxShadow: `0 0 16px ${accent}`,
+        }}
+      />
+      <div className="flex items-center gap-3 pr-2">
+        <RankMedal rank={rank} />
+        <span
+          className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-xl border"
+          style={{
+            backgroundColor: `color-mix(in srgb, ${accent} 15%, transparent)`,
+            borderColor: `color-mix(in srgb, ${accent} 30%, transparent)`,
+          }}
+        >
+          {tribe.bg_image_url ? (
+            <img
+              src={tribe.bg_image_url}
+              alt=""
+              className="size-8 object-contain"
+            />
+          ) : (
+            <span
+              className="size-3 rounded-full"
+              style={{ backgroundColor: accent, boxShadow: `0 0 12px ${accent}` }}
+            />
+          )}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <h2 className="max-w-full truncate text-sm font-black sm:text-base">
+              {tribe.name}
+            </h2>
+            {isLeader && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/20 bg-amber-400/10 px-2 py-0.5 text-[9px] font-bold text-amber-200">
+                <Crown size={11} /> المتصدر
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-[10px] text-white/40">
+            {isLeader ? "يحافظ على القمة" : `المركز ${numberFormat.format(rank)}`}
+          </p>
+        </div>
+        <div className="shrink-0 text-left">
+          <p
+            className="text-2xl font-black leading-none tabular-nums sm:text-3xl"
+            style={{ color: accent, textShadow: `0 0 18px ${accent}55` }}
+          >
+            {numberFormat.format(tribe.score)}
+          </p>
+          <p className="mt-1 text-[10px] font-semibold text-white/45">راية</p>
+        </div>
+      </div>
+      <div
+        className="mt-4 h-1 overflow-hidden rounded-full bg-white/[0.07]"
+        role="progressbar"
+        aria-label={`تقدم ${tribe.name} مقارنة بالمتصدر`}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(progress)}
+      >
+        <span
+          className="block h-full rounded-full transition-[width] duration-700"
+          style={{
+            width: `${progress}%`,
+            backgroundColor: accent,
+            boxShadow: `0 0 12px ${accent}`,
+          }}
+        />
+      </div>
+    </article>
+  );
+}
+
+function RankMedal({ rank }: { rank: number }) {
+  const tone =
+    rank === 1
+      ? {
+          frame: "from-amber-200 via-amber-400/80 to-yellow-700",
+          surface: "bg-amber-500/15 text-amber-300",
+        }
+      : rank === 2
+        ? {
+            frame: "from-slate-100 via-slate-300/80 to-slate-500",
+            surface: "bg-slate-300/10 text-slate-300",
+          }
+        : rank === 3
+          ? {
+              frame: "from-orange-200 via-orange-400/80 to-orange-700",
+              surface: "bg-orange-400/10 text-orange-300",
+            }
+          : {
+              frame: "from-slate-500/70 via-slate-600/50 to-slate-800",
+              surface: "bg-slate-800/80 text-slate-400",
+            };
+  const shieldShape = {
+    clipPath: "polygon(50% 0%, 96% 17%, 91% 72%, 50% 100%, 9% 72%, 4% 17%)",
+  };
+
+  return (
+    <span
+      className={`grid size-11 shrink-0 bg-linear-to-br p-px ${tone.frame} ${rank === 1 ? "drop-shadow-[0_0_10px_rgba(251,191,36,0.22)]" : ""}`}
+      style={shieldShape}
+      aria-label={`المركز ${numberFormat.format(rank)}`}
+    >
+      <span
+        className={`grid size-full place-items-center ${tone.surface}`}
+        style={shieldShape}
+      >
+        {rank === 1 ? (
+          <Crown size={18} strokeWidth={2.2} />
+        ) : (
+          <span className="text-sm font-black tabular-nums">
+            {numberFormat.format(rank)}
+          </span>
+        )}
+      </span>
+    </span>
   );
 }
 
