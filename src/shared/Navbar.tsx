@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import logo from "../assets/logo.png";
@@ -23,6 +24,7 @@ import ConfirmDialog from "./ConfirmDialog";
 import QuickPointsModal from "./QuickPointsModal";
 import DailyReportModal from "./DailyReportModal";
 import { useAuth } from "../context/authContext";
+import { halaqatApi } from "../lib/api";
 import { useIntensiveHalaqat } from "../lib/api/useIntensiveHalaqat";
 
 /**
@@ -109,7 +111,24 @@ function StaffNavbar() {
   const { t } = useTranslation();
 
   const isArabic = lang === "ar";
-  const { user: me, isSupervisor, canManageUsers, isSuperAdmin } = useAuth();
+  const {
+    user: me,
+    isSupervisor,
+    canManageUsers,
+    isSuperAdmin,
+    isTeacher,
+  } = useAuth();
+  const teacherHalaqat = useQuery({
+    queryKey: ["navbar", "tribe-award-halaqat"],
+    queryFn: () => halaqatApi.list({ mine: true }),
+    enabled: isTeacher,
+  });
+  const canTeacherAward =
+    isTeacher &&
+    (teacherHalaqat.data?.data ?? []).some(
+      (halaqa) =>
+        halaqa.stage === "middle_high" || halaqa.stage === "intensive",
+    );
 
   /*
    * المقرَّرات ميزة قسم المكثفة، فالتبويب يظهر لمن بين حلقاته حلقةٌ منه.
@@ -146,6 +165,8 @@ function StaffNavbar() {
      * منفصل عن الأعلام الثلاثة أعلاه لأنه يسأل عن الحلقات لا عن الحساب.
      */
     intensiveOnly?: boolean;
+    /** رابط إدارة القبائل: المدير العام أو مدرس الإعدادي/الثانوي/المكثفة. */
+    tribeAwardOnly?: boolean;
   }[] = [
     {
       key: "attendance",
@@ -198,13 +219,17 @@ function StaffNavbar() {
       title: "إدارة القبائل",
       icon: FaFlag,
       path: "admin/tribes",
-      superAdminOnly: true,
+      tribeAwardOnly: true,
     },
   ].filter(
     (item) =>
       !(isSupervisor && SUPERVISOR_HIDDEN.has(item.key)) &&
       !(item.adminOnly && !canManageUsers) &&
       !(item.superAdminOnly && !isSuperAdmin) &&
+      !(
+        item.tribeAwardOnly &&
+        !((isSuperAdmin && canManageUsers) || canTeacherAward)
+      ) &&
       !(item.intensiveOnly && !hasIntensive),
   );
 

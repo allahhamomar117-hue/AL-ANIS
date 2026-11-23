@@ -221,11 +221,11 @@ export default function TribesMobile() {
                           <span className="font-bold text-white">
                             {log.student_name}
                           </span>
-                          {" أضاف "}
+                          {log.student_id === null ? " منح القبيلة " : " أضاف "}
                           <strong className="font-black text-amber-300">
                             {numberFormat.format(log.flags_added)} رايات
                           </strong>
-                          {" إلى فريق قبيلته"}
+                          {log.student_id === null ? "" : " إلى فريق قبيلته"}
                         </p>
                         {log.reason && (
                           <p className="mt-1 truncate text-[10px] text-white/45">

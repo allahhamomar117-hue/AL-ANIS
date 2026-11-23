@@ -4,6 +4,7 @@ import { FaArrowLeft, FaCalendarAlt, FaUserCheck } from "react-icons/fa";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { attendanceApi } from "../../lib/api";
+import { awardTribeFlagsForEvent } from "@/services/tribesService";
 import { qk } from "../../lib/api/queryKeys";
 import type { AttendanceSheet, AttendanceStatus } from "../../lib/api/types";
 import { ErrorState, LoadingState } from "../../shared/QueryState";
@@ -60,7 +61,9 @@ export default function AttendancePage() {
             shadow transition cursor-pointer"
           >
             <FaArrowLeft />
-            <span>{isTeacher ? t("common.backHome") : t("attendancePage.back")}</span>
+            <span>
+              {isTeacher ? t("common.backHome") : t("attendancePage.back")}
+            </span>
           </button>
         </div>
       </div>
@@ -102,7 +105,12 @@ export default function AttendancePage() {
         <ErrorState error={sheet.error} onRetry={() => void sheet.refetch()} />
       ) : (
         /* المفتاح يعيد تهيئة النموذج عند تغيّر الحلقة أو التاريخ، فلا حاجة لمزامنته بـ useEffect */
-        <AttendanceSheetForm key={`${halaqaId}-${date}`} sheet={sheet.data} halaqaId={halaqaId} date={date} />
+        <AttendanceSheetForm
+          key={`${halaqaId}-${date}`}
+          sheet={sheet.data}
+          halaqaId={halaqaId}
+          date={date}
+        />
       )}
     </div>
   );
@@ -123,14 +131,24 @@ function AttendanceSheetForm({
   const { notify } = useToast();
 
   /** التعديلات المحلية قبل الحفظ: معرّف الطالب → حالته. */
-  const [statuses, setStatuses] = useState<Record<number, AttendanceStatus>>(() =>
-    Object.fromEntries(sheet.students.map((s) => [s.id, s.status]))
+  const [statuses, setStatuses] = useState<Record<number, AttendanceStatus>>(
+    () => Object.fromEntries(sheet.students.map((s) => [s.id, s.status])),
   );
   const [saved, setSaved] = useState(false);
 
   const save = useMutation({
-    mutationFn: () =>
-      attendanceApi.save({
+    mutationFn: async () => {
+      const newlyPresentStudentIds = sheet.students
+        .filter((student) => {
+          const wasPresent =
+            student.status === "present" || student.status === "late";
+          const nextStatus = statuses[student.id];
+          const isPresent = nextStatus === "present" || nextStatus === "late";
+          return !wasPresent && isPresent;
+        })
+        .map((student) => student.id);
+
+      await attendanceApi.save({
         halaqaId,
         date,
         // الأستاذ لا يُحضَّر: الحقل باقٍ في العقد على الخادم بقيمة ثابتة
@@ -139,8 +157,10 @@ function AttendanceSheetForm({
           id: Number(id),
           status,
         })),
-      }),
-    onSuccess: () => {
+      });
+      return newlyPresentStudentIds;
+    },
+    onSuccess: (newlyPresentStudentIds) => {
       setSaved(true);
       void queryClient.invalidateQueries({ queryKey: qk.attendance.all });
       // الحضور يمنح نقاطاً، فتتأثر أرصدة الطلاب والحلقات والتقارير
@@ -148,6 +168,16 @@ function AttendanceSheetForm({
       void queryClient.invalidateQueries({ queryKey: qk.halaqat.all });
       void queryClient.invalidateQueries({ queryKey: qk.reports.all });
       notify(t("attendancePage.saved"));
+      if (newlyPresentStudentIds.length > 0) {
+        void awardTribeFlagsForEvent(
+          newlyPresentStudentIds,
+          "student_attendance",
+          1,
+          `حضور ${date}`,
+        ).catch(() => {
+          notify("تم حفظ الحضور، لكن تعذر إضافة بعض رايات القبائل.", "error");
+        });
+      }
     },
   });
 
@@ -161,10 +191,11 @@ function AttendanceSheetForm({
     setSaved(false);
   };
 
-  const switchTextClass = i18n.language === "en" ? "text-[10px]" : "text-[12px]";
+  const switchTextClass =
+    i18n.language === "en" ? "text-[10px]" : "text-[12px]";
 
   const presentCount = Object.values(statuses).filter(
-    (s) => s === "present" || s === "late"
+    (s) => s === "present" || s === "late",
   ).length;
 
   return (
@@ -205,7 +236,11 @@ function AttendanceSheetForm({
             <div className="flex items-center gap-3">
               {/* الترتيب صغيراً فوق الصورة: الصورة أسرع في التعرّف على الطالب */}
               <div className="relative shrink-0">
-                <Avatar name={student.name} url={student.avatarUrl} className="size-10" />
+                <Avatar
+                  name={student.name}
+                  url={student.avatarUrl}
+                  className="size-10"
+                />
                 <span
                   className="absolute -top-1 -start-1 flex size-5 items-center justify-center rounded-full
                     bg-primary-light text-[10px] font-bold text-primary-dark ring-2 ring-white dark:ring-dark"
@@ -214,8 +249,12 @@ function AttendanceSheetForm({
                 </span>
               </div>
               <div className="min-w-0">
-                <span className="block truncate text-gray-800 dark:text-white">{student.name}</span>
-                <span className="block text-xs text-gray-400">#{student.code}</span>
+                <span className="block truncate text-gray-800 dark:text-white">
+                  {student.name}
+                </span>
+                <span className="block text-xs text-gray-400">
+                  #{student.code}
+                </span>
               </div>
             </div>
 
@@ -223,7 +262,10 @@ function AttendanceSheetForm({
               present={status === "present" || status === "late"}
               textClass={switchTextClass}
               onToggle={() =>
-                toggleStatus(student.id, status === "present" ? "absent" : "present")
+                toggleStatus(
+                  student.id,
+                  status === "present" ? "absent" : "present",
+                )
               }
             />
           </div>
@@ -280,7 +322,12 @@ function StatusSwitch({
 
   return (
     <label className="relative inline-flex items-center cursor-pointer w-20 h-8">
-      <input type="checkbox" className="sr-only" checked={present} onChange={onToggle} />
+      <input
+        type="checkbox"
+        className="sr-only"
+        checked={present}
+        onChange={onToggle}
+      />
 
       <div
         className={`absolute inset-0 rounded-full transition-colors duration-300 shadow-inner ${

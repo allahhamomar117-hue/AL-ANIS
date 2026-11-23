@@ -121,14 +121,7 @@ const MainRoutes = () => {
         />
         <Route path="settings" element={<SettingsPage />} />
 
-        <Route
-          path="admin/tribes"
-          element={
-            <RequireManager>
-              <TribesAdmin />
-            </RequireManager>
-          }
-        />
+        <Route path="admin/tribes" element={<TribesAdmin />} />
 
         {/* إدارة الحلقات: للمدير وحده — منها تُشتقّ كل قوائم اختيار الحلقات */}
         <Route

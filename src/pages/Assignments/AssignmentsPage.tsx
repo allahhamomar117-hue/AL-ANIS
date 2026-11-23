@@ -12,6 +12,7 @@ import {
   FaSave,
 } from "react-icons/fa";
 import { assignmentsApi } from "../../lib/api";
+import { awardTribeFlagsForEvent } from "@/services/tribesService";
 import { qk } from "../../lib/api/queryKeys";
 import type { AssignmentSheet } from "../../lib/api/types";
 import { todayLocal } from "../../lib/format/date";
@@ -79,7 +80,9 @@ export default function AssignmentsPage() {
 
         <button
           onClick={() => navigate(backTo)}
-          aria-label={isTeacher ? t("common.backHome") : t("assignmentsPage.back")}
+          aria-label={
+            isTeacher ? t("common.backHome") : t("assignmentsPage.back")
+          }
           className="flex shrink-0 cursor-pointer items-center gap-1 rounded-lg bg-gray-200 px-3 py-2
             text-sm font-semibold text-gray-700 shadow transition hover:bg-gray-300 dark:bg-dark
             dark:text-white dark:hover:bg-dark-dark"
@@ -119,7 +122,9 @@ export default function AssignmentsPage() {
 
         <button
           type="button"
-          onClick={() => navigate(`/${lang}/assignments-groups/assignments-record`)}
+          onClick={() =>
+            navigate(`/${lang}/assignments-groups/assignments-record`)
+          }
           aria-label={t("assignmentGroups.recordButton")}
           className="-my-2 -me-3 flex flex-1 cursor-pointer items-center justify-end gap-1.5 self-stretch
             rounded-e-xl py-2 pe-3 ps-2 text-gray-400 transition hover:bg-gray-50 hover:text-primary
@@ -178,13 +183,19 @@ function AssignmentSheetForm({
 
   /** التعديلات المحلية قبل الحفظ: معرّف الطالب → أنجز؟ */
   const [done, setDone] = useState<Record<number, boolean>>(() =>
-    Object.fromEntries(sheet.students.map((s) => [s.id, s.completedId !== null]))
+    Object.fromEntries(
+      sheet.students.map((s) => [s.id, s.completedId !== null]),
+    ),
   );
   const [saved, setSaved] = useState(false);
 
   const save = useMutation({
-    mutationFn: () =>
-      assignmentsApi.save({
+    mutationFn: async () => {
+      const newlyCompletedStudentIds = sheet.students
+        .filter((student) => done[student.id] && student.completedId === null)
+        .map((student) => student.id);
+
+      await assignmentsApi.save({
         halaqaId,
         title: title.trim(),
         date,
@@ -192,8 +203,10 @@ function AssignmentSheetForm({
         students: Object.entries(done)
           .filter(([, isDone]) => isDone)
           .map(([id]) => Number(id)),
-      }),
-    onSuccess: () => {
+      });
+      return newlyCompletedStudentIds;
+    },
+    onSuccess: (newlyCompletedStudentIds) => {
       setSaved(true);
       void queryClient.invalidateQueries({ queryKey: qk.assignments.all });
       /*
@@ -204,9 +217,25 @@ function AssignmentSheetForm({
       void queryClient.invalidateQueries({ queryKey: qk.halaqat.all });
       void queryClient.invalidateQueries({ queryKey: qk.reports.all });
       notify(t("assignmentsPage.saved"));
+      if (newlyCompletedStudentIds.length > 0) {
+        void awardTribeFlagsForEvent(
+          newlyCompletedStudentIds,
+          "assignment_completion",
+          1,
+          `إنجاز مقرر ${title.trim()}`,
+        ).catch(() => {
+          notify(
+            "تم حفظ إنجاز المقرر، لكن تعذر إضافة بعض رايات القبائل.",
+            "error",
+          );
+        });
+      }
     },
     onError: (error) =>
-      notify(error instanceof Error ? error.message : t("state.error"), "error"),
+      notify(
+        error instanceof Error ? error.message : t("state.error"),
+        "error",
+      ),
   });
 
   const toggle = (id: number) => {
@@ -220,7 +249,8 @@ function AssignmentSheetForm({
   };
 
   const doneCount = Object.values(done).filter(Boolean).length;
-  const switchTextClass = i18n.language === "en" ? "text-[10px]" : "text-[12px]";
+  const switchTextClass =
+    i18n.language === "en" ? "text-[10px]" : "text-[12px]";
 
   /** الحفظ يحتاج عنواناً: المقرَّر بلا عنوان لا يقول للأهالي شيئاً. */
   const canSave = title.trim().length > 0 && sheet.students.length > 0;
@@ -297,7 +327,11 @@ function AssignmentSheetForm({
           >
             <div className="flex min-w-0 items-center gap-2.5">
               <div className="relative shrink-0">
-                <Avatar name={student.name} url={student.avatarUrl} className="size-9" />
+                <Avatar
+                  name={student.name}
+                  url={student.avatarUrl}
+                  className="size-9"
+                />
                 <span
                   className="absolute -top-1 -start-1 flex size-4.5 items-center justify-center rounded-full
                     bg-primary-light text-[10px] font-bold text-primary-dark ring-2 ring-white dark:ring-dark"
@@ -341,7 +375,9 @@ function AssignmentSheetForm({
           bg-primary py-3.5 font-medium text-white transition hover:bg-primary-dark disabled:opacity-50"
       >
         <FaSave />
-        {save.isPending ? t("assignmentsPage.saving") : t("assignmentsPage.save")}
+        {save.isPending
+          ? t("assignmentsPage.saving")
+          : t("assignmentsPage.save")}
       </button>
 
       {/*
@@ -382,7 +418,12 @@ function DoneSwitch({
 
   return (
     <label className="relative inline-flex h-8 w-20 cursor-pointer items-center">
-      <input type="checkbox" className="sr-only" checked={done} onChange={onToggle} />
+      <input
+        type="checkbox"
+        className="sr-only"
+        checked={done}
+        onChange={onToggle}
+      />
 
       <div
         className={`absolute inset-0 rounded-full shadow-inner transition-colors duration-300 ${

@@ -1,4 +1,12 @@
-import type { Badge, Tribe, TribeBadge, TribeLog, TribeStudent } from "@/types/tribes";
+import type {
+  Badge,
+  Tribe,
+  TribeBadge,
+  TribeFlagSettings,
+  TribeFlagRule,
+  TribeLog,
+  TribeStudent,
+} from "@/types/tribes";
 import { studentsApi } from "@/lib/api";
 
 type NewRecord<T extends { id: number }> = Omit<T, "id">;
@@ -61,6 +69,25 @@ function createTableService<T extends { id: number }>(table: string) {
 export const tribesService = createTableService<Tribe>("tribes");
 export const badgesService = createTableService<Badge>("badges");
 export const tribeBadgesService = createTableService<TribeBadge>("tribe_badges");
+export const tribeFlagSettingsService = {
+  get: async () => {
+    const rows = await request<TribeFlagSettings[]>("tribe_flag_settings", "GET", {
+      id: "eq.1",
+    });
+    if (!rows[0]) throw new Error("Tribe flag settings (id=1) were not found.");
+    return rows[0];
+  },
+  update: async (changes: Partial<Omit<TribeFlagSettings, "id">>) => {
+    const rows = await request<TribeFlagSettings[]>(
+      "tribe_flag_settings",
+      "PATCH",
+      { id: "eq.1" },
+      changes,
+    );
+    if (!rows[0]) throw new Error("Tribe flag settings (id=1) were not updated.");
+    return rows[0];
+  },
+};
 
 export const deleteTribe = (id: number) =>
   request<void>("tribes", "DELETE", { id: `eq.${id}` });
@@ -116,6 +143,70 @@ async function changeTribeScore(tribeId: number, delta: number): Promise<Tribe> 
   throw new Error("Could not update the tribe score after repeated concurrent changes.");
 }
 
+export async function awardBadgeToTribe(
+  tribeId: number,
+  badgeId: number,
+  note: string,
+  actorName: string,
+): Promise<TribeLog> {
+  const [tribe, badge, existingAwards] = await Promise.all([
+    tribesService.get(tribeId),
+    badgesService.get(badgeId),
+    request<TribeBadge[]>("tribe_badges", "GET", {
+      tribe_id: `eq.${tribeId}`,
+      badge_id: `eq.${badgeId}`,
+      limit: "1",
+    }),
+  ]);
+  if (!tribe) throw new Error("The selected tribe was not found.");
+  if (!badge) throw new Error("The selected badge was not found.");
+  if (existingAwards.length > 0) {
+    throw new Error("This tribe has already earned that badge.");
+  }
+
+  const tribeBadge = await tribeBadgesService.create({
+    tribe_id: tribeId,
+    badge_id: badgeId,
+    earned_at: new Date().toISOString(),
+  });
+  let scoreChanged = false;
+
+  try {
+    await changeTribeScore(tribeId, badge.required_flags);
+    scoreChanged = true;
+    const trimmedNote = note.trim();
+    return await tribeLogsService.create({
+      tribe_id: tribeId,
+      student_id: null,
+      student_name: actorName,
+      flags_added: badge.required_flags,
+      reason: `منح درع «${badge.title}» لقبيلة «${tribe.name}»${trimmedNote ? `: ${trimmedNote}` : ""}`,
+    });
+  } catch (error) {
+    const rollbackErrors: unknown[] = [];
+    if (scoreChanged) {
+      try {
+        await changeTribeScore(tribeId, -badge.required_flags);
+      } catch (rollbackError) {
+        rollbackErrors.push(rollbackError);
+      }
+    }
+    try {
+      await request<void>("tribe_badges", "DELETE", {
+        id: `eq.${tribeBadge.id}`,
+      });
+    } catch (rollbackError) {
+      rollbackErrors.push(rollbackError);
+    }
+    if (rollbackErrors.length > 0) {
+      throw new Error(
+        "Badge award failed and could not be fully rolled back; manual reconciliation is required.",
+      );
+    }
+    throw error;
+  }
+}
+
 /**
  * Adds flags to the student's assigned tribe and records the event.
  * Call after recitationsApi.create succeeds in RecitationRegistration; to keep
@@ -126,7 +217,7 @@ export async function awardTribeFlags(
   studentId: string,
   actionText: string,
   flagsCount: number,
-): Promise<TribeLog> {
+): Promise<TribeLog | null> {
   const parsedStudentId = Number(studentId);
   if (!Number.isSafeInteger(parsedStudentId) || parsedStudentId <= 0) {
     throw new Error("A valid numeric student id is required to award tribe flags.");
@@ -136,15 +227,13 @@ export async function awardTribeFlags(
   }
   if (!actionText.trim()) throw new Error("An event reason is required to award tribe flags.");
 
-  const [assignments, studentResult] = await Promise.all([
-    request<TribeStudent[]>("tribe_students", "GET", {
-      student_id: `eq.${parsedStudentId}`,
-      limit: "1",
-    }),
-    studentsApi.get(parsedStudentId),
-  ]);
+  const assignments = await request<TribeStudent[]>("tribe_students", "GET", {
+    student_id: `eq.${parsedStudentId}`,
+    limit: "1",
+  });
   const assignment = assignments[0];
-  if (!assignment) throw new Error(`Student ${studentId} is not assigned to a tribe.`);
+  if (!assignment) return null;
+  const studentResult = await studentsApi.get(parsedStudentId);
 
   await changeTribeScore(assignment.tribe_id, flagsCount);
 
@@ -163,5 +252,34 @@ export async function awardTribeFlags(
       throw new Error("The tribe log failed and the score could not be rolled back; manual reconciliation is required.");
     }
     throw error;
+  }
+}
+
+export async function awardTribeFlagsForEvent(
+  studentIds: number[],
+  rule: TribeFlagRule,
+  multiplier: number,
+  actionText: string,
+): Promise<void> {
+  if (studentIds.length === 0 || multiplier === 0) return;
+  if (!Number.isSafeInteger(multiplier) || multiplier < 0) {
+    throw new Error("The flag multiplier must be a non-negative integer.");
+  }
+
+  const settings = await tribeFlagSettingsService.get();
+  const flagsCount = settings[rule] * multiplier;
+  if (!Number.isSafeInteger(flagsCount) || flagsCount < 0) {
+    throw new Error(`The configured value for ${rule} must be a non-negative integer.`);
+  }
+  if (flagsCount === 0) return;
+
+  const results = await Promise.allSettled(
+    studentIds.map((studentId) =>
+      awardTribeFlags(String(studentId), actionText, flagsCount),
+    ),
+  );
+  const failedAwards = results.filter((result) => result.status === "rejected").length;
+  if (failedAwards > 0) {
+    throw new Error(`Could not record tribe flags for ${failedAwards} student(s).`);
   }
 }

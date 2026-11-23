@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { FaCertificate, FaSearch, FaTimes } from "react-icons/fa";
 import { useCreateAwqafRecord, useStudents } from "../../lib/api/hooks";
+import { awardTribeFlagsForEvent } from "@/services/tribesService";
 import { AWQAF_STATUSES, type AwqafStatus } from "../../lib/api/types";
 import Avatar from "../../shared/Avatar";
 import { useToast } from "../../shared/toast/toastContext";
@@ -48,12 +49,22 @@ export default function PopupAwqafForm({ onClose }: { onClose: () => void }) {
   const submit = async () => {
     if (!valid || create.isPending) return;
     try {
-      await create.mutateAsync({
+      const created = await create.mutateAsync({
         studentId: studentId!,
         examMonth,
         status,
         juz: juz as number,
       });
+      if (created.data.status === "passed") {
+        void awardTribeFlagsForEvent(
+          [created.data.studentId],
+          "awqaf_certificate",
+          1,
+          `شهادة أوقاف ${created.data.examMonth}`,
+        ).catch(() => {
+          notify("تم تسجيل الشهادة، لكن تعذر إضافة راية القبيلة.", "error");
+        });
+      }
       notify(t("awqaf.created"));
       onClose();
     } catch {

@@ -1,30 +1,45 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Award,
   Check,
   Flag,
+  GraduationCap,
   Pencil,
   Plus,
   Save,
+  Settings,
   Shield,
   Trash2,
   Users,
   X,
 } from "lucide-react";
-import { studentsApi } from "@/lib/api";
+import { Navigate, useParams } from "react-router-dom";
+import { halaqatApi, studentsApi } from "@/lib/api";
 import type { Student } from "@/lib/api/types";
+import { useAuth } from "@/context/authContext";
+import { ErrorState, LoadingState } from "@/shared/QueryState";
 import {
+  awardBadgeToTribe,
   badgesService,
   deleteBadge,
   deleteTribe,
   tribeStudentsService,
+  tribeFlagSettingsService,
   tribesService,
 } from "@/services/tribesService";
-import type { Badge, Tribe } from "@/types/tribes";
+import type {
+  Badge,
+  Tribe,
+  TribeFlagRule,
+  TribeFlagSettings,
+} from "@/types/tribes";
 
-type Tab = "tribes" | "badges" | "students";
+type Tab = "tribes" | "badges" | "students" | "award" | "settings";
 type TribeFields = Omit<Tribe, "id">;
 type BadgeFields = Omit<Badge, "id">;
+type AwardFields = { tribeId: number | ""; badgeId: number | ""; note: string };
+type SettingsChanges = Partial<Omit<TribeFlagSettings, "id">>;
 
 const emptyTribe: TribeFields = {
   name: "",
@@ -44,6 +59,17 @@ const tabs: { id: Tab; label: string; icon: typeof Flag }[] = [
   { id: "tribes", label: "إدارة القبائل", icon: Flag },
   { id: "badges", label: "الدروع والمهام", icon: Shield },
   { id: "students", label: "توزيع الطلاب", icon: Users },
+  { id: "award", label: "منح درع لقبيلة", icon: Award },
+  { id: "settings", label: "إعدادات الرايات", icon: Settings },
+];
+
+const flagSettingFields: { key: TribeFlagRule; label: string }[] = [
+  { key: "student_attendance", label: "حضور الطالب" },
+  { key: "excellent_page", label: "صفحة ممتاز" },
+  { key: "good_page", label: "صفحة جيد" },
+  { key: "medium_page", label: "صفحة وسط" },
+  { key: "assignment_completion", label: "إنجاز مقرر" },
+  { key: "awqaf_certificate", label: "شهادة أوقاف" },
 ];
 
 async function fetchAllActiveStudents(): Promise<Student[]> {
@@ -67,7 +93,27 @@ async function fetchAllActiveStudents(): Promise<Student[]> {
 
 export default function TribesAdmin() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<Tab>("tribes");
+  const { canManageUsers, isSuperAdmin, isTeacher, user } = useAuth();
+  const { lang = "ar" } = useParams();
+  const isGeneralManager = canManageUsers && isSuperAdmin;
+  const teacherHalaqatQuery = useQuery({
+    queryKey: ["tribes-admin", "teacher-halaqat"],
+    queryFn: () => halaqatApi.list({ mine: true }),
+    enabled: isTeacher,
+  });
+  const canTeacherAward =
+    isTeacher &&
+    (teacherHalaqatQuery.data?.data ?? []).some(
+      (halaqa) =>
+        halaqa.stage === "middle_high" || halaqa.stage === "intensive",
+    );
+  const canUsePage = isGeneralManager || canTeacherAward;
+  const visibleTabs = isGeneralManager
+    ? tabs
+    : tabs.filter((tab) => tab.id === "award");
+  const [activeTab, setActiveTab] = useState<Tab>(
+    isGeneralManager ? "tribes" : "award",
+  );
   const [editingTribe, setEditingTribe] = useState<Tribe | null>(null);
   const [tribeForm, setTribeForm] = useState<TribeFields>(emptyTribe);
   const [editingBadge, setEditingBadge] = useState<Badge | null>(null);
@@ -75,22 +121,37 @@ export default function TribesAdmin() {
   const [studentTribes, setStudentTribes] = useState<
     Record<number, number | "">
   >({});
+  const [awardForm, setAwardForm] = useState<AwardFields>({
+    tribeId: "",
+    badgeId: "",
+    note: "",
+  });
+  const [settingsChanges, setSettingsChanges] = useState<SettingsChanges>({});
 
   const tribesQuery = useQuery({
     queryKey: ["tribes-admin", "tribes"],
     queryFn: () => tribesService.list(),
+    enabled: canUsePage,
   });
   const badgesQuery = useQuery({
     queryKey: ["tribes-admin", "badges"],
     queryFn: () => badgesService.list(),
+    enabled: canUsePage,
   });
   const studentsQuery = useQuery({
     queryKey: ["tribes-admin", "students"],
     queryFn: fetchAllActiveStudents,
+    enabled: isGeneralManager,
   });
   const assignmentsQuery = useQuery({
     queryKey: ["tribes-admin", "student-assignments"],
     queryFn: () => tribeStudentsService.list(),
+    enabled: isGeneralManager,
+  });
+  const flagSettingsQuery = useQuery({
+    queryKey: ["tribes-admin", "flag-settings"],
+    queryFn: () => tribeFlagSettingsService.get(),
+    enabled: isGeneralManager,
   });
 
   const saveTribe = useMutation({
@@ -118,6 +179,41 @@ export default function TribesAdmin() {
       });
       setEditingBadge(null);
       setBadgeForm(emptyBadge);
+    },
+  });
+
+  const awardBadge = useMutation({
+    mutationFn: (values: AwardFields) => {
+      if (values.tribeId === "" || values.badgeId === "") {
+        throw new Error("اختر القبيلة والدرع أولاً.");
+      }
+      return awardBadgeToTribe(
+        values.tribeId,
+        values.badgeId,
+        values.note,
+        user?.name ?? "إدارة القبائل",
+      );
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["tribes-admin", "tribes"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["tribes-admin", "tribe-badges"],
+        }),
+        queryClient.invalidateQueries({ queryKey: ["tribes-public", "logs"] }),
+      ]);
+      setAwardForm({ tribeId: "", badgeId: "", note: "" });
+    },
+  });
+
+  const saveFlagSettings = useMutation({
+    mutationFn: (changes: SettingsChanges) =>
+      tribeFlagSettingsService.update(changes),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["tribes-admin", "flag-settings"],
+      });
+      setSettingsChanges({});
     },
   });
 
@@ -197,6 +293,22 @@ export default function TribesAdmin() {
       studentId: student.id,
       tribeId: selectedTribeFor(student.id),
     }));
+  const selectedAwardBadge = badges.find(
+    (badge) => badge.id === awardForm.badgeId,
+  );
+  const settingValue = (key: TribeFlagRule) =>
+    settingsChanges[key] ?? flagSettingsQuery.data?.[key] ?? 0;
+
+  if (isTeacher && teacherHalaqatQuery.isPending) return <LoadingState />;
+  if (isTeacher && teacherHalaqatQuery.isError) {
+    return (
+      <ErrorState
+        error={teacherHalaqatQuery.error}
+        onRetry={() => void teacherHalaqatQuery.refetch()}
+      />
+    );
+  }
+  if (!canUsePage) return <Navigate to={`/${lang}`} replace />;
 
   const startEditingTribe = (tribe: Tribe) => {
     setEditingTribe(tribe);
@@ -242,16 +354,24 @@ export default function TribesAdmin() {
               <Flag size={17} /> نظام القبائل
             </p>
             <h1 className="text-2xl font-black tracking-normal md:text-3xl">
-              لوحة إدارة القبائل
+              {isGeneralManager ? "لوحة إدارة القبائل" : "منح درع لقبيلة"}
             </h1>
             <p className="mt-2 text-sm text-slate-500 dark:text-gray-400">
-              إدارة القبائل والأوسمة وتوزيع الطلاب من مكان واحد.
+              {isGeneralManager
+                ? "إدارة القبائل والأوسمة وتوزيع الطلاب من مكان واحد."
+                : "اختر قبيلة ودرعاً لتسجيل الإنجاز وإضافة الرايات."}
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:min-w-64">
-            <Stat label="القبائل" value={tribes.length} icon={Flag} />
-            <Stat label="الطلاب النشطون" value={students.length} icon={Users} />
-          </div>
+          {isGeneralManager && (
+            <div className="grid grid-cols-2 gap-2 sm:min-w-64">
+              <Stat label="القبائل" value={tribes.length} icon={Flag} />
+              <Stat
+                label="الطلاب النشطون"
+                value={students.length}
+                icon={Users}
+              />
+            </div>
+          )}
         </header>
 
         <nav
@@ -259,7 +379,7 @@ export default function TribesAdmin() {
           aria-label="أقسام إدارة القبائل"
           className="flex gap-2 overflow-x-auto border-b border-slate-200 dark:border-gray-700"
         >
-          {tabs.map(({ id, label, icon: Icon }) => (
+          {visibleTabs.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               id={`tribes-tab-${id}`}
@@ -779,6 +899,197 @@ export default function TribesAdmin() {
                     أضف قبيلة أولاً حتى تتمكن من توزيع الطلاب.
                   </p>
                 )}
+            </div>
+          )}
+
+          {activeTab === "award" && (
+            <div className="xl:col-span-2 grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
+              <form
+                className="space-y-5 rounded-lg border border-slate-200 bg-white p-5 dark:border-gray-700 dark:bg-dark"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  awardBadge.mutate(awardForm);
+                }}
+              >
+                <FormHeading title="منح درع لقبيلة" />
+                <Field label="القبيلة" htmlFor="award-tribe">
+                  <select
+                    id="award-tribe"
+                    required
+                    value={awardForm.tribeId}
+                    onChange={(event) =>
+                      setAwardForm({
+                        ...awardForm,
+                        tribeId:
+                          event.target.value === ""
+                            ? ""
+                            : Number(event.target.value),
+                      })
+                    }
+                    className={inputClass}
+                  >
+                    <option value="">اختر القبيلة</option>
+                    {tribes.map((tribe) => (
+                      <option key={tribe.id} value={tribe.id}>
+                        {tribe.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="الدرع" htmlFor="award-badge">
+                  <select
+                    id="award-badge"
+                    required
+                    value={awardForm.badgeId}
+                    onChange={(event) =>
+                      setAwardForm({
+                        ...awardForm,
+                        badgeId:
+                          event.target.value === ""
+                            ? ""
+                            : Number(event.target.value),
+                      })
+                    }
+                    className={inputClass}
+                  >
+                    <option value="">اختر الدرع</option>
+                    {badges.map((badge) => (
+                      <option key={badge.id} value={badge.id}>
+                        {badge.title}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="ملاحظة المنح" htmlFor="award-note">
+                  <textarea
+                    id="award-note"
+                    required
+                    rows={3}
+                    value={awardForm.note}
+                    onChange={(event) =>
+                      setAwardForm({ ...awardForm, note: event.target.value })
+                    }
+                    className={`${inputClass} resize-y`}
+                    placeholder="اكتب سبب منح الدرع..."
+                  />
+                </Field>
+                {selectedAwardBadge && (
+                  <p className="rounded-md bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+                    سيضاف {selectedAwardBadge.required_flags} راية إلى رصيد
+                    القبيلة.
+                  </p>
+                )}
+                {awardBadge.isSuccess && (
+                  <p
+                    role="status"
+                    className="text-sm font-semibold text-emerald-700 dark:text-emerald-300"
+                  >
+                    تم منح الدرع وتحديث رصيد القبيلة.
+                  </p>
+                )}
+                {awardBadge.isError && <InlineError error={awardBadge.error} />}
+                <button
+                  type="submit"
+                  disabled={
+                    awardBadge.isPending ||
+                    tribes.length === 0 ||
+                    badges.length === 0 ||
+                    !awardForm.note.trim()
+                  }
+                  className="inline-flex items-center justify-center gap-2 rounded-md bg-emerald-700 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Award size={17} />
+                  {awardBadge.isPending
+                    ? "جارٍ تسجيل المنح..."
+                    : "تأكيد منح الدرع"}
+                </button>
+              </form>
+
+              <aside className="h-fit rounded-lg border border-amber-300/15 bg-amber-300/4 p-5 dark:bg-amber-300/3">
+                <div className="flex items-center gap-2 font-bold text-amber-700 dark:text-amber-200">
+                  <GraduationCap size={19} /> سجل المنح
+                </div>
+                <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-gray-300">
+                  يمنح الدرع كامل عدد الرايات المحدد له، ويسجل اسم مانح الدرع
+                  والملاحظة ضمن الأحداث.
+                </p>
+              </aside>
+            </div>
+          )}
+
+          {activeTab === "settings" && isGeneralManager && (
+            <div className="xl:col-span-2">
+              {flagSettingsQuery.isPending ? (
+                <LoadingState />
+              ) : flagSettingsQuery.isError ? (
+                <ErrorState
+                  error={flagSettingsQuery.error}
+                  onRetry={() => void flagSettingsQuery.refetch()}
+                />
+              ) : (
+                <form
+                  className="max-w-3xl space-y-5 rounded-lg border border-slate-200 bg-white p-5 dark:border-gray-700 dark:bg-dark"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    saveFlagSettings.mutate(settingsChanges);
+                  }}
+                >
+                  <FormHeading title="إعدادات الرايات" />
+                  <p className="text-sm text-slate-500 dark:text-gray-400">
+                    تعدّل القيم المستخدمة عند تسجيل الحضور والتسميع وإنجاز
+                    المقررات.
+                  </p>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {flagSettingFields.map(({ key, label }) => (
+                      <Field
+                        key={key}
+                        label={label}
+                        htmlFor={`flag-rule-${key}`}
+                      >
+                        <input
+                          id={`flag-rule-${key}`}
+                          type="number"
+                          min="0"
+                          step="1"
+                          required
+                          value={settingValue(key)}
+                          onChange={(event) =>
+                            setSettingsChanges((current) => ({
+                              ...current,
+                              [key]: Number(event.target.value),
+                            }))
+                          }
+                          className={inputClass}
+                        />
+                      </Field>
+                    ))}
+                  </div>
+                  {saveFlagSettings.isSuccess && (
+                    <p
+                      role="status"
+                      className="text-sm font-semibold text-emerald-700 dark:text-emerald-300"
+                    >
+                      تم حفظ إعدادات الرايات.
+                    </p>
+                  )}
+                  {saveFlagSettings.isError && (
+                    <InlineError error={saveFlagSettings.error} />
+                  )}
+                  <button
+                    type="submit"
+                    disabled={
+                      saveFlagSettings.isPending ||
+                      Object.keys(settingsChanges).length === 0
+                    }
+                    className="inline-flex items-center justify-center gap-2 rounded-md bg-emerald-700 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Save size={16} />
+                    {saveFlagSettings.isPending
+                      ? "جارٍ الحفظ..."
+                      : "حفظ الإعدادات"}
+                  </button>
+                </form>
+              )}
             </div>
           )}
         </section>

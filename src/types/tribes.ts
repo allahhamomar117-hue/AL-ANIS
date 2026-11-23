@@ -21,6 +21,18 @@ export interface TribeBadge {
   earned_at: string;
 }
 
+export interface TribeFlagSettings {
+  id: number;
+  student_attendance: number;
+  excellent_page: number;
+  good_page: number;
+  medium_page: number;
+  assignment_completion: number;
+  awqaf_certificate: number;
+}
+
+export type TribeFlagRule = keyof Omit<TribeFlagSettings, "id">;
+
 export interface TribeStudent {
   id: number;
   tribe_id: number;
@@ -31,7 +43,7 @@ export interface TribeStudent {
 export interface TribeLog {
   id: number;
   tribe_id: number;
-  student_id: number;
+  student_id: number | null;
   student_name: string;
   flags_added: number;
   reason: string;

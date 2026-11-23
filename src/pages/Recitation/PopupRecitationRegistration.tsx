@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { recitationsApi } from "../../lib/api";
+import { awardTribeFlagsForEvent } from "@/services/tribesService";
 import { qk } from "../../lib/api/queryKeys";
 import { useHalaqaStudents, useHalaqat } from "../../lib/api/hooks";
 import { todayLocal } from "../../lib/format/date";
@@ -21,7 +22,9 @@ export default function PopupRecitationRegistration({ onClose }: Props) {
 
   const { data: halaqat = [] } = useHalaqat();
   const [halaqaId, setHalaqaId] = useState<number | "">("");
-  const { data: students = [] } = useHalaqaStudents(halaqaId === "" ? undefined : halaqaId);
+  const { data: students = [] } = useHalaqaStudents(
+    halaqaId === "" ? undefined : halaqaId,
+  );
 
   const [studentId, setStudentId] = useState<number | "">("");
   const [recitationType, setRecitationType] = useState<RecitationType>("full");
@@ -43,15 +46,38 @@ export default function PopupRecitationRegistration({ onClose }: Props) {
         rating,
         recitedAt,
       }),
-    onSuccess: () => {
+    onSuccess: ({ data: recitation }) => {
       void queryClient.invalidateQueries({ queryKey: qk.recitations.all });
       void queryClient.invalidateQueries({ queryKey: qk.students.all });
       void queryClient.invalidateQueries({ queryKey: qk.reports.all });
+      const pageCount = Math.max(
+        1,
+        (recitation.toPage ?? recitation.pageNumber) -
+          recitation.pageNumber +
+          1,
+      );
+      const rule =
+        recitation.rating === "excellent"
+          ? "excellent_page"
+          : recitation.rating === "good"
+            ? "good_page"
+            : "medium_page";
+      void awardTribeFlagsForEvent(
+        [recitation.studentId],
+        rule,
+        pageCount,
+        `تسميع بتقدير ${recitation.rating}`,
+      ).catch(() => {
+        notify("تم حفظ التسميع، لكن تعذر إضافة رايات القبيلة.", "error");
+      });
       onClose();
     },
     // التكرار يعود 400 برسالة الخادم — تُعرض كما هي ليعرف الأستاذ سبب الرفض
     onError: (error) => {
-      notify(error instanceof Error ? error.message : t("state.error"), "error");
+      notify(
+        error instanceof Error ? error.message : t("state.error"),
+        "error",
+      );
     },
   });
 
@@ -60,7 +86,8 @@ export default function PopupRecitationRegistration({ onClose }: Props) {
     studentId !== "" &&
     typeof pageNumber === "number" &&
     pageNumber > 0 &&
-    (recitationType !== "more" || (typeof toPage === "number" && toPage >= pageNumber));
+    (recitationType !== "more" ||
+      (typeof toPage === "number" && toPage >= pageNumber));
 
   const fieldClass =
     "w-full rounded-full border dark:border-gray-600 bg-white dark:bg-dark-light text-gray-800 dark:text-white px-4 py-2 focus:ring-2 focus:ring-primary outline-none";
@@ -68,7 +95,10 @@ export default function PopupRecitationRegistration({ onClose }: Props) {
   const numeric = (value: string) => (value === "" ? "" : Number(value));
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
       <div
         className="bg-white dark:bg-dark rounded-2xl w-full max-w-md sm:p-6 p-4 max-h-[90vh] overflow-y-auto transition-colors duration-300"
         onClick={(e) => e.stopPropagation()}
@@ -107,7 +137,9 @@ export default function PopupRecitationRegistration({ onClose }: Props) {
           <select
             value={studentId}
             disabled={halaqaId === ""}
-            onChange={(e) => setStudentId(e.target.value === "" ? "" : Number(e.target.value))}
+            onChange={(e) =>
+              setStudentId(e.target.value === "" ? "" : Number(e.target.value))
+            }
             className={`${fieldClass} disabled:opacity-60`}
           >
             <option value="">
@@ -142,10 +174,16 @@ export default function PopupRecitationRegistration({ onClose }: Props) {
             {t("popupRecitation.recitationType")}
           </p>
           <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
-            <Button active={recitationType === "full"} onClick={() => setRecitationType("full")}>
+            <Button
+              active={recitationType === "full"}
+              onClick={() => setRecitationType("full")}
+            >
               {t("popupRecitation.types.full")}
             </Button>
-            <Button active={recitationType === "more"} onClick={() => setRecitationType("more")}>
+            <Button
+              active={recitationType === "more"}
+              onClick={() => setRecitationType("more")}
+            >
               {t("popupRecitation.types.more")}
             </Button>
           </div>
@@ -168,7 +206,6 @@ export default function PopupRecitationRegistration({ onClose }: Props) {
             className={fieldClass}
           />
         </div>
-
 
         {/* أكثر من صفحة */}
         {recitationType === "more" && (
@@ -194,13 +231,22 @@ export default function PopupRecitationRegistration({ onClose }: Props) {
             {t("popupRecitation.rating")}
           </p>
           <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
-            <Button active={rating === "excellent"} onClick={() => setRating("excellent")}>
+            <Button
+              active={rating === "excellent"}
+              onClick={() => setRating("excellent")}
+            >
               {t("recitationRegistration.ratings.excellent")}
             </Button>
-            <Button active={rating === "good"} onClick={() => setRating("good")}>
+            <Button
+              active={rating === "good"}
+              onClick={() => setRating("good")}
+            >
               {t("recitationRegistration.ratings.good")}
             </Button>
-            <Button active={rating === "needs"} onClick={() => setRating("needs")}>
+            <Button
+              active={rating === "needs"}
+              onClick={() => setRating("needs")}
+            >
               {t("recitationRegistration.ratings.average")}
             </Button>
           </div>
@@ -208,7 +254,9 @@ export default function PopupRecitationRegistration({ onClose }: Props) {
 
         {create.isError && (
           <p className="mb-3 text-sm font-bold text-red-600 dark:text-red-400">
-            {create.error instanceof Error ? create.error.message : t("state.error")}
+            {create.error instanceof Error
+              ? create.error.message
+              : t("state.error")}
           </p>
         )}
 
@@ -230,7 +278,9 @@ export default function PopupRecitationRegistration({ onClose }: Props) {
             className="px-4 py-2 rounded-full bg-primary text-white
             hover:bg-primary-dark transition disabled:opacity-50"
           >
-            {create.isPending ? t("popupRecitation.saving") : t("popupRecitation.save")}
+            {create.isPending
+              ? t("popupRecitation.saving")
+              : t("popupRecitation.save")}
           </button>
         </div>
       </div>

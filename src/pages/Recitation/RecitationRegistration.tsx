@@ -1,9 +1,16 @@
 import { useState } from "react";
-import { BookOpen, ThumbsUp, CheckCircle, Save, AlertCircle } from "lucide-react";
+import {
+  BookOpen,
+  ThumbsUp,
+  CheckCircle,
+  Save,
+  AlertCircle,
+} from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { recitationsApi } from "../../lib/api";
+import { awardTribeFlagsForEvent } from "@/services/tribesService";
 import { qk } from "../../lib/api/queryKeys";
 import { useStudent } from "../../lib/api/hooks";
 import Avatar from "../../shared/Avatar";
@@ -70,18 +77,41 @@ export default function RecitationRegistration() {
         // تتبع منطقة الخادم وقد تختلف عن منطقة المدرّس
         recitedAt: todayLocal(),
       }),
-    onSuccess: () => {
+    onSuccess: ({ data: recitation }) => {
       void queryClient.invalidateQueries({ queryKey: qk.recitations.all });
       // التسميع يمنح نقاطاً، فتتأثر أرصدة الطلاب والحلقات والتقارير
       void queryClient.invalidateQueries({ queryKey: qk.students.all });
       void queryClient.invalidateQueries({ queryKey: qk.halaqat.all });
       void queryClient.invalidateQueries({ queryKey: qk.reports.all });
+      const pageCount = Math.max(
+        1,
+        (recitation.toPage ?? recitation.pageNumber) -
+          recitation.pageNumber +
+          1,
+      );
+      const rule =
+        recitation.rating === "excellent"
+          ? "excellent_page"
+          : recitation.rating === "good"
+            ? "good_page"
+            : "medium_page";
+      void awardTribeFlagsForEvent(
+        [recitation.studentId],
+        rule,
+        pageCount,
+        `تسميع بتقدير ${recitation.rating}`,
+      ).catch(() => {
+        notify("تم حفظ التسميع، لكن تعذر إضافة رايات القبيلة.", "error");
+      });
       notify(t("recitationRegistration.saved"));
       backToList();
     },
     // التكرار يعود 400 برسالة الخادم — تُعرض كما هي ليعرف الأستاذ سبب الرفض
     onError: (error) => {
-      notify(error instanceof Error ? error.message : t("state.error"), "error");
+      notify(
+        error instanceof Error ? error.message : t("state.error"),
+        "error",
+      );
     },
   });
 
@@ -90,7 +120,8 @@ export default function RecitationRegistration() {
     ? typeof surahNumber === "number"
     : typeof pageNumber === "number" &&
       pageNumber > 0 &&
-      (recitationType !== "more" || (typeof toPage === "number" && toPage >= pageNumber));
+      (recitationType !== "more" ||
+        (typeof toPage === "number" && toPage >= pageNumber));
 
   if (student.isPending) {
     return (
@@ -103,7 +134,10 @@ export default function RecitationRegistration() {
   if (student.isError) {
     return (
       <div className="min-h-screen bg-white pt-20 dark:bg-dark-light md:pt-24">
-        <ErrorState error={student.error} onRetry={() => void student.refetch()} />
+        <ErrorState
+          error={student.error}
+          onRetry={() => void student.refetch()}
+        />
       </div>
     );
   }
@@ -116,7 +150,8 @@ export default function RecitationRegistration() {
     "w-full min-h-[44px] rounded-xl border border-gray-300 bg-white px-3 text-base text-gray-800 " +
     "focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-400 " +
     "dark:border-gray-600 dark:bg-dark-light dark:text-white";
-  const labelClass = "mb-1 block text-xs font-bold text-gray-500 dark:text-gray-400";
+  const labelClass =
+    "mb-1 block text-xs font-bold text-gray-500 dark:text-gray-400";
 
   return (
     <div className="min-h-screen bg-gray-50 px-3 pb-6 pt-[4.5rem] dark:bg-dark-light md:px-4 md:pt-24">
@@ -145,8 +180,14 @@ export default function RecitationRegistration() {
             </p>
             <Segmented
               options={[
-                { value: "page", label: t("recitationRegistration.inputMode.byPage") },
-                { value: "surah", label: t("recitationRegistration.inputMode.bySurah") },
+                {
+                  value: "page",
+                  label: t("recitationRegistration.inputMode.byPage"),
+                },
+                {
+                  value: "surah",
+                  label: t("recitationRegistration.inputMode.bySurah"),
+                },
               ]}
               value={inputMode}
               onChange={setInputMode}
@@ -156,11 +197,19 @@ export default function RecitationRegistration() {
           {/* نوع التسميع — بالصفحة فقط؛ مع السورة يُحسب المقدار من السورة نفسها */}
           {!isSurahMode && (
             <section>
-              <p className={labelClass}>{t("recitationRegistration.recitationType")}</p>
+              <p className={labelClass}>
+                {t("recitationRegistration.recitationType")}
+              </p>
               <Segmented
                 options={[
-                  { value: "full", label: t("recitationRegistration.types.full") },
-                  { value: "more", label: t("recitationRegistration.types.more") },
+                  {
+                    value: "full",
+                    label: t("recitationRegistration.types.full"),
+                  },
+                  {
+                    value: "more",
+                    label: t("recitationRegistration.types.more"),
+                  },
                 ]}
                 value={recitationType}
                 onChange={setRecitationType}
@@ -171,13 +220,21 @@ export default function RecitationRegistration() {
           {/* اختيار السورة — القائمة المنسدلة وحدها، بكل سور المصحف */}
           {isSurahMode && (
             <section>
-              <label className={labelClass}>{t("recitationRegistration.surah")}</label>
+              <label className={labelClass}>
+                {t("recitationRegistration.surah")}
+              </label>
               <select
                 value={surahNumber}
-                onChange={(e) => setSurahNumber(e.target.value === "" ? "" : Number(e.target.value))}
+                onChange={(e) =>
+                  setSurahNumber(
+                    e.target.value === "" ? "" : Number(e.target.value),
+                  )
+                }
                 className={inputClass}
               >
-                <option value="">{t("recitationRegistration.chooseSurah")}</option>
+                <option value="">
+                  {t("recitationRegistration.chooseSurah")}
+                </option>
                 {SURAHS.map((surah) => (
                   <option key={surah.number} value={surah.number}>
                     {surah.number} · {surah.name}
@@ -188,8 +245,14 @@ export default function RecitationRegistration() {
           )}
 
           {/* الصفحات — حقلان جنباً إلى جنب حسب نوع التسميع */}
-          <section className={`grid grid-cols-2 gap-2 ${isSurahMode ? "hidden" : ""}`}>
-            <div className={recitationType === "full" ? "col-span-2" : "col-span-1"}>
+          <section
+            className={`grid grid-cols-2 gap-2 ${isSurahMode ? "hidden" : ""}`}
+          >
+            <div
+              className={
+                recitationType === "full" ? "col-span-2" : "col-span-1"
+              }
+            >
               <label className={labelClass}>
                 {recitationType === "more"
                   ? t("recitationRegistration.fromPage")
@@ -208,7 +271,9 @@ export default function RecitationRegistration() {
 
             {recitationType === "more" && (
               <div>
-                <label className={labelClass}>{t("recitationRegistration.toPage")}</label>
+                <label className={labelClass}>
+                  {t("recitationRegistration.toPage")}
+                </label>
                 <input
                   type="number"
                   inputMode="numeric"
@@ -220,12 +285,13 @@ export default function RecitationRegistration() {
                 />
               </div>
             )}
-
           </section>
 
           {/* التقييم — شريط أفقي بثلاثة خيارات */}
           <section>
-            <p className={labelClass}>{t("recitationRegistration.studentRating")}</p>
+            <p className={labelClass}>
+              {t("recitationRegistration.studentRating")}
+            </p>
             <Segmented
               options={[
                 {
@@ -251,7 +317,9 @@ export default function RecitationRegistration() {
 
           {/* الملاحظات — سطران يكفيان لملاحظة سريعة */}
           <section>
-            <label className={labelClass}>{t("recitationRegistration.teacherNotes")}</label>
+            <label className={labelClass}>
+              {t("recitationRegistration.teacherNotes")}
+            </label>
             <textarea
               rows={2}
               value={notes}
@@ -264,7 +332,9 @@ export default function RecitationRegistration() {
 
         {create.isError && (
           <p className="rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-700 dark:bg-red-900/20 dark:text-red-400">
-            {create.error instanceof Error ? create.error.message : t("state.error")}
+            {create.error instanceof Error
+              ? create.error.message
+              : t("state.error")}
           </p>
         )}
 
@@ -313,7 +383,9 @@ function Segmented<T extends string>({
     <div
       role="radiogroup"
       className="grid gap-1 rounded-xl bg-gray-100 p-1 dark:bg-dark-light"
-      style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
+      style={{
+        gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))`,
+      }}
     >
       {options.map((option) => {
         const active = option.value === value;

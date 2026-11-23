@@ -21,6 +21,7 @@ import { AWQAF_STATUSES } from "../../lib/api/types";
 import Avatar from "../../shared/Avatar";
 import { EmptyState, ErrorState, LoadingState } from "../../shared/QueryState";
 import { useToast } from "../../shared/toast/toastContext";
+import { awardTribeFlagsForEvent } from "@/services/tribesService";
 import PopupAwqafForm from "./PopupAwqafForm";
 
 /** ألوان الحالة — مصدر واحد للرقاقة ولأزرار الفلترة معاً. */
@@ -46,10 +47,13 @@ interface MonthGroup {
  * ORDER BY يعيد تركيب الصفحة بصمت.
  */
 function groupByMonth(records: AwqafRecord[]): MonthGroup[] {
-  const groups = records.reduce<Record<string, AwqafRecord[]>>((acc, record) => {
-    (acc[record.examMonth] ??= []).push(record);
-    return acc;
-  }, {});
+  const groups = records.reduce<Record<string, AwqafRecord[]>>(
+    (acc, record) => {
+      (acc[record.examMonth] ??= []).push(record);
+      return acc;
+    },
+    {},
+  );
 
   return Object.entries(groups)
     .map(([month, rows]) => ({
@@ -121,12 +125,22 @@ export default function AwqafExams() {
    */
   const setStatusOf = async (record: AwqafRecord, next: AwqafStatus) => {
     try {
-      await update.mutateAsync({ id: record.id, status: next });
+      const updated = await update.mutateAsync({ id: record.id, status: next });
+      if (record.status !== "passed" && updated.data.status === "passed") {
+        void awardTribeFlagsForEvent(
+          [updated.data.studentId],
+          "awqaf_certificate",
+          1,
+          `شهادة أوقاف ${updated.data.examMonth}`,
+        ).catch(() => {
+          notify("تم تحديث نتيجة السبر، لكن تعذر إضافة راية القبيلة.", "error");
+        });
+      }
       notify(
         t("awqaf.statusUpdated", {
           name: record.studentName,
           status: t(`awqafStatuses.${next}`),
-        })
+        }),
       );
     } catch (error) {
       // رسالة الخادم وحدها لا تقول أيُّ عملية فشلت ولا على أيّ طالب
@@ -135,7 +149,7 @@ export default function AwqafExams() {
           name: record.studentName,
           reason: error instanceof Error ? error.message : t("state.error"),
         }),
-        "error"
+        "error",
       );
     }
   };
@@ -151,7 +165,7 @@ export default function AwqafExams() {
           name: record.studentName,
           reason: error instanceof Error ? error.message : t("state.error"),
         }),
-        "error"
+        "error",
       );
     }
   };
@@ -195,7 +209,10 @@ export default function AwqafExams() {
             <span className="text-sm font-semibold text-gray-600 dark:text-gray-300">
               {t("awqaf.filterStatus")}
             </span>
-            <button onClick={() => setStatus("")} className={chipClass(status === "")}>
+            <button
+              onClick={() => setStatus("")}
+              className={chipClass(status === "")}
+            >
               {t("awqaf.all")}
             </button>
             {AWQAF_STATUSES.map((option) => (
@@ -213,7 +230,10 @@ export default function AwqafExams() {
             <span className="text-sm font-semibold text-gray-600 dark:text-gray-300">
               {t("awqaf.filterMonth")}
             </span>
-            <button onClick={() => setMonth("")} className={chipClass(month === "")}>
+            <button
+              onClick={() => setMonth("")}
+              className={chipClass(month === "")}
+            >
               {t("awqaf.allMonths")}
             </button>
             {months.map((option) => (
@@ -232,7 +252,10 @@ export default function AwqafExams() {
         {records.isPending ? (
           <LoadingState />
         ) : records.isError ? (
-          <ErrorState error={records.error} onRetry={() => void records.refetch()} />
+          <ErrorState
+            error={records.error}
+            onRetry={() => void records.refetch()}
+          />
         ) : groups.length === 0 ? (
           <EmptyState message={t("awqaf.empty")} icon="🎓" />
         ) : (
@@ -329,7 +352,11 @@ function MonthSection({
         onClick={onToggle}
         aria-expanded={open}
         aria-controls={panelId}
-        title={open ? t("awqaf.collapseHint", { month: label }) : t("awqaf.expandHint", { month: label })}
+        title={
+          open
+            ? t("awqaf.collapseHint", { month: label })
+            : t("awqaf.expandHint", { month: label })
+        }
         className={`flex w-full items-center gap-3 px-4 py-4 text-start transition hover:bg-emerald-50/60 dark:hover:bg-dark-light ${
           open ? "bg-emerald-50/40 dark:bg-dark-light/50" : ""
         }`}
@@ -409,15 +436,26 @@ function RecordsTable({
       <table className="w-full min-w-[560px] text-sm">
         <thead className="bg-gray-50 text-gray-600 dark:bg-dark-light dark:text-gray-300">
           <tr>
-            <th className="px-4 py-3 text-start font-bold">{t("awqaf.student")}</th>
-            <th className="px-4 py-3 text-start font-bold">{t("awqaf.halaqa")}</th>
-            <th className="px-4 py-3 text-start font-bold">{t("awqaf.status")}</th>
-            <th className="px-4 py-3 text-start font-bold">{t("awqaf.actions")}</th>
+            <th className="px-4 py-3 text-start font-bold">
+              {t("awqaf.student")}
+            </th>
+            <th className="px-4 py-3 text-start font-bold">
+              {t("awqaf.halaqa")}
+            </th>
+            <th className="px-4 py-3 text-start font-bold">
+              {t("awqaf.status")}
+            </th>
+            <th className="px-4 py-3 text-start font-bold">
+              {t("awqaf.actions")}
+            </th>
           </tr>
         </thead>
         <tbody>
           {records.map((record) => (
-            <tr key={record.id} className="border-t border-gray-100 dark:border-gray-700">
+            <tr
+              key={record.id}
+              className="border-t border-gray-100 dark:border-gray-700"
+            >
               <td className="px-4 py-3">
                 <div className="flex items-center gap-3">
                   <Avatar

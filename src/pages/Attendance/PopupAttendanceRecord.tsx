@@ -2,10 +2,12 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { attendanceApi } from "../../lib/api";
+import { awardTribeFlagsForEvent } from "@/services/tribesService";
 import { qk } from "../../lib/api/queryKeys";
 import { useHalaqaStudents } from "../../lib/api/hooks";
 import type { AttendanceSession } from "../../lib/api/types";
 import { formatDate } from "../../lib/format/date";
+import { useToast } from "../../shared/toast/toastContext";
 
 type Props = {
   session: AttendanceSession;
@@ -19,6 +21,7 @@ type Props = {
 export default function PopupAttendanceRecord({ session, onClose }: Props) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
+  const { notify } = useToast();
 
   const { data: students = [] } = useHalaqaStudents(session.halaqaId);
   const [selectedStudent, setSelectedStudent] = useState<number | "">("");
@@ -29,16 +32,27 @@ export default function PopupAttendanceRecord({ session, onClose }: Props) {
   const addStudent = useMutation({
     mutationFn: (studentId: number) =>
       attendanceApi.setStatus(session.id, studentId, "present"),
-    onSuccess: () => {
+    onSuccess: (_result, studentId) => {
       void queryClient.invalidateQueries({ queryKey: qk.attendance.all });
       void queryClient.invalidateQueries({ queryKey: qk.students.all });
       void queryClient.invalidateQueries({ queryKey: qk.reports.all });
+      void awardTribeFlagsForEvent(
+        [studentId],
+        "student_attendance",
+        1,
+        `حضور ${session.date}`,
+      ).catch(() => {
+        notify("تم حفظ الحضور، لكن تعذر إضافة رايات القبيلة.", "error");
+      });
       onClose();
     },
   });
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 rtl" onClick={onClose}>
+    <div
+      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 rtl"
+      onClick={onClose}
+    >
       <div
         className="bg-white dark:bg-dark w-full max-w-sm rounded-xl p-5 shadow-lg transition-colors duration-300 m-4"
         onClick={(e) => e.stopPropagation()}
@@ -48,7 +62,8 @@ export default function PopupAttendanceRecord({ session, onClose }: Props) {
         </h2>
 
         <p className="text-center text-xs text-gray-500 dark:text-gray-400 mb-4">
-          {t("popupAttendance.addingTo")}: {formatDate(session.date, i18n.language)} · {session.halaqa}
+          {t("popupAttendance.addingTo")}:{" "}
+          {formatDate(session.date, i18n.language)} · {session.halaqa}
         </p>
 
         {/* اختيار الطالب */}
@@ -64,7 +79,11 @@ export default function PopupAttendanceRecord({ session, onClose }: Props) {
             rounded-lg px-3 py-2
             disabled:bg-gray-100 dark:disabled:bg-dark-dark"
             value={selectedStudent}
-            onChange={(e) => setSelectedStudent(e.target.value === "" ? "" : Number(e.target.value))}
+            onChange={(e) =>
+              setSelectedStudent(
+                e.target.value === "" ? "" : Number(e.target.value),
+              )
+            }
           >
             <option value="">{t("popupAttendance.selectStudent")}</option>
             {available.map((student) => (
@@ -75,13 +94,17 @@ export default function PopupAttendanceRecord({ session, onClose }: Props) {
           </select>
 
           {available.length === 0 && (
-            <p className="mt-2 text-xs text-gray-400">{t("popupAttendance.noStudents")}</p>
+            <p className="mt-2 text-xs text-gray-400">
+              {t("popupAttendance.noStudents")}
+            </p>
           )}
         </div>
 
         {addStudent.isError && (
           <p className="mb-3 text-sm font-bold text-red-600 dark:text-red-400">
-            {addStudent.error instanceof Error ? addStudent.error.message : t("state.error")}
+            {addStudent.error instanceof Error
+              ? addStudent.error.message
+              : t("state.error")}
           </p>
         )}
 
@@ -101,11 +124,15 @@ export default function PopupAttendanceRecord({ session, onClose }: Props) {
 
           <button
             disabled={selectedStudent === "" || addStudent.isPending}
-            onClick={() => selectedStudent !== "" && addStudent.mutate(selectedStudent)}
+            onClick={() =>
+              selectedStudent !== "" && addStudent.mutate(selectedStudent)
+            }
             className="flex-1 bg-primary text-white rounded-lg py-2
                        disabled:opacity-50 hover:bg-primary-dark transition"
           >
-            {addStudent.isPending ? t("popupAttendance.saving") : t("common.add")}
+            {addStudent.isPending
+              ? t("popupAttendance.saving")
+              : t("common.add")}
           </button>
         </div>
       </div>
