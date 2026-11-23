@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Award, ChevronDown, Crown, Flag, RefreshCw, Shield, X } from "lucide-react";
+import {
+  Award,
+  ChevronDown,
+  Crown,
+  Flag,
+  RefreshCw,
+  Shield,
+  X,
+} from "lucide-react";
 import { useParams } from "react-router-dom";
 import {
   badgesService,
@@ -51,28 +59,34 @@ export default function TribesMobile() {
               <p className="flex items-center gap-2 text-[10px] font-black tracking-[0.16em] text-emerald-300 sm:text-xs">
                 <Flag size={14} /> ساحة التحدي
               </p>
-              <h1 className="mt-2 text-2xl font-black sm:text-3xl">لوحة القبائل</h1>
+              <h1 className="mt-2 text-2xl font-black sm:text-3xl">
+                لوحة القبائل
+              </h1>
               <p className="mt-1 text-xs text-white/45 sm:text-sm">
                 كل راية تقرّب قبيلتك من القمة.
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-3">
               <div className="hidden text-left sm:block">
-                <p className="text-[10px] font-bold text-white/40">القبائل المتنافسة</p>
-                <p className="mt-1 text-xl font-black tabular-nums">{numberFormat.format(tribes.length)}</p>
+                <p className="text-[10px] font-bold text-white/40">
+                  القبائل المتنافسة
+                </p>
+                <p className="mt-1 text-xl font-black tabular-nums">
+                  {numberFormat.format(tribes.length)}
+                </p>
               </div>
-            <button
-              type="button"
-              title="تحديث الآن"
-              onClick={() => {
-                void tribesQuery.refetch();
-                void logsQuery.refetch();
-                void badgesQuery.refetch();
-              }}
-              className="flex size-10 items-center justify-center rounded-lg border border-white/10 bg-white/3 text-white/65 transition hover:border-emerald-300/30 hover:bg-emerald-300/10 hover:text-emerald-200 active:scale-95"
-            >
-              <RefreshCw size={17} />
-            </button>
+              <button
+                type="button"
+                title="تحديث الآن"
+                onClick={() => {
+                  void tribesQuery.refetch();
+                  void logsQuery.refetch();
+                  void badgesQuery.refetch();
+                }}
+                className="flex size-10 items-center justify-center rounded-lg border border-white/10 bg-white/3 text-white/65 transition hover:border-emerald-300/30 hover:bg-emerald-300/10 hover:text-emerald-200 active:scale-95"
+              >
+                <RefreshCw size={17} />
+              </button>
             </div>
           </div>
         </header>
@@ -343,7 +357,10 @@ function TribeRankCard({
           ) : (
             <span
               className="size-3 rounded-full"
-              style={{ backgroundColor: accent, boxShadow: `0 0 12px ${accent}` }}
+              style={{
+                backgroundColor: accent,
+                boxShadow: `0 0 12px ${accent}`,
+              }}
             />
           )}
         </span>
@@ -359,7 +376,9 @@ function TribeRankCard({
             )}
           </div>
           <p className="mt-1 text-[10px] text-white/40">
-            {isLeader ? "يحافظ على القمة" : `المركز ${numberFormat.format(rank)}`}
+            {isLeader
+              ? "يحافظ على القمة"
+              : `المركز ${numberFormat.format(rank)}`}
           </p>
         </div>
         <div className="shrink-0 text-left">
