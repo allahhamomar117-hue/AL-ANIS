@@ -429,27 +429,31 @@ export default function TribesAdmin() {
                             </td>
                             <td className="px-5 py-3">
                               <div className="flex items-center gap-1">
-                              <button
-                                type="button"
-                                title={`تعديل ${tribe.name}`}
-                                onClick={() => startEditingTribe(tribe)}
-                                className={iconButtonClass}
-                              >
-                                <Pencil size={16} />
-                              </button>
-                              <button
-                                type="button"
-                                title={`حذف ${tribe.name}`}
-                                aria-label={`حذف ${tribe.name}`}
-                                onClick={() => {
-                                  if (window.confirm(`هل تريد حذف قبيلة «${tribe.name}»؟`)) {
-                                    removeTribe.mutate(tribe.id);
-                                  }
-                                }}
-                                className="inline-flex size-9 items-center justify-center rounded-md text-red-600 transition hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
-                              >
-                                <Trash2 size={16} />
-                              </button>
+                                <button
+                                  type="button"
+                                  title={`تعديل ${tribe.name}`}
+                                  onClick={() => startEditingTribe(tribe)}
+                                  className={iconButtonClass}
+                                >
+                                  <Pencil size={16} />
+                                </button>
+                                <button
+                                  type="button"
+                                  title={`حذف ${tribe.name}`}
+                                  aria-label={`حذف ${tribe.name}`}
+                                  onClick={() => {
+                                    if (
+                                      window.confirm(
+                                        `هل تريد حذف قبيلة «${tribe.name}»؟`,
+                                      )
+                                    ) {
+                                      removeTribe.mutate(tribe.id);
+                                    }
+                                  }}
+                                  className="inline-flex size-9 items-center justify-center rounded-md text-red-600 transition hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
                               </div>
                             </td>
                           </tr>
@@ -597,27 +601,31 @@ export default function TribesAdmin() {
                             </td>
                             <td className="px-5 py-3">
                               <div className="flex items-center gap-1">
-                              <button
-                                type="button"
-                                title={`تعديل ${badge.title}`}
-                                onClick={() => startEditingBadge(badge)}
-                                className={iconButtonClass}
-                              >
-                                <Pencil size={16} />
-                              </button>
-                              <button
-                                type="button"
-                                title={`حذف ${badge.title}`}
-                                aria-label={`حذف ${badge.title}`}
-                                onClick={() => {
-                                  if (window.confirm(`هل تريد حذف الدرع «${badge.title}»؟`)) {
-                                    removeBadge.mutate(badge.id);
-                                  }
-                                }}
-                                className="inline-flex size-9 items-center justify-center rounded-md text-red-600 transition hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
-                              >
-                                <Trash2 size={16} />
-                              </button>
+                                <button
+                                  type="button"
+                                  title={`تعديل ${badge.title}`}
+                                  onClick={() => startEditingBadge(badge)}
+                                  className={iconButtonClass}
+                                >
+                                  <Pencil size={16} />
+                                </button>
+                                <button
+                                  type="button"
+                                  title={`حذف ${badge.title}`}
+                                  aria-label={`حذف ${badge.title}`}
+                                  onClick={() => {
+                                    if (
+                                      window.confirm(
+                                        `هل تريد حذف الدرع «${badge.title}»؟`,
+                                      )
+                                    ) {
+                                      removeBadge.mutate(badge.id);
+                                    }
+                                  }}
+                                  className="inline-flex size-9 items-center justify-center rounded-md text-red-600 transition hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
                               </div>
                             </td>
                           </tr>

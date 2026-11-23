@@ -2,7 +2,11 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Award, ChevronDown, Flag, RefreshCw, Trophy, X } from "lucide-react";
 import { useParams } from "react-router-dom";
-import { badgesService, tribeLogsService, tribesService } from "@/services/tribesService";
+import {
+  badgesService,
+  tribeLogsService,
+  tribesService,
+} from "@/services/tribesService";
 import type { Badge } from "@/types/tribes";
 
 const numberFormat = new Intl.NumberFormat("ar");
@@ -120,10 +124,14 @@ export default function TribesMobile() {
             <h2 className="flex items-center gap-2 text-sm font-black">
               <Award size={17} className="text-amber-300" /> بنك الدروع
             </h2>
-            <span className="text-[10px] text-white/40">اضغط لمعرفة طريقة الحصول</span>
+            <span className="text-[10px] text-white/40">
+              اضغط لمعرفة طريقة الحصول
+            </span>
           </div>
           {badgesQuery.isPending ? (
-            <p className="py-5 text-center text-xs text-white/50">جارٍ تحميل الدروع...</p>
+            <p className="py-5 text-center text-xs text-white/50">
+              جارٍ تحميل الدروع...
+            </p>
           ) : badgesQuery.isError ? (
             <InlineError
               message="تعذر تحميل الدروع."
@@ -143,12 +151,18 @@ export default function TribesMobile() {
                   className="flex min-w-0 items-center gap-3 rounded-md border border-amber-300/15 bg-[#11171b] p-3 text-right transition hover:border-amber-300/50 hover:bg-[#171e23] focus-visible:outline-2 focus-visible:outline-amber-300"
                 >
                   {badge.icon_url ? (
-                    <img src={badge.icon_url} alt="" className="size-9 shrink-0 object-contain" />
+                    <img
+                      src={badge.icon_url}
+                      alt=""
+                      className="size-9 shrink-0 object-contain"
+                    />
                   ) : (
                     <Award size={28} className="shrink-0 text-amber-300" />
                   )}
                   <span className="min-w-0">
-                    <span className="block truncate text-xs font-bold">{badge.title}</span>
+                    <span className="block truncate text-xs font-bold">
+                      {badge.title}
+                    </span>
                     <span className="mt-1 block text-[10px] text-amber-200/70">
                       {numberFormat.format(badge.required_flags)} راية
                     </span>
@@ -274,9 +288,12 @@ export default function TribesMobile() {
               </p>
             </div>
             <div className="mt-5 border-t border-white/10 pt-4">
-              <h3 className="text-xs font-bold text-white/55">كيفية الحصول عليه</h3>
+              <h3 className="text-xs font-bold text-white/55">
+                كيفية الحصول عليه
+              </h3>
               <p className="mt-2 whitespace-pre-line text-sm leading-7 text-white/85">
-                {selectedBadge.description?.trim() || "لم تتم إضافة شرح لهذا الدرع بعد."}
+                {selectedBadge.description?.trim() ||
+                  "لم تتم إضافة شرح لهذا الدرع بعد."}
               </p>
             </div>
           </section>

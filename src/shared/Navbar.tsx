@@ -54,7 +54,11 @@ function ViewerNavbar() {
             lang === "ar" ? "rtl" : "ltr"
           }`}
       >
-        <img src={logo} alt="logo" className="h-11 w-auto shrink-0 object-contain md:h-14" />
+        <img
+          src={logo}
+          alt="logo"
+          className="h-11 w-auto shrink-0 object-contain md:h-14"
+        />
         <div className="flex-1" />
         {me && (
           <span className="hidden text-sm font-semibold text-gray-700 dark:text-gray-200 sm:inline">
@@ -201,7 +205,7 @@ function StaffNavbar() {
       !(isSupervisor && SUPERVISOR_HIDDEN.has(item.key)) &&
       !(item.adminOnly && !canManageUsers) &&
       !(item.superAdminOnly && !isSuperAdmin) &&
-      !(item.intensiveOnly && !hasIntensive)
+      !(item.intensiveOnly && !hasIntensive),
   );
 
   const isActive = (path: string) => location.pathname.includes(path);
@@ -328,8 +332,12 @@ function StaffNavbar() {
         </div>
       </nav>
 
-      {quickPoints && <QuickPointsModal onClose={() => setQuickPoints(false)} />}
-      {dailyReport && <DailyReportModal onClose={() => setDailyReport(false)} />}
+      {quickPoints && (
+        <QuickPointsModal onClose={() => setQuickPoints(false)} />
+      )}
+      {dailyReport && (
+        <DailyReportModal onClose={() => setDailyReport(false)} />
+      )}
     </>
   );
 }
