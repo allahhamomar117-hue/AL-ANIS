@@ -34,6 +34,7 @@ const emptyBadge: BadgeFields = {
   title: "",
   required_flags: 1,
   icon_url: "",
+  description: "",
 };
 
 const tabs: { id: Tab; label: string; icon: typeof Flag }[] = [
@@ -184,6 +185,7 @@ export default function TribesAdmin() {
       title: badge.title,
       required_flags: badge.required_flags,
       icon_url: badge.icon_url ?? "",
+      description: badge.description ?? "",
     });
   };
 
@@ -470,6 +472,21 @@ export default function TribesAdmin() {
                     dir="ltr"
                   />
                 </Field>
+                <Field label="شرح ومهام الدرع" htmlFor="badge-description">
+                  <textarea
+                    id="badge-description"
+                    rows={4}
+                    value={badgeForm.description ?? ""}
+                    onChange={(event) =>
+                      setBadgeForm({
+                        ...badgeForm,
+                        description: event.target.value,
+                      })
+                    }
+                    className={`${inputClass} resize-y`}
+                    placeholder="اشرح للطلاب طريقة الحصول على هذا الدرع..."
+                  />
+                </Field>
                 <FormActions
                   editing={Boolean(editingBadge)}
                   saving={saveBadge.isPending}
@@ -507,8 +524,13 @@ export default function TribesAdmin() {
                       <tbody className="divide-y divide-slate-100 dark:divide-gray-700">
                         {badges.map((badge) => (
                           <tr key={badge.id}>
-                            <td className="px-5 py-3 font-bold">
-                              {badge.title}
+                            <td className="px-5 py-3">
+                              <p className="font-bold">{badge.title}</p>
+                              {badge.description && (
+                                <p className="mt-1 max-w-sm whitespace-pre-line text-xs font-normal text-slate-500 dark:text-gray-400">
+                                  {badge.description}
+                                </p>
+                              )}
                             </td>
                             <td className="px-5 py-3 tabular-nums">
                               {badge.required_flags}

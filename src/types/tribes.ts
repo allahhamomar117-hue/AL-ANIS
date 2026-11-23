@@ -11,6 +11,7 @@ export interface Badge {
   title: string;
   required_flags: number;
   icon_url: string | null;
+  description?: string | null;
 }
 
 export interface TribeBadge {

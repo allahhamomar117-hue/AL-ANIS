@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, Flag, RefreshCw, Trophy } from "lucide-react";
+import { Award, ChevronDown, Flag, RefreshCw, Trophy, X } from "lucide-react";
 import { useParams } from "react-router-dom";
-import { tribeLogsService, tribesService } from "@/services/tribesService";
+import { badgesService, tribeLogsService, tribesService } from "@/services/tribesService";
+import type { Badge } from "@/types/tribes";
 
 const numberFormat = new Intl.NumberFormat("ar");
 
 export default function TribesMobile() {
   const { lang = "ar" } = useParams();
   const [feedOpen, setFeedOpen] = useState(true);
+  const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
   const tribesQuery = useQuery({
     queryKey: ["tribes-public", "tribes"],
     queryFn: () => tribesService.list(),
@@ -19,11 +21,17 @@ export default function TribesMobile() {
     queryFn: () => tribeLogsService.list(),
     refetchInterval: 8_000,
   });
+  const badgesQuery = useQuery({
+    queryKey: ["tribes-public", "badges"],
+    queryFn: () => badgesService.list(),
+    refetchInterval: 30_000,
+  });
 
   const tribes = [...(tribesQuery.data ?? [])].sort(
     (first, second) => second.score - first.score,
   );
   const logs = logsQuery.data ?? [];
+  const badges = badgesQuery.data ?? [];
 
   return (
     <main
@@ -48,6 +56,7 @@ export default function TribesMobile() {
               onClick={() => {
                 void tribesQuery.refetch();
                 void logsQuery.refetch();
+                void badgesQuery.refetch();
               }}
               className="flex size-10 items-center justify-center rounded-md border border-white/10 text-white/65 transition hover:bg-white/10 hover:text-white"
             >
@@ -103,6 +112,50 @@ export default function TribesMobile() {
                 </div>
               </article>
             ))
+          )}
+        </section>
+
+        <section className="mt-7">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-sm font-black">
+              <Award size={17} className="text-amber-300" /> بنك الدروع
+            </h2>
+            <span className="text-[10px] text-white/40">اضغط لمعرفة طريقة الحصول</span>
+          </div>
+          {badgesQuery.isPending ? (
+            <p className="py-5 text-center text-xs text-white/50">جارٍ تحميل الدروع...</p>
+          ) : badgesQuery.isError ? (
+            <InlineError
+              message="تعذر تحميل الدروع."
+              onRetry={() => void badgesQuery.refetch()}
+            />
+          ) : badges.length === 0 ? (
+            <p className="rounded-md border border-white/10 bg-[#11171b] px-4 py-5 text-center text-xs text-white/50">
+              لا توجد دروع متاحة بعد.
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {badges.map((badge) => (
+                <button
+                  key={badge.id}
+                  type="button"
+                  onClick={() => setSelectedBadge(badge)}
+                  className="flex min-w-0 items-center gap-3 rounded-md border border-amber-300/15 bg-[#11171b] p-3 text-right transition hover:border-amber-300/50 hover:bg-[#171e23] focus-visible:outline-2 focus-visible:outline-amber-300"
+                >
+                  {badge.icon_url ? (
+                    <img src={badge.icon_url} alt="" className="size-9 shrink-0 object-contain" />
+                  ) : (
+                    <Award size={28} className="shrink-0 text-amber-300" />
+                  )}
+                  <span className="min-w-0">
+                    <span className="block truncate text-xs font-bold">{badge.title}</span>
+                    <span className="mt-1 block text-[10px] text-amber-200/70">
+                      {numberFormat.format(badge.required_flags)} راية
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
           )}
         </section>
 
@@ -186,6 +239,49 @@ export default function TribesMobile() {
           )}
         </section>
       </div>
+
+      {selectedBadge && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="tribe-badge-title"
+            className="relative w-full max-w-sm rounded-lg border border-amber-300/25 bg-[#11171b] p-5 text-white shadow-2xl shadow-black/50"
+          >
+            <button
+              type="button"
+              aria-label="إغلاق تفاصيل الدرع"
+              onClick={() => setSelectedBadge(null)}
+              className="absolute left-3 top-3 flex size-9 items-center justify-center rounded-md text-white/60 transition hover:bg-white/10 hover:text-white"
+            >
+              <X size={19} />
+            </button>
+            <div className="flex flex-col items-center pt-3 text-center">
+              {selectedBadge.icon_url ? (
+                <img
+                  src={selectedBadge.icon_url}
+                  alt=""
+                  className="mb-4 size-20 object-contain"
+                />
+              ) : (
+                <Award size={64} className="mb-4 text-amber-300" />
+              )}
+              <h2 id="tribe-badge-title" className="text-xl font-black">
+                {selectedBadge.title}
+              </h2>
+              <p className="mt-2 rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-xs font-bold text-amber-200">
+                {numberFormat.format(selectedBadge.required_flags)} راية مطلوبة
+              </p>
+            </div>
+            <div className="mt-5 border-t border-white/10 pt-4">
+              <h3 className="text-xs font-bold text-white/55">كيفية الحصول عليه</h3>
+              <p className="mt-2 whitespace-pre-line text-sm leading-7 text-white/85">
+                {selectedBadge.description?.trim() || "لم تتم إضافة شرح لهذا الدرع بعد."}
+              </p>
+            </div>
+          </section>
+        </div>
+      )}
     </main>
   );
 }
