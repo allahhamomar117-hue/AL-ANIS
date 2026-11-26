@@ -1,9 +1,17 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { FaTrophy } from "react-icons/fa";
-import { Maximize, Minimize2, Monitor, Moon, Sun } from "lucide-react";
+import {
+  ArrowLeft,
+  Maximize,
+  Minimize2,
+  Monitor,
+  Moon,
+  Sun,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { reportsApi } from "../../lib/api";
 import { qk } from "../../lib/api/queryKeys";
 import { DEPARTMENTS, type Department } from "../../lib/api/types";
@@ -11,6 +19,7 @@ import { useAuth } from "../../context/authContext";
 import { EmptyState, ErrorState, LoadingState } from "../../shared/QueryState";
 import Avatar from "../../shared/Avatar";
 import Podium from "./Podium";
+import { isDemoMode, setDemoRole } from "../../demo/demoStore";
 
 type LeaderboardType = "points" | "attendance" | "recitation";
 type LeaderboardResult = Awaited<ReturnType<typeof reportsApi.leaderboard>>;
@@ -49,11 +58,17 @@ const delay = (i: number) => ({ animationDelay: `${i * 60}ms` });
 const Reports: React.FC = () => {
   const { t } = useTranslation();
   const { isTeacher, isViewer, halaqaName, departments } = useAuth();
+  const { lang = "ar" } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const demoTvRequested =
+    isDemoMode() && new URLSearchParams(location.search).get("tv") === "1";
 
   const [type, setType] = useState<LeaderboardType>("points");
   const [department, setDepartment] = useState<Department | "">("");
   // حساب شاشة العرض يُفتح على وضع التلفاز مباشرةً — هذه وظيفته الوحيدة
-  const [tvMode, setTvMode] = useState(isViewer);
+  const [tvMode, setTvMode] = useState(isViewer || demoTvRequested);
   const [tvTheme, setTvTheme] = useState<TvTheme>(readTvTheme);
 
   const toggleTvTheme = () => {
@@ -155,10 +170,11 @@ const Reports: React.FC = () => {
 
   const exitTv = useCallback(() => {
     setTvMode(false);
+    if (demoTvRequested) navigate(`/${lang}`, { replace: true });
     if (document.fullscreenElement)
       void document.exitFullscreen().catch(() => {});
     fullscreenWithTv.current = false;
-  }, []);
+  }, [demoTvRequested, lang, navigate]);
 
   const requestFullscreen = () =>
     document.documentElement.requestFullscreen?.() ??
@@ -166,6 +182,11 @@ const Reports: React.FC = () => {
 
   const enterTv = () => {
     setTvMode(true);
+    if (isDemoMode()) {
+      setDemoRole("ADMIN");
+      queryClient.clear();
+      navigate(`/${lang}/reports?tv=1`);
+    }
     // ملء الشاشة تحسين لا شرط: الطبقة نفسها تغطّي الشاشة كلها لو رفضه المتصفح
     requestFullscreen()
       .then(() => (fullscreenWithTv.current = true))
@@ -363,6 +384,16 @@ const Reports: React.FC = () => {
           )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          {isDemoMode() && (
+            <button
+              type="button"
+              onClick={exitTv}
+              className="fixed bottom-4 right-4 z-101 inline-flex items-center gap-2 rounded-full border border-white/25 bg-slate-950/65 px-3 py-2 text-xs font-bold text-white shadow-lg backdrop-blur-md transition hover:bg-slate-950/85"
+            >
+              <ArrowLeft className="size-3.5" />
+              {t("demo.returnToDashboard")}
+            </button>
+          )}
           <ThemeSwitch
             dark={tvTheme === "dark"}
             onToggle={toggleTvTheme}

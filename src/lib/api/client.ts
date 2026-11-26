@@ -11,6 +11,9 @@
  */
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/+$/, "");
 
+import { handleDemoApiRequest } from "../../demo/demoApi";
+import { isDemoMode } from "../../demo/demoStore";
+
 /**
  * رابط ملف يقدّمه الخادم (صور الطلاب) بعد ضمّ أصل الـ API إليه.
  *
@@ -65,6 +68,10 @@ async function request<T>(
   path: string,
   options: { body?: unknown; query?: Query } = {}
 ): Promise<T> {
+  if (isDemoMode()) {
+    return await handleDemoApiRequest(method as "GET" | "POST" | "PUT" | "PATCH" | "DELETE", path, options.body, options.query) as T;
+  }
+
   const token = getToken();
 
   const res = await fetch(`${API_BASE_URL}/api${withQuery(path, options.query)}`, {

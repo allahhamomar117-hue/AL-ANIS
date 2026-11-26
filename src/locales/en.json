@@ -432,7 +432,18 @@
     "password": "Password",
     "submit": "Sign in",
     "failed": "Sign-in failed",
-    "missingFields": "Enter username and password"
+    "missingFields": "Enter username and password",
+    "switchLanguage": "Switch to Arabic"
+  },
+  "demo": {
+    "bannerLabel": "Demo mode banner",
+    "notice": "Demo version with sample data. Changes never reach the live system.",
+    "loginButton": "Try Live Demo",
+    "or": "or",
+    "tv": "TV Display",
+    "reset": "Reset demo data",
+    "exit": "Exit",
+    "returnToDashboard": "Back to dashboard"
   },
   "copyright": "All rights reserved",
   "state": {

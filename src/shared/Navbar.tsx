@@ -26,6 +26,7 @@ import DailyReportModal from "./DailyReportModal";
 import { useAuth } from "../context/authContext";
 import { halaqatApi } from "../lib/api";
 import { useIntensiveHalaqat } from "../lib/api/useIntensiveHalaqat";
+import { isDemoMode } from "../demo/demoStore";
 
 /**
  * تبويبات خارج دور المشرف التشغيلي: سجلّات الطلاب، ولوحة الصدارة
@@ -47,11 +48,12 @@ function ViewerNavbar() {
   const { t } = useTranslation();
   const { user: me, logout } = useAuth();
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const demoMode = isDemoMode();
 
   return (
     <>
       <div
-        className={`fixed top-0 left-0 z-50 flex h-16 w-full items-center gap-3 border-b border-gray-200
+        className={`fixed ${demoMode ? "top-12" : "top-0"} left-0 z-50 flex h-16 w-full items-center gap-3 border-b border-gray-200
           bg-white/95 px-3 shadow-sm backdrop-blur-md dark:border-gray-700 dark:bg-dark md:px-8 ${
             lang === "ar" ? "rtl" : "ltr"
           }`}
@@ -111,6 +113,7 @@ function StaffNavbar() {
   const { t } = useTranslation();
 
   const isArabic = lang === "ar";
+  const demoMode = isDemoMode();
   const {
     user: me,
     isSupervisor,
@@ -230,7 +233,8 @@ function StaffNavbar() {
         item.tribeAwardOnly &&
         !((isSuperAdmin && canManageUsers) || canTeacherAward)
       ) &&
-      !(item.intensiveOnly && !hasIntensive),
+      !(item.intensiveOnly && !hasIntensive) &&
+      !(demoMode && item.key === "tribes-admin"),
   );
 
   const isActive = (path: string) => location.pathname.includes(path);
@@ -239,8 +243,8 @@ function StaffNavbar() {
     <>
       {/* ===== الشريط العلوي ===== */}
       <div
-        className={`fixed top-0 left-0 w-full h-16 z-50 flex items-center gap-2
-          px-3 md:px-8 bg-white/95 dark:bg-dark backdrop-blur-md
+        className={`fixed ${demoMode ? "top-12" : "top-0"} left-0 z-50 flex h-16 w-full items-center gap-1.5 px-2
+          bg-white/95 backdrop-blur-md dark:bg-dark lg:px-3 xl:gap-2 xl:px-4 2xl:px-8
           border-b border-gray-200 dark:border-gray-700 shadow-sm ${
             isArabic ? "rtl" : "ltr"
           }`}
@@ -254,15 +258,15 @@ function StaffNavbar() {
         />
 
         {/* ===== التنقّل — على الشاشات المتوسطة فأكبر فقط ===== */}
-        <div className="hidden md:block flex-1 mx-4 overflow-x-auto scrollbar-hide">
-          <div className="flex items-center gap-2 w-max">
+        <div className="hidden min-w-0 flex-1 overflow-x-auto scrollbar-hide md:mx-0 md:block xl:mx-1 2xl:mx-4">
+          <div className="flex w-max flex-nowrap items-center gap-0.5 xl:gap-1">
             {navItems.map((item) => {
               const Icon = item.icon;
               return (
                 <button
                   key={item.key}
                   onClick={() => navigate(`/${lang}/${item.path}`)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition cursor-pointer
+                  className={`flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-1.5 py-2 text-xs font-semibold transition cursor-pointer xl:gap-1.5 xl:px-2 xl:text-sm 2xl:px-3
                     ${
                       isActive(item.path)
                         ? "bg-emerald-100 text-emerald-700 border-b-2 border-emerald-500 dark:bg-emerald-900/40 dark:text-emerald-300"
@@ -285,7 +289,8 @@ function StaffNavbar() {
           onClick={() => setQuickPoints(true)}
           title={t("quickPoints.title")}
           aria-label={t("quickPoints.button")}
-          className="flex h-11 shrink-0 items-center gap-2 rounded-xl bg-emerald-500 px-3 font-bold
+          className="flex h-11 shrink-0 items-center gap-1.5 rounded-xl bg-emerald-500 px-2 text-xs font-bold
+            lg:px-2.5 lg:text-sm xl:gap-2 xl:px-3
             text-white shadow-md transition hover:bg-emerald-600 hover:shadow-lg cursor-pointer active:scale-95"
         >
           <FaStar className="text-lg" />
@@ -297,7 +302,8 @@ function StaffNavbar() {
           onClick={() => setDailyReport(true)}
           title={t("dailyReport.title")}
           aria-label={t("dailyReport.button")}
-          className="flex h-11 shrink-0 items-center gap-2 rounded-xl bg-sky-500 px-3 font-bold
+          className="flex h-11 shrink-0 items-center gap-1.5 rounded-xl bg-sky-500 px-2 text-xs font-bold
+            lg:px-2.5 lg:text-sm xl:gap-2 xl:px-3
             text-white shadow-md transition hover:bg-sky-600 hover:shadow-lg cursor-pointer active:scale-95"
         >
           <FaFileAlt className="text-lg" />
@@ -316,7 +322,7 @@ function StaffNavbar() {
         >
           <FaUserCircle className="w-8 h-8 text-gray-500 dark:text-gray-400" />
           {me && (
-            <span className="hidden text-sm font-semibold text-gray-700 dark:text-gray-200 xl:inline">
+            <span className="hidden text-sm font-semibold text-gray-700 dark:text-gray-200 2xl:inline">
               {me.name}
               <span className="ms-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">
                 {t(`roles.${me.role}`)}

@@ -6,6 +6,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ScrollToTop from "./ScrollToTop";
 import { AuthProvider } from "./context/AuthProvider";
 import { ToastProvider } from "./shared/toast/ToastProvider";
+import { initializeDemoFromUrl } from "./demo/demoStore";
+
+initializeDemoFromUrl();
 
 const queryClient = new QueryClient({
   defaultOptions: {

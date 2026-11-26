@@ -1,4 +1,5 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { useSyncExternalStore, type ReactNode } from "react";
+import { Routes, Route, Navigate, useParams } from "react-router-dom";
 import MainLayout from "./MainLayout";
 import Dashboard from "./pages/Dashboard/Dashboard";
 import AttendancePage from "./pages/Attendance/AttendancePage";
@@ -27,6 +28,21 @@ import LoginPage from "./pages/logIn/LoginPage";
 import TribesAdmin from "./pages/TribesAdmin/TribesAdmin";
 import TribesTV from "./pages/TribesTV/TribesTV";
 import TribesMobile from "./pages/TribesMobile/TribesMobile";
+import { getDemoSnapshot, subscribeDemoStore } from "./demo/demoStore";
+
+function DemoRestrictedRoute({ children }: { children: ReactNode }) {
+  const demo = useSyncExternalStore(
+    subscribeDemoStore,
+    getDemoSnapshot,
+    getDemoSnapshot,
+  );
+  const { lang = "ar" } = useParams();
+  return demo.isDemoMode ? (
+    <Navigate to={`/${lang}`} replace />
+  ) : (
+    <>{children}</>
+  );
+}
 
 const MainRoutes = () => {
   return (
@@ -35,8 +51,23 @@ const MainRoutes = () => {
 
       {/* ===== مسارات عامة (بلا حماية) ===== */}
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/:lang/tribes-tv" element={<TribesTV />} />
-      <Route path="/:lang/tribes-mobile" element={<TribesMobile />} />
+      <Route path="/:lang/login" element={<LoginPage />} />
+      <Route
+        path="/:lang/tribes-tv"
+        element={
+          <DemoRestrictedRoute>
+            <TribesTV />
+          </DemoRestrictedRoute>
+        }
+      />
+      <Route
+        path="/:lang/tribes-mobile"
+        element={
+          <DemoRestrictedRoute>
+            <TribesMobile />
+          </DemoRestrictedRoute>
+        }
+      />
 
       {/* المسارات القديمة تُحوَّل إلى الجديدة حفاظاً على الروابط المحفوظة */}
       <Route path="/LogInEnter" element={<Navigate to="/login" replace />} />
@@ -121,7 +152,14 @@ const MainRoutes = () => {
         />
         <Route path="settings" element={<SettingsPage />} />
 
-        <Route path="admin/tribes" element={<TribesAdmin />} />
+        <Route
+          path="admin/tribes"
+          element={
+            <DemoRestrictedRoute>
+              <TribesAdmin />
+            </DemoRestrictedRoute>
+          }
+        />
 
         {/* إدارة الحلقات: للمدير وحده — منها تُشتقّ كل قوائم اختيار الحلقات */}
         <Route

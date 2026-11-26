@@ -1,9 +1,20 @@
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, authApi, getToken, setToken } from "../lib/api";
 import { qk } from "../lib/api/queryKeys";
 import { AuthContext, type AuthContextValue } from "./authContext";
-
+import {
+  exitDemoMode,
+  getDemoSnapshot,
+  getDemoUser,
+  subscribeDemoStore,
+} from "../demo/demoStore";
 
 /**
  * مزوّد حالة المصادقة: يقرأ الجلسة من /auth/me ويوفّر الدور والحلقة
@@ -11,13 +22,19 @@ import { AuthContext, type AuthContextValue } from "./authContext";
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
+  const demo = useSyncExternalStore(
+    subscribeDemoStore,
+    getDemoSnapshot,
+    getDemoSnapshot,
+  );
 
   /**
    * الرمز كحالة React ليكون تفاعلياً، وهو جزء من مفتاح الاستعلام:
    * تغيّره يبدأ استعلاماً جديداً، فلا يتسرّب خطأ 401 من جلسة سابقة
    * إلى الجلسة الجديدة (كان يسبب ارتداداً إلى /login بعد الدخول).
    */
-  const [token, setTokenState] = useState<string | null>(() => getToken());
+  const [, setTokenRevision] = useState(0);
+  const token = demo.isDemoMode ? null : getToken();
 
   const session = useQuery({
     queryKey: [...qk.auth.me, token],
@@ -25,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { user } = await authApi.me();
       return user;
     },
-    enabled: Boolean(token),
+    enabled: Boolean(token) && !demo.isDemoMode,
     retry: false,
     staleTime: 5 * 60_000,
   });
@@ -36,20 +53,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // إعادة جلب لـ /auth/me بلا رمز، فيفشل 401 ويُفسد الجلسة الجديدة.
       const { user } = await authApi.login(username, password);
       queryClient.clear();
-      setTokenState(getToken());
+      setTokenRevision((revision) => revision + 1);
       return user;
     },
-    [queryClient]
+    [queryClient],
   );
 
   const logout = useCallback(() => {
+    exitDemoMode();
     setToken(null);
-    setTokenState(null);
+    setTokenRevision((revision) => revision + 1);
     localStorage.removeItem("canResend");
     queryClient.clear();
   }, [queryClient]);
 
-  const user = session.data ?? null;
+  const user = demo.isDemoMode ? getDemoUser() : (session.data ?? null);
   const { isPending, isError, error, refetch } = session;
 
   const value = useMemo<AuthContextValue>(
@@ -67,7 +85,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
        */
       // وحساب العرض كالإداريين: نطاقه أقسامه (scopedByDepartments على الخادم)
       departments:
-        user?.role === "ADMIN" || user?.role === "SUPERVISOR" || user?.role === "VIEWER"
+        user?.role === "ADMIN" ||
+        user?.role === "SUPERVISOR" ||
+        user?.role === "VIEWER"
           ? user.departments
           : [],
       isSuperAdmin:
@@ -79,13 +99,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isViewer: user?.role === "VIEWER",
       canManageStudents: user?.role === "ADMIN",
       canManageUsers: user?.role === "ADMIN",
-      isLoading: Boolean(token) && isPending,
-      error: token ? (isError ? error : null) : new ApiError(401, "يجب تسجيل الدخول"),
+      isLoading: !demo.isDemoMode && Boolean(token) && isPending,
+      error: demo.isDemoMode
+        ? null
+        : token
+          ? isError
+            ? error
+            : null
+          : new ApiError(401, "يجب تسجيل الدخول"),
       login,
       logout,
       refresh: () => void refetch(),
     }),
-    [user, token, isPending, isError, error, refetch, login, logout]
+    [
+      user,
+      token,
+      demo.isDemoMode,
+      isPending,
+      isError,
+      error,
+      refetch,
+      login,
+      logout,
+    ],
   );
 
   return <AuthContext value={value}>{children}</AuthContext>;

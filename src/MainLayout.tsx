@@ -1,15 +1,27 @@
 import { Navigate, Outlet, useLocation, useParams } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import Navbar from "./shared/Navbar";
 import { useAuth } from "./context/authContext";
+import DemoBanner from "./demo/DemoBanner";
+import { getDemoSnapshot, subscribeDemoStore } from "./demo/demoStore";
 
 /** الهيكل العام للصفحات المحمية. الحارس مطبَّق على مستوى المسار في MainRoutes. */
 const MainLayout = () => {
   const { lang } = useParams(); // ar | en
   const { i18n } = useTranslation();
   const { isViewer } = useAuth();
+  const demo = useSyncExternalStore(
+    subscribeDemoStore,
+    getDemoSnapshot,
+    getDemoSnapshot,
+  );
   const location = useLocation();
+  const isDemoTv =
+    demo.isDemoMode &&
+    location.pathname.endsWith("/reports") &&
+    new URLSearchParams(location.search).get("tv") === "1";
+  const showDemoBanner = demo.isDemoMode && !isDemoTv;
 
   useEffect(() => {
     if (lang && i18n.language !== lang) {
@@ -30,7 +42,10 @@ const MainLayout = () => {
   }
 
   return (
-    <div className="app-bg flex flex-col min-h-screen">
+    <div
+      className={`app-bg flex min-h-screen flex-col ${showDemoBanner ? "pt-12" : ""}`}
+    >
+      {showDemoBanner && <DemoBanner />}
       <Navbar />
 
       {/* pb للجوال: مساحة لشريط التنقّل السفلي الثابت */}

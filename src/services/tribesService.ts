@@ -8,6 +8,8 @@ import type {
   TribeStudent,
 } from "@/types/tribes";
 import { studentsApi } from "@/lib/api";
+import { handleDemoTableRequest } from "@/demo/demoApi";
+import { isDemoMode } from "@/demo/demoStore";
 
 type NewRecord<T extends { id: number }> = Omit<T, "id">;
 type RecordChanges<T extends { id: number }> = Partial<NewRecord<T>>;
@@ -22,6 +24,10 @@ async function request<T>(
   body?: unknown,
   prefer = "return=representation",
 ): Promise<T> {
+  if (isDemoMode()) {
+    return handleDemoTableRequest<T>(table, method, params, body);
+  }
+
   if (!supabaseUrl || !supabaseKey) {
     throw new Error("Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.");
   }
